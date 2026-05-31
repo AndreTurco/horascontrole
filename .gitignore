@@ -1,0 +1,14 @@
+# Ignorar dependências do Node.js (serão instaladas em nuvem)
+node_modules/
+
+# Ignorar pastas de backup locais
+backups/
+
+# Ignorar arquivos temporários de rascunho
+scratch/
+temp/
+*.log
+
+# Arquivos de configuração pessoal
+.env
+.gemini/
