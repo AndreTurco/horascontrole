@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Controle Premium & Finanças</title>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Aplicativo premium de controle de horas integrado ao Excel com gestão financeira e aba de investimentos automáticos.">
+    <meta name="theme-color" content="#0b0f19">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/color/192/000000/clock.png">
+    
+    <!-- Google Fonts: Outfit, Plus Jakarta Sans, Space Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js for Animated Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- Top Header Navigation -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-rocket"></i>
+                </div>
+                <h1>Controle Premium</h1>
+            </div>
+            
+            <div class="header-actions">
+                <!-- Sync status badge -->
+                <div id="sync-status" class="sync-badge connected" title="Sincronizado com a planilha">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Online</span>
+                </div>
+                
+                <!-- Botão de Backup Físico Imediato -->
+                <button id="btn-backup-top" class="theme-btn" title="Fazer Backup e Baixar Planilha">
+                    <i class="fa-solid fa-file-shield" style="color: var(--accent-green);"></i>
+                </button>
+                
+                <!-- Dark / Light theme toggle -->
+                <button id="theme-toggle" class="theme-btn" aria-label="Alternar tema">
+                    <i class="fa-solid fa-sun"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Area -->
+        <main class="app-main">
+            <!-- Sidebar Navigation (Desktop) / Bottom Nav (Mobile) -->
+            <nav class="app-nav">
+                <button class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-tab="history" id="nav-history">
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <span>Histórico</span>
+                </button>
+                <button class="nav-item" data-tab="finance" id="nav-finance">
+                    <i class="fa-solid fa-sack-dollar"></i>
+                    <span>Finanças</span>
+                </button>
+                <button class="nav-item" data-tab="investments" id="nav-investments">
+                    <i class="fa-solid fa-piggy-bank"></i>
+                    <span>Investimentos</span>
+                </button>
+                <button class="nav-item" data-tab="commutes" id="nav-commutes">
+                    <i class="fa-solid fa-route"></i>
+                    <span>Trajetos e Alarmes</span>
+                </button>
+                <button class="nav-item" data-tab="settings" id="nav-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Ajustes</span>
+                </button>
+            </nav>
+
+            <!-- Tabs Content -->
+            <div class="tab-container">
+                
+                <!-- Tab: Dashboard -->
+                <section id="tab-dashboard" class="tab-content active">
+                    <!-- Quick Clock-In Widget -->
+                    <div class="glass-card hero-widget">
+                        <div class="hero-left">
+                            <span class="date-badge" id="today-date-text">Carregando dia...</span>
+                            <div class="clock-display">
+                                <span id="current-time">00:00:00</span>
+                            </div>
+                            <span class="shift-status" id="current-shift-status">Buscando status...</span>
+                        </div>
+                        <div class="hero-right">
+                            <button id="quick-clock-btn" class="btn btn-primary clock-btn ripple">
+                                <i class="fa-solid fa-fingerprint"></i>
+                                <span id="clock-btn-text">Bater Ponto</span>
+                            </button>
+                            <div class="today-logs">
+                                <div class="log-slot" id="slot-e1">
+                                    <span class="slot-label">Entrada 1</span>
+                                    <span class="slot-time" id="val-e1">--:--</span>
+                                </div>
+                                <div class="log-slot" id="slot-s1">
+                                    <span class="slot-label">Saída 1</span>
+                                    <span class="slot-time" id="val-s1">--:--</span>
+                                </div>
+                                <div class="log-slot" id="slot-e2">
+                                    <span class="slot-label">Entrada 2</span>
+                                    <span class="slot-time" id="val-e2">--:--</span>
+                                </div>
+                                <div class="log-slot" id="slot-s2">
+                                    <span class="slot-label">Saída 2</span>
+                                    <span class="slot-time" id="val-s2">--:--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Grid (Ganhos Globais e Pendentes inclusos) -->
+                    <div class="metrics-grid">
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-blue">
+                                <i class="fa-solid fa-coins"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Ganhos do Mês</span>
+                                <h3 class="metric-value color-blue" id="kpi-month-earnings">R$ 0,00</h3>
+                                <span class="metric-subtitle" id="kpi-month-hours">00h 00m</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-green">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Total Geral (Jan a Dez)</span>
+                                <h3 class="metric-value color-green" id="kpi-global-earnings">R$ 0,00</h3>
+                                <span class="metric-subtitle">Faturamento 2026</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-yellow">
+                                <i class="fa-solid fa-hand-holding-dollar"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">A Receber (Pendentes)</span>
+                                <h3 class="metric-value color-yellow" id="kpi-pending-earnings">R$ 0,00</h3>
+                                <span class="metric-subtitle">Saldo não quitado</span>
+                            </div>
+                        </div>
+
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-cyan">
+                                <i class="fa-solid fa-piggy-bank"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Reserva 20% Recebida</span>
+                                <h3 class="metric-value color-cyan" id="kpi-global-invest-auto">R$ 0,00</h3>
+                                <span class="metric-subtitle" id="kpi-global-invest-auto-subtitle">Total recebido desde Jan</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-purple">
+                                <i class="fa-solid fa-hourglass-half"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Horas da Semana</span>
+                                <h3 class="metric-value" id="kpi-week-hours">00h 00m</h3>
+                                <span class="metric-subtitle">Semana atual</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clickable Hours and Earnings Graph Container -->
+                    <div class="glass-card chart-container-card">
+                        <h3 class="chart-title"><i class="fa-solid fa-chart-column color-blue"></i> Rendimento e Carga Horária Diária (Mês Atual)</h3>
+                        <div class="canvas-wrapper-earnings">
+                            <canvas id="chart-earnings-hours"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Goal / Progress Card -->
+                    <div class="glass-card goal-card">
+                        <div class="goal-header">
+                            <span class="goal-title"><i class="fa-solid fa-bullseye"></i> Progresso da Meta Mensal</span>
+                            <span class="goal-percentage" id="goal-percent-text">0%</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="goal-progress-fill" style="width: 0%"></div>
+                        </div>
+                        <div class="goal-footer">
+                            <span id="goal-min-text">Meta: R$ 1.500,00</span>
+                            <span id="goal-current-text" class="color-green">Ganhos: R$ 0,00</span>
+                        </div>
+                    </div>
+
+                    <!-- Heatmap de Produtividade (Estilo GitHub) -->
+                    <div class="glass-card productivity-heatmap-card mt-3">
+                        <h3 class="chart-title"><i class="fa-solid fa-fire color-yellow"></i> Heatmap de Produtividade Diária</h3>
+                        <p class="settings-desc">Intensidade de carga horária por dia do mês ativo (Estilo Github Contributions).</p>
+                        <div class="heatmap-grid-month" id="productivity-heatmap-grid">
+                            <!-- Injected dynamically -->
+                        </div>
+                        <div class="heatmap-legend mt-2">
+                            <span>Menos ativo</span>
+                            <div class="legend-cell level-0" title="Sem horas registradas"></div>
+                            <div class="legend-cell level-1" title="Menos de 4 horas"></div>
+                            <div class="legend-cell level-2" title="Entre 4 e 8 horas"></div>
+                            <div class="legend-cell level-3" title="Mais de 8 horas"></div>
+                            <span>Mais ativo</span>
+                        </div>
+                    </div>
+
+                    <!-- Projeção & Radar de Carga Horária -->
+                    <div class="glass-card productivity-projection-card mt-3">
+                        <div class="projection-grid">
+                            <div class="projection-info-box">
+                                <h3 class="chart-title"><i class="fa-solid fa-clock-rotate-left color-purple"></i> Projeção de Faturamento Fim de Mês</h3>
+                                <p class="settings-desc">Estimativa de receita do mês baseada no seu ritmo semanal atual médio.</p>
+                                <div class="forecast-value-box mt-3">
+                                    <span class="forecast-lbl">Projetado Fim de Mês:</span>
+                                    <strong class="forecast-val color-purple" id="val-forecast-earnings">R$ 0,00</strong>
+                                </div>
+                                <p class="text-muted mt-2" style="font-size: 0.75rem;" id="lbl-forecast-desc">Média semanal: R$ 0,00/semana</p>
+                            </div>
+                            <div class="radar-chart-box">
+                                <h3 class="chart-title"><i class="fa-solid fa-chart-radar color-cyan"></i> Carga Horária por Dia da Semana</h3>
+                                <div class="canvas-wrapper-radar">
+                                    <canvas id="chart-radar-productivity"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab: History / Points -->
+                <section id="tab-history" class="tab-content">
+                    <div class="glass-card history-controls">
+                        <div class="filters-row">
+                            <div class="filter-group-flat">
+                                <label for="filter-month">Referência de Mês</label>
+                                <select id="filter-month" class="form-control-flat">
+                                    <option value="0">Janeiro</option>
+                                    <option value="1">Fevereiro</option>
+                                    <option value="2">Março</option>
+                                    <option value="3">Abril</option>
+                                    <option value="4">Maio</option>
+                                    <option value="5">Junho</option>
+                                    <option value="6">Julho</option>
+                                    <option value="7">Agosto</option>
+                                    <option value="8">Setembro</option>
+                                    <option value="9">Outubro</option>
+                                    <option value="10">Novembro</option>
+                                    <option value="11">Dezembro</option>
+                                </select>
+                            </div>
+                            <div class="filter-group-flat flex-grow">
+                                <label for="search-notes">Pesquisa Rápida</label>
+                                <div class="search-container">
+                                    <input type="text" id="search-notes" class="form-control-flat" placeholder="Buscar nota, horário ou status...">
+                                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                </div>
+                            </div>
+                            <div class="filter-group-flat flex-end">
+                                <div class="view-mode-btns">
+                                    <button id="btn-view-list" class="btn btn-secondary active"><i class="fa-solid fa-list"></i> Lista</button>
+                                    <button id="btn-view-calendar" class="btn btn-secondary"><i class="fa-solid fa-calendar"></i> Grade</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- History View: List -->
+                    <div id="history-list-view" class="history-container">
+                        <div class="glass-card history-card-list">
+                            <div class="table-responsive">
+                                <table class="history-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Dia Semana</th>
+                                            <th>Turno 1</th>
+                                            <th>Turno 2</th>
+                                            <th>Total Horas</th>
+                                            <th>Ganhos (R$)</th>
+                                            <th>Status</th>
+                                            <th>Notas</th>
+                                            <th class="actions-col">Editar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="history-table-body">
+                                        <tr>
+                                            <td colspan="9" class="text-center">Carregando registros...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- History View: Calendar Grid -->
+                    <div id="history-calendar-view" class="calendar-grid-container hidden">
+                        <div class="glass-card calendar-card">
+                            <div class="calendar-header-row">
+                                <span class="calendar-weekday-lbl">Dom</span>
+                                <span class="calendar-weekday-lbl">Seg</span>
+                                <span class="calendar-weekday-lbl">Ter</span>
+                                <span class="calendar-weekday-lbl">Qua</span>
+                                <span class="calendar-weekday-lbl">Qui</span>
+                                <span class="calendar-weekday-lbl">Sex</span>
+                                <span class="calendar-weekday-lbl">Sáb</span>
+                            </div>
+                            <div class="calendar-days-grid" id="calendar-days-grid-body">
+                                <!-- Days injected dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab: Gestão Financeira (Tema Mobills Aprimorado - Sem CC e Sem Aline) -->
+                <section id="tab-finance" class="tab-content">
+                    <!-- Financial Summary Cards -->
+                    <div class="metrics-grid">
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-green">
+                                <i class="fa-solid fa-arrow-trend-up"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Receitas Totais</span>
+                                <h3 class="metric-value text-success" id="fin-month-income">R$ 0,00</h3>
+                                <span class="metric-subtitle" id="fin-month-income-subtitle">Horas + Extras</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-purple">
+                                <i class="fa-solid fa-arrow-trend-down"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Despesas Totais</span>
+                                <h3 class="metric-value text-danger" id="fin-month-expenses">R$ 0,00</h3>
+                                <span class="metric-subtitle" id="fin-month-expenses-subtitle">Fixas + Var. + Cartão</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-yellow">
+                                <i class="fa-solid fa-piggy-bank"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Enviado p/ Investimentos (20%)</span>
+                                <h3 class="metric-value color-yellow" id="fin-month-invested">R$ 0,00</h3>
+                                <span class="metric-subtitle">Retido de pontos pagos</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-blue">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Saldo Líquido</span>
+                                <h3 class="metric-value" id="fin-month-net">R$ 0,00</h3>
+                                <span class="metric-subtitle">Balanço do mês</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Period Calculator & Payment Quitter (Moved to Finance Tab) -->
+                    <div class="glass-card billing-period-card">
+                        <h3 class="card-section-title"><i class="fa-solid fa-calendar-check color-yellow"></i> Filtros Específicos e Quitações de Lote</h3>
+                        <p class="card-section-desc">Selecione datas do ano para recalcular rendimentos ou quitar saldos pendentes.</p>
+                        
+                        <div class="billing-grid">
+                            <!-- Custom Date Range -->
+                            <div class="billing-calc-box">
+                                <span class="billing-box-title">Filtrar por Intervalo de Datas</span>
+                                <div class="date-range-fields mt-2">
+                                    <div class="form-group-flat">
+                                        <label for="range-start">De</label>
+                                        <input type="date" id="range-start" class="form-control-flat">
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="range-end">Até</label>
+                                        <input type="date" id="range-end" class="form-control-flat">
+                                    </div>
+                                </div>
+                                <div class="billing-results mt-2" id="range-results-box">
+                                    <div class="range-res-item">
+                                        <span>Horas do Período:</span>
+                                        <strong id="range-res-hours">00h 00m</strong>
+                                    </div>
+                                    <div class="range-res-item">
+                                        <span>Ganhos no Período:</span>
+                                        <strong id="range-res-earnings" class="color-green">R$ 0,00</strong>
+                                    </div>
+                                </div>
+                                <button id="btn-apply-range" class="btn btn-secondary btn-xs mt-3 w-100">Aplicar Filtro Personalizado</button>
+                                <button id="btn-clear-range" class="btn btn-xs mt-2 w-100 hidden">Limpar Filtro</button>
+                            </div>
+
+                            <!-- Alert & Quit batch payment up to Date -->
+                            <div class="billing-quit-box">
+                                <span class="billing-box-title">Notificação e Recebimento de Lote</span>
+                                <div class="form-group-flat mt-2">
+                                    <label for="pay-cutoff-date">Calcular ganhos pendentes até:</label>
+                                    <input type="date" id="pay-cutoff-date" class="form-control-flat">
+                                </div>
+                                
+                                <div class="payment-alert-box alert-warning mt-2">
+                                    <div class="alert-content">
+                                        <i class="fa-solid fa-bell alert-bell"></i>
+                                        <div class="alert-info-text">
+                                            <span class="alert-title">Total pendente até esta data:</span>
+                                            <span class="alert-value" id="cutoff-pending-val">R$ 0,00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button id="btn-quit-batch" class="btn btn-primary btn-xs mt-3 w-100 ripple" disabled>
+                                    <i class="fa-solid fa-check-double"></i> Marcar Lote como Pago
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="finance-workspace-grid">
+                        <!-- Left Side: Launch Form & Ganhos vs Despesas Bar Chart -->
+                        <div class="finance-left-pane">
+                            <!-- Quick Launch Card -->
+                            <div class="glass-card launch-card">
+                                <h3 class="card-section-title" id="fin-form-title"><i class="fa-solid fa-file-invoice-dollar color-purple"></i> Lançar Transação Financeira</h3>
+                                <form id="finance-entry-form" class="launch-form mt-2">
+                                    <input type="hidden" id="fin-entry-id">
+                                    
+                                    <div class="form-row-grid">
+                                        <div class="form-group-flat">
+                                            <label for="fin-date">Data</label>
+                                            <input type="date" id="fin-date" class="form-control-flat" required>
+                                        </div>
+                                        <div class="form-group-flat">
+                                            <label for="fin-type">Tipo</label>
+                                            <select id="fin-type" class="form-control-flat" required>
+                                                <option value="Despesa Fixa">Despesa Fixa</option>
+                                                <option value="Despesa Variável">Despesa Variável</option>
+                                                <option value="Gastos Cartão">Gasto no Cartão</option>
+                                                <option value="Ganho Extra">Ganho Extra (Por Fora)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group-flat">
+                                        <label for="fin-desc">Descrição</label>
+                                        <input type="text" id="fin-desc" class="form-control-flat" placeholder="Mercado, Lente Óculos, Extra Design..." required>
+                                    </div>
+                                    
+                                    <div class="form-row-grid">
+                                        <div class="form-group-flat">
+                                            <label for="fin-amount">Valor (R$)</label>
+                                            <input type="number" id="fin-amount" class="form-control-flat" placeholder="0.00" step="0.01" min="0" required>
+                                        </div>
+                                        <div class="form-group-flat" id="group-category">
+                                            <label for="fin-category">Categoria</label>
+                                            <select id="fin-category" class="form-control-flat">
+                                                <option value="Moradia">Moradia</option>
+                                                <option value="Alimentação">Alimentação</option>
+                                                <option value="Transporte">Transporte</option>
+                                                <option value="Lazer">Lazer</option>
+                                                <option value="Serviços">Serviços</option>
+                                                <option value="Cartão Crédito">Cartão de Crédito</option>
+                                                <option value="Trabalho">Trabalho</option>
+                                                <option value="Outros">Outros</option>
+                                                <option value="NEW_CATEGORY">+ Criar Categoria Customizada...</option>
+                                            </select>
+                                            <!-- Hidden dynamic category field -->
+                                            <input type="text" id="fin-custom-category" class="form-control-flat mt-2 hidden" placeholder="Digite o nome da nova categoria...">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex-between mt-3">
+                                        <button type="button" class="btn btn-secondary hidden" id="btn-cancel-fin-edit">Cancelar Edição</button>
+                                        <button type="submit" class="btn btn-primary ripple flex-grow" id="btn-submit-finance">
+                                            <i class="fa-solid fa-plus"></i> Salvar Lançamento
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Financial Comparison Chart (NOVO! Substitui o Cartão de Crédito) -->
+                            <div class="glass-card comparison-chart-card">
+                                <h3 class="chart-title"><i class="fa-solid fa-chart-column color-green"></i> Comparativo Mensal (Entradas vs Saídas)</h3>
+                                <div class="canvas-wrapper-doughnut">
+                                    <canvas id="chart-finance-comparison"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Saúde Financeira (Score Mobills) -->
+                            <div class="glass-card settings-card mt-3">
+                                <h3 class="settings-title"><i class="fa-solid fa-heart-pulse color-red"></i> Saúde Financeira (Score Mobills)</h3>
+                                <p class="settings-desc">Seu desempenho de economia e controle de gastos no mês.</p>
+                                <div class="score-display-box mt-2">
+                                    <div class="score-circle">
+                                        <span class="score-val" id="val-finance-score">100</span>
+                                        <span class="score-lbl">Pontos</span>
+                                    </div>
+                                    <div class="score-desc-text">
+                                        <strong id="lbl-score-status">Excelente</strong>
+                                        <p class="text-muted" style="font-size: 0.75rem;" id="lbl-score-advice">Você está retendo mais de 30% do seu faturamento! Continue assim.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Lançamentos Recorrentes -->
+                            <div class="glass-card settings-card mt-3">
+                                <h3 class="settings-title"><i class="fa-solid fa-rotate color-blue"></i> Lançamentos Recorrentes e Parcelados</h3>
+                                <p class="settings-desc">Lançamento rápido de despesas fixas recorrentes ou parcelamentos cadastrados.</p>
+                                <div class="recurring-list mt-2" id="finance-recurring-list">
+                                    <div class="recurring-item">
+                                        <div class="rec-info">
+                                            <strong>Assinatura Streaming</strong>
+                                            <span>R$ 49,90 • Despesa Variável (Lazer)</span>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary btn-xs" onclick="launchRecurring('Assinatura Streaming', 49.90, 'Despesa Variável', 'Lazer')">Lançar</button>
+                                    </div>
+                                    <div class="recurring-item">
+                                        <div class="rec-info">
+                                            <strong>Plano Internet Wifi</strong>
+                                            <span>R$ 99,90 • Despesa Fixa (Serviços)</span>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary btn-xs" onclick="launchRecurring('Plano Internet Wifi', 99.90, 'Despesa Fixa', 'Serviços')">Lançar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Side: Category Breakdown & Financial History -->
+                        <div class="finance-right-pane">
+                            <!-- Expense Distribution Chart -->
+                            <div class="glass-card doughnut-container-card">
+                                <h3 class="chart-title"><i class="fa-solid fa-chart-pie color-purple"></i> Distribuição por Categorias</h3>
+                                <div class="canvas-wrapper-doughnut">
+                                    <canvas id="chart-finance-doughnut"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Orçamentos e Limites de Despesas (Budget Tracking) -->
+                            <div class="glass-card settings-card mt-3">
+                                <h3 class="settings-title"><i class="fa-solid fa-scale-unbalanced-flip color-yellow"></i> Controle de Limites (Orçamentos)</h3>
+                                <p class="settings-desc">Limites máximos de gastos planejados para o mês.</p>
+                                <div class="budget-list mt-2" id="finance-budget-list">
+                                    <!-- Injected dynamically based on category expenses -->
+                                    <div class="budget-item">
+                                        <div class="budget-info">
+                                            <span>Moradia</span>
+                                            <span class="budget-lbl" id="budget-val-Moradia">R$ 0,00 / R$ 600,00</span>
+                                        </div>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar-fill color-blue" id="budget-fill-Moradia" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="budget-item">
+                                        <div class="budget-info">
+                                            <span>Alimentação</span>
+                                            <span class="budget-lbl" id="budget-val-Alimentação">R$ 0,00 / R$ 400,00</span>
+                                        </div>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar-fill color-green" id="budget-fill-Alimentação" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="budget-item">
+                                        <div class="budget-info">
+                                            <span>Outros</span>
+                                            <span class="budget-lbl" id="budget-val-Outros">R$ 0,00 / R$ 300,00</span>
+                                        </div>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar-fill color-purple" id="budget-fill-Outros" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Financial Extract -->
+                            <div class="glass-card extract-card">
+                                <h3 class="chart-title"><i class="fa-solid fa-receipt color-blue"></i> Extrato Financeiro Completo</h3>
+                                <div class="extract-list" id="finance-extract-list">
+                                    <div class="text-center text-muted p-4">Carregando extrato...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab: Investimentos (NOVO! Aportes manuais e automáticos de 20%) -->
+                <section id="tab-investments" class="tab-content">
+                    <div class="metrics-grid">
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-green">
+                                <i class="fa-solid fa-vault"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Patrimônio Acumulado</span>
+                                <h3 class="metric-value color-green" id="kpi-invest-total">R$ 0,00</h3>
+                                <span class="metric-subtitle">Total investido desde Jan</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-yellow">
+                                <i class="fa-solid fa-circle-dollar-to-slot"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Investido no Mês</span>
+                                <h3 class="metric-value color-yellow" id="kpi-invest-month">R$ 0,00</h3>
+                                <span class="metric-subtitle">Total de aportes do mês</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-blue">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Aportes Automáticos (20%)</span>
+                                <h3 class="metric-value" id="kpi-invest-auto">0 aportes</h3>
+                                <span class="metric-subtitle">Gerados de pontos pagos</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-purple">
+                                <i class="fa-solid fa-user-gear"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Aportes Manuais</span>
+                                <h3 class="metric-value color-purple" id="kpi-invest-manual">0 aportes</h3>
+                                <span class="metric-subtitle">Lançados manualmente</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="finance-workspace-grid">
+                        <!-- Left Side: Launch Manual Investment -->
+                        <div class="finance-left-pane">
+                            <div class="glass-card launch-card">
+                                <h3 class="card-section-title" id="invest-form-title"><i class="fa-solid fa-wallet color-green"></i> Registrar Aporte Manual</h3>
+                                <form id="invest-entry-form" class="launch-form mt-2">
+                                    <input type="hidden" id="invest-entry-id">
+                                    
+                                    <div class="form-group-flat">
+                                        <label for="invest-date">Data do Aporte</label>
+                                        <input type="date" id="invest-date" class="form-control-flat" required>
+                                    </div>
+                                    
+                                    <div class="form-group-flat">
+                                        <label for="invest-origin">Origem / Destino</label>
+                                        <input type="text" id="invest-origin" class="form-control-flat" placeholder="Tesouro Direto, CDB Banco, Poupança..." required>
+                                    </div>
+                                    
+                                    <div class="form-group-flat">
+                                        <label for="invest-amount">Valor do Aporte (R$)</label>
+                                        <input type="number" id="invest-amount" class="form-control-flat" placeholder="0.00" step="0.01" min="0" required>
+                                    </div>
+                                    
+                                    <div class="flex-between mt-3">
+                                        <button type="button" class="btn btn-secondary hidden" id="btn-cancel-invest-edit">Cancelar Edição</button>
+                                        <button type="submit" class="btn btn-primary ripple flex-grow" id="btn-submit-invest">
+                                            <i class="fa-solid fa-piggy-bank"></i> Salvar Aporte
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Calculadora de Juros Compostos -->
+                            <div class="glass-card launch-card mt-3">
+                                <h3 class="card-section-title"><i class="fa-solid fa-calculator color-green"></i> Calculadora de Juros Compostos</h3>
+                                <p class="settings-desc">Simule e projete a evolução dos seus aportes e rendimentos acumulados.</p>
+                                
+                                <form id="calc-compound-form" class="launch-form mt-2" onsubmit="event.preventDefault(); calculateCompoundInterest();">
+                                    <div class="form-group-flat">
+                                        <label for="calc-initial">Capital Inicial (R$)</label>
+                                        <div style="display: flex; gap: 0.5rem; width: 100%;">
+                                            <input type="number" id="calc-initial" class="form-control-flat flex-grow" placeholder="0.00" step="0.01" min="0">
+                                            <button type="button" id="btn-calc-pull-patrimony" class="btn btn-secondary btn-xs" style="white-space: nowrap;"><i class="fa-solid fa-cloud-arrow-up"></i> Puxar Atual</button>
+                                        </div>
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="calc-monthly">Aporte Mensal (R$)</label>
+                                        <input type="number" id="calc-monthly" class="form-control-flat" placeholder="0.00" step="0.01" min="0">
+                                    </div>
+                                    <div class="form-row-grid">
+                                        <div class="form-group-flat">
+                                            <label for="calc-rate">Taxa de Juros (%)</label>
+                                            <input type="number" id="calc-rate" class="form-control-flat" placeholder="0.00" step="0.01" min="0">
+                                        </div>
+                                        <div class="form-group-flat">
+                                            <label for="calc-rate-type">Frequência Taxa</label>
+                                            <select id="calc-rate-type" class="form-control-flat">
+                                                <option value="yearly">Ao Ano (% a.a.)</option>
+                                                <option value="monthly">Ao Mês (% a.m.)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row-grid">
+                                        <div class="form-group-flat">
+                                            <label for="calc-period">Período</label>
+                                            <input type="number" id="calc-period" class="form-control-flat" placeholder="0" step="1" min="0">
+                                        </div>
+                                        <div class="form-group-flat">
+                                            <label for="calc-period-type">Frequência Período</label>
+                                            <select id="calc-period-type" class="form-control-flat">
+                                                <option value="years">Anos</option>
+                                                <option value="months">Meses</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary ripple w-100 mt-2"><i class="fa-solid fa-chart-line"></i> Calcular Projeção</button>
+                                </form>
+
+                                <!-- Resultados Simulação -->
+                                <div class="live-preview-box mt-3" style="display: flex; flex-direction: column; gap: 0.5rem; background: rgba(0, 0, 0, 0.2);">
+                                    <div class="preview-item">
+                                        <span class="preview-label">Total Investido:</span>
+                                        <strong id="res-calc-invested" class="preview-val">R$ 0,00</strong>
+                                    </div>
+                                    <div class="preview-item">
+                                        <span class="preview-label">Total em Juros:</span>
+                                        <strong id="res-calc-interest" class="preview-val color-green">R$ 0,00</strong>
+                                    </div>
+                                    <div class="preview-item">
+                                        <span class="preview-label">Montante Final:</span>
+                                        <strong id="res-calc-total" class="preview-val">R$ 0,00</strong>
+                                    </div>
+                                </div>
+
+                                <!-- Tabela de Projeção Anual -->
+                                <div class="table-responsive mt-3" style="max-height: 180px; overflow-y: auto;">
+                                    <table class="history-table" style="font-size: 0.75rem;">
+                                        <thead>
+                                            <tr>
+                                                <th>Período</th>
+                                                <th>Total Investido</th>
+                                                <th>Juros</th>
+                                                <th>Total Acumulado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="calc-projection-table-body">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">Aguardando simulação...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Side: Extract of Investments -->
+                        <div class="finance-right-pane">
+                            <div class="glass-card extract-card">
+                                <h3 class="chart-title"><i class="fa-solid fa-list-check color-green"></i> Extrato de Investimentos</h3>
+                                <div class="extract-list" id="invest-extract-list">
+                                    <div class="text-center text-muted p-4">Carregando aportes...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab: Commutes and Alarms -->
+                <section id="tab-commutes" class="tab-content">
+                    <div class="metrics-grid">
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-blue">
+                                <i class="fa-solid fa-arrows-left-right"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Tempo de Trajeto Médio</span>
+                                <h3 class="metric-value" id="kpi-commute-avg">00h 00m</h3>
+                                <span class="metric-subtitle">Média diária de trânsito</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-purple">
+                                <i class="fa-solid fa-house-laptop"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Média Fora de Casa</span>
+                                <h3 class="metric-value color-purple" id="kpi-outside-avg">00h 00m</h3>
+                                <span class="metric-subtitle">Tempo médio de ausência</span>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card metric-card">
+                            <div class="metric-icon color-green">
+                                <i class="fa-solid fa-calendar-day"></i>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-title">Viagens Registradas</span>
+                                <h3 class="metric-value color-green" id="kpi-commute-count">0 dias</h3>
+                                <span class="metric-subtitle">Mês em referência</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Commute Alarms Configuration -->
+                    <div class="glass-card alarms-card">
+                        <h3 class="card-section-title"><i class="fa-solid fa-bell color-yellow"></i> Alarmes de Deslocamento Diário</h3>
+                        <p class="card-section-desc">Defina os horários ideais de saída e de previsão de chegada em casa.</p>
+                        
+                        <div class="alarms-config-row mt-2">
+                            <div class="form-group-flat">
+                                <label for="alarm-departure"><i class="fa-solid fa-door-open color-blue"></i> Saída de Casa</label>
+                                <input type="time" id="alarm-departure" class="form-control-flat" value="07:15">
+                            </div>
+                            <div class="form-group-flat">
+                                <label for="alarm-arrival"><i class="fa-solid fa-house-user color-green"></i> Previsão de Retorno</label>
+                                <input type="time" id="alarm-arrival" class="form-control-flat" value="18:30">
+                            </div>
+                            <button id="btn-save-alarms" class="btn btn-primary btn-inline ripple">Salvar Configuração</button>
+                        </div>
+                        
+                        <div class="wifi-auto-box mt-3">
+                            <div class="wifi-auto-info">
+                                <i class="fa-solid fa-wifi wifi-icon color-green"></i>
+                                <div class="wifi-desc">
+                                    <strong>Registro de Chegada por Wi-Fi Automático</strong>
+                                    <p>Configure o seu celular Android para registrar o horário de chegada em casa na planilha Excel assim que ele se conectar ao Wi-Fi residencial!</p>
+                                </div>
+                            </div>
+                            <button id="btn-open-macrodroid-guide" class="btn btn-secondary btn-xs"><i class="fa-solid fa-circle-info"></i> Guia MacroDroid</button>
+                        </div>
+                    </div>
+
+                    <!-- Lembretes de Ponto Silenciosos -->
+                    <div class="glass-card alarms-card mt-3">
+                        <h3 class="card-section-title"><i class="fa-solid fa-bell color-purple"></i> Lembretes de Ponto (Notificações Silenciosas)</h3>
+                        <p class="card-section-desc">Ative lembretes discretos e sem som no celular ou computador nos horários de bater o ponto.</p>
+                        
+                        <div class="notification-toggle-box mt-2">
+                            <div class="toggle-info">
+                                <span id="notification-status-text" class="status-disabled" style="font-weight: 700; color: var(--text-secondary);">Status: Desativado</span>
+                                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">
+                                    Escala: Seg a Sex às 18:00 e 21:00. Sábado às 08:30, 12:00, 13:30 e 21:00.
+                                </p>
+                            </div>
+                            <button id="btn-toggle-notifications" class="btn btn-primary btn-inline ripple">Ativar Lembretes</button>
+                        </div>
+                    </div>
+
+                    <!-- Daily Commute Trajectory Table -->
+                    <div class="glass-card trajectory-card-list">
+                        <h3 class="chart-title"><i class="fa-solid fa-route color-blue"></i> Histórico de Trajetos e Tempo Fora de Casa</h3>
+                        <div class="table-responsive">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Saída de Casa</th>
+                                        <th>Entrada 1</th>
+                                        <th>Saída 2/1</th>
+                                        <th>Chegada Casa</th>
+                                        <th><i class="fa-solid fa-arrows-left-right"></i> Tempo Trajeto</th>
+                                        <th><i class="fa-solid fa-house-laptop"></i> Tempo Fora</th>
+                                        <th class="actions-col">Editar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="commute-table-body">
+                                    <tr>
+                                        <td colspan="8" class="text-center">Sem trajetos cadastrados para este mês.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab: Settings / Charts -->
+                <section id="tab-settings" class="tab-content">
+                    <!-- Global Hourly Rate Card -->
+                    <div class="glass-card settings-card">
+                        <h3 class="settings-title"><i class="fa-solid fa-coins color-yellow"></i> Configuração de Taxa Horária Global</h3>
+                        <p class="settings-desc">Esta taxa é aplicada a todos os dias da planilha, a menos que você defina uma taxa customizada específica para um dia no histórico.</p>
+                        
+                        <div class="form-row">
+                            <div class="form-group-flat flex-grow">
+                                <label for="input-global-rate">Valor da Hora Padrão (R$)</label>
+                                <div class="input-icon-wrapper">
+                                    <span class="input-addon">R$</span>
+                                    <input type="number" id="input-global-rate" class="form-control-flat" placeholder="12.00" step="0.50" min="0">
+                                </div>
+                            </div>
+                            <button id="btn-save-global-rate" class="btn btn-primary btn-inline ripple">
+                                <i class="fa-solid fa-floppy-disk"></i> Salvar Taxa
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Meta e Alertas -->
+                    <div class="glass-card settings-card">
+                        <h3 class="settings-title"><i class="fa-solid fa-bullseye color-purple"></i> Definição de Metas Pessoais</h3>
+                        <p class="settings-desc">Configure sua meta mensal de faturamento para acompanhar o progresso no Dashboard.</p>
+                        
+                        <div class="form-row">
+                            <div class="form-group-flat flex-grow">
+                                <label for="input-goal-earnings">Meta de Ganhos Mensais (R$)</label>
+                                <div class="input-icon-wrapper">
+                                    <span class="input-addon">R$</span>
+                                    <input type="number" id="input-goal-earnings" class="form-control-flat" placeholder="1500.00" value="1500" step="100">
+                                </div>
+                            </div>
+                            <button id="btn-save-goal" class="btn btn-primary btn-inline ripple">
+                                <i class="fa-solid fa-check"></i> Aplicar Meta
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Backup and spreadsheet info -->
+                    <div class="glass-card settings-card">
+                        <h3 class="settings-title"><i class="fa-solid fa-shield-halved color-green"></i> Segurança e Planilha</h3>
+                        <div class="backup-info-box">
+                            <p><i class="fa-solid fa-circle-check color-green"></i> <strong>Backup Automático Ativo</strong>: Cópias completas salvas em `backups/` a cada novo ponto ou alteração.</p>
+                            <p><i class="fa-solid fa-file-excel color-blue"></i> <strong>Planilha Localizada em</strong>: <br><code class="file-path">c:\Users\aline\OneDrive\Documentos\Projetos\controle de Horas\Controle_de_Horas_Trabalho-1.xlsx</code></p>
+                        </div>
+                        <div class="mt-3">
+                            <button id="btn-download-backup" class="btn btn-secondary ripple" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+                                <i class="fa-solid fa-file-arrow-down"></i> Baixar Planilha & Criar Backup Manual
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Export Section -->
+                    <div class="glass-card settings-card">
+                        <h3 class="settings-title"><i class="fa-solid fa-file-arrow-down"></i> Exportar Relatórios</h3>
+                        <p class="settings-desc">Gere documentos limpos e estruturados do mês selecionado para impressão ou arquivamento.</p>
+                        <div class="export-actions">
+                            <button id="btn-export-pdf" class="btn btn-secondary ripple">
+                                <i class="fa-solid fa-file-pdf text-danger"></i> Imprimir / Exportar PDF
+                            </button>
+                            <button id="btn-export-csv" class="btn btn-secondary ripple">
+                                <i class="fa-solid fa-file-csv text-success"></i> Exportar para CSV
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Day Modal -->
+    <div id="edit-modal" class="modal-overlay hidden">
+        <div class="glass-card modal-container">
+            <header class="modal-header">
+                <h3 class="modal-title" id="modal-date-title">Editar Registro</h3>
+                <button class="modal-close-btn" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </header>
+            
+            <form id="edit-day-form" class="modal-body">
+                <input type="hidden" id="edit-row-num">
+                
+                <!-- Date and Weekday -->
+                <div class="form-row-grid">
+                    <div class="form-group-flat">
+                        <label for="edit-date">Data Real</label>
+                        <input type="date" id="edit-date" class="form-control-flat">
+                    </div>
+                    <div class="form-group-flat">
+                        <label for="edit-weekday">Dia da Semana</label>
+                        <select id="edit-weekday" class="form-control-flat">
+                            <option value="Segunda-feira">Segunda-feira</option>
+                            <option value="Terça-feira">Terça-feira</option>
+                            <option value="Quarta-feira">Quarta-feira</option>
+                            <option value="Quinta-feira">Quinta-feira</option>
+                            <option value="Sexta-feira">Sexta-feira</option>
+                            <option value="Sábado">Sábado</option>
+                            <option value="Domingo">Domingo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Shift 1 Inputs -->
+                <div class="modal-section-title"><i class="fa-solid fa-business-time"></i> Primeiro Turno</div>
+                <div class="form-row-grid">
+                    <div class="form-group-flat">
+                        <label for="edit-e1">Entrada 1</label>
+                        <input type="time" id="edit-e1" class="form-control-flat">
+                    </div>
+                    <div class="form-group-flat">
+                        <label for="edit-s1">Saída 1</label>
+                        <input type="time" id="edit-s1" class="form-control-flat">
+                    </div>
+                </div>
+
+                <!-- Shift 2 Inputs -->
+                <div class="modal-section-title"><i class="fa-solid fa-mug-hot"></i> Segundo Turno</div>
+                <div class="form-row-grid">
+                    <div class="form-group-flat">
+                        <label for="edit-e2">Entrada 2</label>
+                        <input type="time" id="edit-e2" class="form-control-flat">
+                    </div>
+                    <div class="form-group-flat">
+                        <label for="edit-s2">Saída 2</label>
+                        <input type="time" id="edit-s2" class="form-control-flat">
+                    </div>
+                </div>
+
+                <!-- Commute Real Logs -->
+                <div class="modal-section-title"><i class="fa-solid fa-route"></i> Horários de Deslocamento</div>
+                <div class="form-row-grid">
+                    <div class="form-group-flat">
+                        <label for="edit-saida-casa">Saída de Casa</label>
+                        <input type="time" id="edit-saida-casa" class="form-control-flat">
+                    </div>
+                    <div class="form-group-flat">
+                        <label for="edit-chegada-casa">Chegada em Casa</label>
+                        <input type="time" id="edit-chegada-casa" class="form-control-flat">
+                    </div>
+                </div>
+
+                <!-- Status de Pagamento e Notas -->
+                <div class="modal-section-title"><i class="fa-solid fa-circle-info"></i> Ajustes e Status</div>
+                <div class="form-row-grid">
+                    <div class="form-group-flat">
+                        <label for="edit-day-rate">Taxa Horária (R$)</label>
+                        <input type="number" id="edit-day-rate" class="form-control-flat" placeholder="Padrão global" step="0.10" min="0">
+                    </div>
+                    <div class="form-group-flat">
+                        <label for="edit-earnings">Ganhos do Dia (R$)</label>
+                        <input type="number" id="edit-earnings" class="form-control-flat" placeholder="Autocalcular" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-row-grid mt-2">
+                    <div class="form-group-flat">
+                        <label for="edit-pay-status">Status do Pagamento</label>
+                        <select id="edit-pay-status" class="form-control-flat">
+                            <option value="Pendente">Pendente</option>
+                            <option value="Pago">Pago</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group-flat mt-2">
+                    <label for="edit-obs">Observações / Notas</label>
+                    <input type="text" id="edit-obs" class="form-control-flat" placeholder="Feriado, Viagem..." maxlength="100">
+                </div>
+
+                <!-- Live recalculation preview inside modal! -->
+                <div class="live-preview-box">
+                    <div class="preview-item">
+                        <span class="preview-label">Horas Totais:</span>
+                        <strong id="preview-hours" class="preview-val">00h 00m</strong>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Rendimento:</span>
+                        <strong id="preview-earnings" class="preview-val color-green">R$ 0,00</strong>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Tempo Trajeto:</span>
+                        <strong id="preview-commute" class="preview-val">00h 00m</strong>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Tempo Ausente:</span>
+                        <strong id="preview-outside" class="preview-val">00h 00m</strong>
+                    </div>
+                </div>
+
+                <!-- Quick pre-fill buttons -->
+                <div class="quick-fill-container">
+                    <span class="quick-fill-label">Preenchimento Rápido:</span>
+                    <div class="quick-fill-btns">
+                        <button type="button" class="btn btn-secondary btn-xs" id="btn-quick-standard">8h Padrão</button>
+                        <button type="button" class="btn btn-secondary btn-xs" id="btn-quick-clear">Limpar Tudo</button>
+                    </div>
+                </div>
+            </form>
+            
+            <footer class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btn-cancel-edit">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-save-edit">Salvar Alterações</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- MacroDroid Automation Guide Modal -->
+    <div id="macrodroid-modal" class="modal-overlay hidden">
+        <div class="glass-card modal-container">
+            <header class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-wifi color-green"></i> Automação Wi-Fi com MacroDroid</h3>
+                <button class="modal-close-btn" id="btn-close-macrodroid-modal"><i class="fa-solid fa-xmark"></i></button>
+            </header>
+            <div class="modal-body md-guide-body">
+                <p>O MacroDroid é um aplicativo gratuito de automação para Android que permite enviar chamadas HTTP em segundo plano no momento exato em que certas condições acontecem.</p>
+                
+                <div class="guide-steps-list">
+                    <div class="guide-step-item">
+                        <span class="step-num">1</span>
+                        <div class="step-desc">
+                            <strong>Instale o MacroDroid:</strong>
+                            <p>Baixe gratuitamente o aplicativo <strong>MacroDroid</strong> na Google Play Store.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="guide-step-item">
+                        <span class="step-num">2</span>
+                        <div class="step-desc">
+                            <strong>Crie uma Nova Macro:</strong>
+                            <p>Abra o app, clique em <strong>"Adicionar Macro"</strong> e defina o nome como <em>"Chegada em Casa"</em>.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="guide-step-item">
+                        <span class="step-num">3</span>
+                        <div class="step-desc">
+                            <strong>Gatilho (Vermelho):</strong>
+                            <p>Clique em <strong>+</strong> nos Gatilhos -> selecione <strong>Conectividade</strong> -> <strong>Mudança de estado do Wifi</strong> -> escolha <strong>Conectado à rede</strong> -> e selecione o <strong>SSID do Wi-Fi da sua casa</strong>.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="guide-step-item">
+                        <span class="step-num">4</span>
+                        <div class="step-desc">
+                            <strong>Ação (Azul):</strong>
+                            <p>Clique em <strong>+</strong> nas Ações -> selecione <strong>Aplicativo</strong> -> <strong>Abrir URL/Requisição HTTP</strong> -> configure como <strong>HTTP POST</strong> e preencha o campo de URL exatamente com:</p>
+                            <code class="file-path" id="macrodroid-api-url">http://192.168.2.123:3080/api/auto-arrival</code>
+                        </div>
+                    </div>
+                    
+                    <div class="guide-step-item">
+                        <span class="step-num">5</span>
+                        <div class="step-desc">
+                            <strong>Salve e Ative:</strong>
+                            <p>Toque no ícone de disquete para salvar a macro. Pronto! A chegada em casa baterá automaticamente assim que conectar no Wi-Fi.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <footer class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btn-close-macrodroid-guide">Entendido</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

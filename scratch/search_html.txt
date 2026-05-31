@@ -1,0 +1,73 @@
+8: <meta name="description" content="Aplicativo premium de controle de horas integrado ao Excel com gestão financeira e aba de investimentos automáticos.">
+75: <button class="nav-item" data-tab="investments" id="nav-investments">
+77: <span>Investimentos</span>
+170: <h3 class="metric-value color-cyan" id="kpi-global-invest-auto">R$ 0,00</h3>
+171: <span class="metric-subtitle" id="kpi-global-invest-auto-subtitle">Total recebido desde Jan</span>
+364: <span class="metric-title">Enviado p/ Investimentos (20%)</span>
+365: <h3 class="metric-value color-yellow" id="fin-month-invested">R$ 0,00</h3>
+472: <label for="fin-amount">Valor (R$)</label>
+606: <!-- Tab: Investimentos (NOVO! Aportes manuais e automáticos de 20%) -->
+607: <section id="tab-investments" class="tab-content">
+615: <h3 class="metric-value color-green" id="kpi-invest-total">R$ 0,00</h3>
+616: <span class="metric-subtitle">Total investido desde Jan</span>
+625: <span class="metric-title">Investido no Mês</span>
+626: <h3 class="metric-value color-yellow" id="kpi-invest-month">R$ 0,00</h3>
+627: <span class="metric-subtitle">Total de aportes do mês</span>
+636: <span class="metric-title">Aportes Automáticos (20%)</span>
+637: <h3 class="metric-value" id="kpi-invest-auto">0 aportes</h3>
+647: <span class="metric-title">Aportes Manuais</span>
+648: <h3 class="metric-value color-purple" id="kpi-invest-manual">0 aportes</h3>
+655: <!-- Left Side: Launch Manual Investment -->
+658: <h3 class="card-section-title" id="invest-form-title"><i class="fa-solid fa-wallet color-green"></i> Registrar Aporte Manual</h3>
+659: <form id="invest-entry-form" class="launch-form mt-2">
+660: <input type="hidden" id="invest-entry-id">
+663: <label for="invest-date">Data do Aporte</label>
+664: <input type="date" id="invest-date" class="form-control-flat" required>
+668: <label for="invest-origin">Origem / Destino</label>
+669: <input type="text" id="invest-origin" class="form-control-flat" placeholder="Tesouro Direto, CDB Banco, Poupança..." required>
+673: <label for="invest-amount">Valor do Aporte (R$)</label>
+674: <input type="number" id="invest-amount" class="form-control-flat" placeholder="0.00" step="0.01" min="0" required>
+678: <button type="button" class="btn btn-secondary hidden" id="btn-cancel-invest-edit">Cancelar Edição</button>
+679: <button type="submit" class="btn btn-primary ripple flex-grow" id="btn-submit-invest">
+680: <i class="fa-solid fa-piggy-bank"></i> Salvar Aporte
+689: <p class="settings-desc">Simule e projete a evolução dos seus aportes e rendimentos acumulados.</p>
+700: <label for="calc-monthly">Aporte Mensal (R$)</label>
+735: <span class="preview-label">Total Investido:</span>
+736: <strong id="res-calc-invested" class="preview-val">R$ 0,00</strong>
+754: <th>Total Investido</th>
+769: <!-- Right Side: Extract of Investments -->
+772: <h3 class="chart-title"><i class="fa-solid fa-list-check color-green"></i> Extrato de Investimentos</h3>
+773: <div class="extract-list" id="invest-extract-list">
+774: <div class="text-center text-muted p-4">Carregando aportes...</div>
+821: <p class="card-section-desc">Defina os horários ideais de saída e de previsão de chegada em casa.</p>
+839: <strong>Registro de Chegada por Wi-Fi Automático</strong>
+840: <p>Configure o seu celular Android para registrar o horário de chegada em casa na planilha Excel assim que ele se conectar ao Wi-Fi residencial!</p>
+874: <th>Chegada Casa</th>
+899: <label for="input-global-rate">Valor da Hora Padrão (R$)</label>
+962: <!-- Edit Day Modal -->
+963: <div id="edit-modal" class="modal-overlay hidden">
+964: <div class="glass-card modal-container">
+965: <header class="modal-header">
+966: <h3 class="modal-title" id="modal-date-title">Editar Registro</h3>
+967: <button class="modal-close-btn" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+970: <form id="edit-day-form" class="modal-body">
+994: <div class="modal-section-title"><i class="fa-solid fa-business-time"></i> Primeiro Turno</div>
+1007: <div class="modal-section-title"><i class="fa-solid fa-mug-hot"></i> Segundo Turno</div>
+1020: <div class="modal-section-title"><i class="fa-solid fa-route"></i> Horários de Deslocamento</div>
+1023: <label for="edit-saida-casa">Saída de Casa</label>
+1024: <input type="time" id="edit-saida-casa" class="form-control-flat">
+1027: <label for="edit-chegada-casa">Chegada em Casa</label>
+1028: <input type="time" id="edit-chegada-casa" class="form-control-flat">
+1033: <div class="modal-section-title"><i class="fa-solid fa-circle-info"></i> Ajustes e Status</div>
+1059: <!-- Live recalculation preview inside modal! -->
+1089: <footer class="modal-footer">
+1096: <!-- MacroDroid Automation Guide Modal -->
+1097: <div id="macrodroid-modal" class="modal-overlay hidden">
+1098: <div class="glass-card modal-container">
+1099: <header class="modal-header">
+1100: <h3 class="modal-title"><i class="fa-solid fa-wifi color-green"></i> Automação Wi-Fi com MacroDroid</h3>
+1101: <button class="modal-close-btn" id="btn-close-macrodroid-modal"><i class="fa-solid fa-xmark"></i></button>
+1103: <div class="modal-body md-guide-body">
+1119: <p>Abra o app, clique em <strong>"Adicionar Macro"</strong> e defina o nome como <em>"Chegada em Casa"</em>.</p>
+1144: <p>Toque no ícone de disquete para salvar a macro. Pronto! A chegada em casa baterá automaticamente assim que conectar no Wi-Fi.</p>
+1149: <footer class="modal-footer">

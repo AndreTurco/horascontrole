@@ -1,0 +1,31 @@
+20: let excelLock = Promise.resolve();
+21: async function safeExcelOp(fn) {
+23: const current = excelLock.then(next, next);
+24: excelLock = current;
+47: } catch (err) {
+202: throw new Error('A planilha "Controle de Horas" é obrigatória e não foi encontrada.');
+586: await safeExcelOp(async () => {
+599: } catch (err) {
+608: const data = await safeExcelOp(() => getSpreadsheetData());
+610: } catch (err) {
+624: await safeExcelOp(async () => {
+636: } catch (err) {
+665: await safeExcelOp(async () => {
+745: } catch (err) {
+759: await safeExcelOp(async () => {
+817: } catch (err) {
+832: await safeExcelOp(async () => {
+869: } catch (err) {
+883: await safeExcelOp(async () => {
+908: } catch (err) {
+923: await safeExcelOp(async () => {
+959: } catch (err) {
+973: await safeExcelOp(async () => {
+998: } catch (err) {
+1005: app.post('/api/clock-in', async (req, res) => {
+1012: let result = await safeExcelOp(async () => {
+1086: } catch (err) {
+1103: let result = await safeExcelOp(async () => {
+1171: } catch (err) {
+1181: } catch (err) {
+1236: } catch (err) {

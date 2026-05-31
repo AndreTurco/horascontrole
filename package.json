@@ -1,0 +1,16 @@
+{
+  "name": "controle-de-horas",
+  "version": "1.0.0",
+  "description": "Aplicativo de Controle de Horas conectado a Planilha Excel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "localtunnel": "^2.0.2",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
