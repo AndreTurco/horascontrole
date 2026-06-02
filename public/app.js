@@ -205,8 +205,18 @@ async function saveGlobalRate(rate) {
 
 // Registrar ponto dinâmico de hoje
 async function registerClockIn() {
+    const btn = document.getElementById('quick-clock-btn');
+    const btnText = document.getElementById('clock-btn-text');
+    if (!btn || btn.disabled) return;
+    
+    // Desabilitar botão temporariamente para evitar cliques duplos
+    btn.disabled = true;
+    const originalText = btnText ? btnText.innerText : 'Bater Ponto';
+    if (btnText) btnText.innerText = 'Registrando...';
+    btn.style.opacity = '0.6';
+    
     try {
-        setSyncStatus('syncing', 'Bando ponto...');
+        setSyncStatus('syncing', 'Batendo ponto...');
         const now = new Date();
         const dateStr = now.getFullYear() + '-' + 
             String(now.getMonth() + 1).padStart(2, '0') + '-' + 
@@ -232,6 +242,13 @@ async function registerClockIn() {
         console.error(err);
         showToast(err.message || 'Erro de conexão ao bater ponto!', 'error');
         setSyncStatus('connected', 'Online');
+    } finally {
+        // Reabilitar botão após 3 segundos
+        setTimeout(() => {
+            btn.disabled = false;
+            if (btnText) btnText.innerText = originalText;
+            btn.style.opacity = '';
+        }, 3000);
     }
 }
 
@@ -323,15 +340,12 @@ function applyFilters() {
     
     // 1. Filtrar Controle de Horas
     state.filteredRows = state.rows.filter(row => {
-        const d = new Date(row.date);
+        const dateParts = parseDateParts(row.date);
         
         // Checa se está no intervalo customizado (se ativo)
-        let matchDate = d.getUTCMonth() === monthSelect;
+        let matchDate = dateParts.month === monthSelect;
         if (state.rangeStart && state.rangeEnd) {
-            const rowTime = new Date(row.date + 'T00:00:00Z').getTime();
-            const startTime = new Date(state.rangeStart + 'T00:00:00Z').getTime();
-            const endTime = new Date(state.rangeEnd + 'T23:59:59Z').getTime();
-            matchDate = rowTime >= startTime && rowTime <= endTime;
+            matchDate = row.date >= state.rangeStart && row.date <= state.rangeEnd;
         }
         
         let matchSearch = true;
@@ -343,23 +357,23 @@ function applyFilters() {
         return matchDate && matchSearch;
     });
     
-    state.filteredRows.sort((a, b) => new Date(a.date) - new Date(b.date));
+    state.filteredRows.sort((a, b) => a.date.localeCompare(b.date));
     
     // 2. Filtrar Transações Financeiras (Aba Mobills)
     state.filteredFinanceEntries = state.financeEntries.filter(entry => {
-        const d = new Date(entry.date);
-        return d.getUTCMonth() === monthSelect;
+        const dateParts = parseDateParts(entry.date);
+        return dateParts.month === monthSelect;
     });
     
-    state.filteredFinanceEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    state.filteredFinanceEntries.sort((a, b) => a.date.localeCompare(b.date));
     
     // 3. Filtrar Investimentos (Aba Investimentos)
     state.filteredInvestEntries = state.investEntries.filter(entry => {
-        const d = new Date(entry.date);
-        return d.getUTCMonth() === monthSelect;
+        const dateParts = parseDateParts(entry.date);
+        return dateParts.month === monthSelect;
     });
     
-    state.filteredInvestEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    state.filteredInvestEntries.sort((a, b) => a.date.localeCompare(b.date));
     
     // Renderizações reativas
     renderDashboard();
@@ -517,8 +531,8 @@ function renderHistory() {
         const tr = document.createElement('tr');
         tr.id = `history-row-${row.rowNum}`;
         
-        const d = new Date(row.date);
-        const dayLabel = String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dateParts = parseDateParts(row.date);
+        const dayLabel = String(dateParts.day).padStart(2, '0') + '/' + String(dateParts.month + 1).padStart(2, '0');
         
         const badgeE1 = row.entrada1 ? `<span class="badge-time active">${row.entrada1}</span>` : '<span class="badge-time">--:--</span>';
         const badgeS1 = row.saida1 ? `<span class="badge-time active">${row.saida1}</span>` : '<span class="badge-time">--:--</span>';
@@ -571,9 +585,9 @@ function renderCalendarGrid() {
     
     const dayMap = {};
     state.rows.forEach(row => {
-        const d = new Date(row.date);
-        if (d.getUTCMonth() === month && d.getUTCFullYear() === year) {
-            dayMap[d.getUTCDate()] = row;
+        const dateParts = parseDateParts(row.date);
+        if (dateParts.month === month && dateParts.year === year) {
+            dayMap[dateParts.day] = row;
         }
     });
 
@@ -736,8 +750,8 @@ function renderFinance() {
             const signal = isIncome ? '+' : '-';
             const amtClass = isIncome ? 'income' : 'expense';
 
-            const d = new Date(entry.date);
-            const dateStr = String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0');
+            const dateParts = parseDateParts(entry.date);
+            const dateStr = String(dateParts.day).padStart(2, '0') + '/' + String(dateParts.month + 1).padStart(2, '0');
 
             item.innerHTML = `
                 <div class="extract-item-left clickable-cell" onclick="triggerFinanceEdit('${entry.id}')" style="cursor: pointer;">
@@ -868,8 +882,8 @@ function renderCommutes() {
         const tr = document.createElement('tr');
         tr.id = `commute-row-${row.rowNum}`;
 
-        const d = new Date(row.date);
-        const dayLabel = String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dateParts = parseDateParts(row.date);
+        const dayLabel = String(dateParts.day).padStart(2, '0') + '/' + String(dateParts.month + 1).padStart(2, '0');
 
         const activeE1 = row.entrada1 || '--:--';
         const lastExit = row.saida2 ? row.saida2 : (row.saida1 || '--:--');
@@ -914,8 +928,8 @@ function renderCharts() {
     const hoursData = [];
     
     state.filteredRows.forEach(row => {
-        const d = new Date(row.date);
-        labels.push(`Dia ${d.getUTCDate()}`);
+        const dateParts = parseDateParts(row.date);
+        labels.push(`Dia ${dateParts.day}`);
         earningsData.push(row.ganhos);
         hoursData.push(row.horasFracionarias);
     });
@@ -1035,8 +1049,8 @@ function renderCharts() {
                     const dayNum = parseInt(dataPoint.replace('Dia ', ''), 10);
                     
                     const targetRow = state.filteredRows.find(row => {
-                        const d = new Date(row.date);
-                        return d.getUTCDate() === dayNum;
+                        const dateParts = parseDateParts(row.date);
+                        return dateParts.day === dayNum;
                     });
                     
                     if (targetRow) {
@@ -1073,8 +1087,8 @@ function openEditModal(row) {
     document.getElementById('edit-chegada-casa').value = row.chegadaCasa || '';
     
     // Formatar título do modal
-    const d = new Date(row.date);
-    const dateFormatted = String(d.getUTCDate()).padStart(2, '0') + ' de ' + ptMonths[d.getUTCMonth()];
+    const dateParts = parseDateParts(row.date);
+    const dateFormatted = String(dateParts.day).padStart(2, '0') + ' de ' + ptMonths[dateParts.month];
     document.getElementById('modal-date-title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Editar Dia ${dateFormatted}`;
 
     // Rodar recálculo de pré-visualização ao carregar
@@ -1204,7 +1218,7 @@ function bindEvents() {
             showToast('Por favor, defina ambas as datas (De e Até)!', 'error');
             return;
         }
-        if (new Date(start) > new Date(end)) {
+        if (start > end) {
             showToast('A data "De" não pode ser posterior à data "Até"!', 'error');
             return;
         }
@@ -1247,12 +1261,9 @@ function bindEvents() {
                 // Calcular dados deste período
                 let minutes = 0;
                 let earnings = 0;
-                const startTime = new Date(start + 'T00:00:00Z').getTime();
-                const endTime = new Date(end + 'T23:59:59Z').getTime();
                 
                 state.rows.forEach(row => {
-                    const rowTime = new Date(row.date + 'T00:00:00Z').getTime();
-                    if (rowTime >= startTime && rowTime <= endTime) {
+                    if (row.date >= start && row.date <= end) {
                         minutes += row.minutosTrabalhados;
                         earnings += row.ganhos;
                     }
@@ -1275,12 +1286,10 @@ function bindEvents() {
             return;
         }
 
-        const cutOffTime = new Date(dateLimit + 'T23:59:59Z').getTime();
         let totalPending = 0;
 
         state.rows.forEach(row => {
-            const rowTime = new Date(row.date + 'T00:00:00Z').getTime();
-            if (rowTime <= cutOffTime && row.statusPagamento === 'Pendente') {
+            if (row.date <= dateLimit && row.statusPagamento === 'Pendente') {
                 totalPending += row.ganhos;
             }
         });
@@ -1321,7 +1330,8 @@ function bindEvents() {
     document.getElementById('edit-date').addEventListener('change', (e) => {
         const dateVal = e.target.value;
         if (dateVal) {
-            const d = new Date(dateVal + 'T00:00:00Z');
+            const parts = dateVal.split('-');
+            const d = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
             const options = { weekday: 'long', timeZone: 'UTC' };
             const weekdayNameRaw = d.toLocaleDateString('en-US', options);
             const weekdayNamePt = weekdaysPt[weekdayNameRaw];
@@ -1631,8 +1641,8 @@ function exportPDFReport() {
 
     let rowsHtml = '';
     state.filteredRows.forEach(row => {
-        const d = new Date(row.date);
-        const dateStr = String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dateParts = parseDateParts(row.date);
+        const dateStr = String(dateParts.day).padStart(2, '0') + '/' + String(dateParts.month + 1).padStart(2, '0');
         const statusClass = row.statusPagamento === 'Pago' ? 'color-green' : 'color-orange';
         
         rowsHtml += `
@@ -1790,6 +1800,66 @@ function minutesToTimeStr(totalMinutes) {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
+function timeToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return 0;
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
+function parseDateParts(dateStr) {
+    if (!dateStr) return { year: NaN, month: NaN, day: NaN };
+    // dateStr could be 'YYYY-MM-DD' or 'YYYY-MM-DDT00:00:00.000Z'
+    const cleanStr = typeof dateStr === 'string' ? dateStr.substring(0, 10) : '';
+    const parts = cleanStr.split('-');
+    if (parts.length < 3) return { year: NaN, month: NaN, day: NaN };
+    return {
+        year: parseInt(parts[0], 10),
+        month: parseInt(parts[1], 10) - 1, // 0-indexed
+        day: parseInt(parts[2], 10)
+    };
+}
+
+function calculateWorkedMinutes(e1, s1, e2, s2) {
+    let minutes = 0;
+    if (e1 && s1) {
+        let diff = timeToMinutes(s1) - timeToMinutes(e1);
+        if (diff < 0) diff += 24 * 60;
+        minutes += diff;
+    }
+    if (e2 && s2) {
+        let diff = timeToMinutes(s2) - timeToMinutes(e2);
+        if (diff < 0) diff += 24 * 60;
+        minutes += diff;
+    }
+    return minutes;
+}
+
+function calculateCommuteMinutes(saidaCasa, e1, s1, e2, s2, chegadaCasa) {
+    if (!saidaCasa || !chegadaCasa) return 0;
+    let morningCommute = 0;
+    if (e1) {
+        let diff = timeToMinutes(e1) - timeToMinutes(saidaCasa);
+        if (diff < 0) diff += 24 * 60;
+        morningCommute = diff;
+    }
+    let eveningCommute = 0;
+    const lastExit = s2 ? s2 : s1;
+    if (lastExit) {
+        let diff = timeToMinutes(chegadaCasa) - timeToMinutes(lastExit);
+        if (diff < 0) diff += 24 * 60;
+        eveningCommute = diff;
+    }
+    return morningCommute + eveningCommute;
+}
+
+function calculateTimeOutsideMinutes(saidaCasa, chegadaCasa) {
+    if (!saidaCasa || !chegadaCasa) return 0;
+    let diff = timeToMinutes(chegadaCasa) - timeToMinutes(saidaCasa);
+    if (diff < 0) diff += 24 * 60;
+    return diff;
+}
+
 function getDaysOfCurrentWeek() {
     const now = new Date();
     const currentDay = now.getDay();
@@ -1919,8 +1989,8 @@ function renderInvestments() {
         const bg = isAuto ? 'rgba(59, 130, 246, 0.15)' : 'rgba(139, 92, 246, 0.15)';
         const icon = isAuto ? 'fa-robot' : 'fa-user-gear';
 
-        const d = new Date(entry.date);
-        const dateStr = String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dateParts = parseDateParts(entry.date);
+        const dateStr = String(dateParts.day).padStart(2, '0') + '/' + String(dateParts.month + 1).padStart(2, '0');
 
         item.innerHTML = `
             <div class="extract-item-left clickable-cell" onclick="triggerInvestEdit('${entry.id}')" style="cursor: pointer;">
@@ -2396,9 +2466,9 @@ function renderHeatmap() {
     
     const dayHoursMap = {};
     state.filteredRows.forEach(row => {
-        const d = new Date(row.date);
-        if (d.getUTCMonth() === month) {
-            dayHoursMap[d.getUTCDate()] = row.horasFracionarias;
+        const dateParts = parseDateParts(row.date);
+        if (dateParts.month === month && dateParts.year === year) {
+            dayHoursMap[dateParts.day] = row.horasFracionarias;
         }
     });
     
@@ -2420,8 +2490,8 @@ function renderHeatmap() {
         cell.title = `Dia ${d} de ${ptMonths[month]}: ${hoursFormatted} trabalhadas`;
         
         const dayRow = state.filteredRows.find(row => {
-            const dt = new Date(row.date);
-            return dt.getUTCDate() === d;
+            const dateParts = parseDateParts(row.date);
+            return dateParts.day === d && dateParts.month === month && dateParts.year === year;
         });
         
         if (dayRow) {

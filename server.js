@@ -722,7 +722,18 @@ app.post('/api/save', async (req, res) => {
             row.getCell(15).value = timeOutsideMinutes > 0 ? minutesToTimeStr(timeOutsideMinutes) : null;
 
             // Determinar faturamento
-            let dayRate = globalRate;
+            const r2 = sheet.getRow(2);
+            const i2Val = r2.getCell(9).value;
+            let globalRateVal = 12.0;
+            if (i2Val !== null) {
+                if (typeof i2Val === 'number') {
+                    globalRateVal = i2Val;
+                } else if (typeof i2Val === 'object' && i2Val.result !== undefined) {
+                    globalRateVal = Number(i2Val.result);
+                }
+            }
+
+            let dayRate = globalRateVal;
             const customRateVal = row.getCell(9).value;
             if (Number(rowNum) !== 2 && customRateVal !== null) {
                 if (typeof customRateVal === 'number') {
@@ -1038,6 +1049,17 @@ app.post('/api/clock-in', async (req, res) => {
             const saida1 = formatCellTime(row.getCell(4).value);
             const entrada2 = formatCellTime(row.getCell(5).value);
             const saida2 = formatCellTime(row.getCell(6).value);
+
+            // Prevenir cliques múltiplos no mesmo minuto
+            let lastFilledTime = null;
+            if (saida2) lastFilledTime = saida2;
+            else if (entrada2) lastFilledTime = entrada2;
+            else if (saida1) lastFilledTime = saida1;
+            else if (entrada1) lastFilledTime = entrada1;
+
+            if (lastFilledTime && lastFilledTime === time) {
+                return { error: `Você já bateu ponto às ${time}. Aguarde pelo menos 1 minuto para evitar duplicados.` };
+            }
             
             let slotName = '';
             if (!entrada1) {
