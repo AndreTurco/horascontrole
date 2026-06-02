@@ -47,11 +47,27 @@ As três abas continuam 100% integradas e sincronizadas:
 1. **`Controle de Horas`**: Carga de trabalho, valor de hora, e trajetos diários.
 2. **`Gestão Financeira`**: Lançamentos Mobills categorizados.
 3. **`Investimentos`**: O faturamento retido de 20% das suas horas pagas sincroniza automaticamente aqui.
-
 ---
 
 ## 🌐 Endereços de Conexão Ativos (Porta 3080)
 
 - **Local (PC)**: [http://localhost:3080](http://localhost:3080)
 - **Rede Local (Android/Wi-Fi)**: [http://192.168.2.123:3080](http://192.168.2.123:3080)
-- **Acesso de Qualquer Lugar (4G)**: [https://tiny-buses-deny.loca.lt](https://tiny-buses-deny.loca.lt)
+- **Acesso de Qualquer Lugar (4G)**: [https://khaki-dodos-prove.loca.lt](https://khaki-dodos-prove.loca.lt)
+
+---
+
+## 🛠️ Correções Realizadas Recentes (02/06/2026)
+
+### 1. ⏱️ Prevenção de Duplo Clique no Ponto Rápido ("Abriu e Fechou")
+- **Problema**: Ao clicar rapidamente ou dar duplo toque no botão "Bater Ponto", o cliente disparava duas requisições simultâneas para o servidor. A primeira registrava a **Entrada** e a segunda registrava a **Saída** no mesmo minuto, fechando o ponto imediatamente.
+- **Solução Frontend**: O botão "Bater Ponto" agora é desabilitado e entra em estado de "Registrando..." por 3 segundos após o clique, bloqueando toques múltiplos.
+- **Solução Backend**: Adicionada uma validação no servidor que impede o registro de dois turnos com o mesmo minuto exato. Se houver tentativa no mesmo minuto, o servidor retorna erro amigável, impedindo a sobreposição e fechamento precoce.
+
+### 2. 📝 Correção de Edição Manual ("Não consigo alterar manualmente")
+- **Problema**: A edição manual de pontos falhava com erro de servidor (`ReferenceError: globalRate is not defined`), impedindo que o usuário corrigisse ou alterasse qualquer marcação manualmente.
+- **Solução**: O backend foi corrigido para carregar a taxa horária padrão dinamicamente a partir da célula `I2` da planilha, eliminando a variável indefinida e permitindo alterações manuais com sucesso.
+
+### 3. 📅 Saneamento de Filtros Mobile ("Não consigo filtrar corretamente")
+- **Problema**: Certas partes como o heatmap de produtividade diário utilizavam o parser de data padrão do navegador (`new Date(row.date)`), o qual retorna `NaN` / `Invalid Date` em dispositivos mobile (iOS/Safari/Android WebView), quebrando a exibição de dados e filtros.
+- **Solução**: Refatoramos o mapa de calor para usar a função utilitária `parseDateParts()`, garantindo compatibilidade e filtragem perfeitas em qualquer celular.
