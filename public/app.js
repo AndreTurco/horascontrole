@@ -546,20 +546,24 @@ function renderHistory() {
         const obsHtml = row.observacoes ? `<div class="notes-text" title="${row.observacoes}">${row.observacoes}</div>` : '<span class="text-muted">-</span>';
 
         tr.innerHTML = `
-            <td data-label="Data" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})"><strong>${dayLabel}</strong></td>
-            <td data-label="Dia Semana" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${row.weekday}</td>
-            <td data-label="Turno 1" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${badgeE1} → ${badgeS1}</td>
-            <td data-label="Turno 2" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${badgeE2} → ${badgeS2}</td>
-            <td data-label="Total Horas" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})"><span class="total-hours-lbl">${row.horasMinutos}</span></td>
-            <td data-label="Ganhos (R$)" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})"><span class="earnings-lbl">${formatCurrency(row.ganhos)}</span></td>
-            <td data-label="Status" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${badgePay}</td>
-            <td data-label="Notas" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${obsHtml}</td>
+            <td data-label="Data" class="clickable-cell"><strong>${dayLabel}</strong></td>
+            <td data-label="Dia Semana" class="clickable-cell">${row.weekday}</td>
+            <td data-label="Turno 1" class="clickable-cell">${badgeE1} → ${badgeS1}</td>
+            <td data-label="Turno 2" class="clickable-cell">${badgeE2} → ${badgeS2}</td>
+            <td data-label="Total Horas" class="clickable-cell"><span class="total-hours-lbl">${row.horasMinutos}</span></td>
+            <td data-label="Ganhos (R$)" class="clickable-cell"><span class="earnings-lbl">${formatCurrency(row.ganhos)}</span></td>
+            <td data-label="Status" class="clickable-cell">${badgePay}</td>
+            <td data-label="Notas" class="clickable-cell">${obsHtml}</td>
             <td class="actions-col" data-label="Ações">
-                <button class="edit-btn" onclick="triggerRowEdit(${row.rowNum})" aria-label="Editar dia">
+                <button class="edit-btn" aria-label="Editar dia">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>
             </td>
         `;
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', () => {
+            triggerRowEdit(row.rowNum);
+        });
         tableBody.appendChild(tr);
     });
 
@@ -893,19 +897,23 @@ function renderCommutes() {
         const badgeChegadaCasa = row.chegadaCasa ? `<span class="badge-time active">${row.chegadaCasa}</span>` : '<span class="badge-time">--:--</span>';
         
         tr.innerHTML = `
-            <td data-label="Data" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})"><strong>${dayLabel} (${row.weekday.split('-')[0]})</strong></td>
-            <td data-label="Saída Casa" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${badgeSaidaCasa}</td>
-            <td data-label="Entrada" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${activeE1}</td>
-            <td data-label="Saída" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${lastExit}</td>
-            <td data-label="Chegada Casa" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})">${badgeChegadaCasa}</td>
-            <td data-label="Tempo Trajeto" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})"><strong class="color-blue">${row.tempoTrajeto}</strong></td>
-            <td data-label="Tempo Fora" class="clickable-cell" onclick="triggerRowEdit(${row.rowNum})"><strong class="color-purple">${row.tempoForaCasa}</strong></td>
+            <td data-label="Data" class="clickable-cell"><strong>${dayLabel} (${row.weekday.split('-')[0]})</strong></td>
+            <td data-label="Saída Casa" class="clickable-cell">${badgeSaidaCasa}</td>
+            <td data-label="Entrada" class="clickable-cell">${activeE1}</td>
+            <td data-label="Saída" class="clickable-cell">${lastExit}</td>
+            <td data-label="Chegada Casa" class="clickable-cell">${badgeChegadaCasa}</td>
+            <td data-label="Tempo Trajeto" class="clickable-cell"><strong class="color-blue">${row.tempoTrajeto}</strong></td>
+            <td data-label="Tempo Fora" class="clickable-cell"><strong class="color-purple">${row.tempoForaCasa}</strong></td>
             <td class="actions-col" data-label="Ações">
-                <button class="edit-btn" onclick="triggerRowEdit(${row.rowNum})" aria-label="Editar trajeto">
+                <button class="edit-btn" aria-label="Editar trajeto">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>
             </td>
         `;
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', () => {
+            triggerRowEdit(row.rowNum);
+        });
         tableBody.appendChild(tr);
     });
 }
@@ -1078,7 +1086,11 @@ function openEditModal(row) {
     document.getElementById('edit-s2').value = row.saida2 || '';
     document.getElementById('edit-day-rate').value = row.valorHora || '';
     document.getElementById('edit-obs').value = row.observacoes || '';
-    document.getElementById('edit-earnings').value = row.ganhosManuais !== null ? row.ganhosManuais.toFixed(2) : '';
+    let manualEarningsStr = '';
+    if (row.ganhosManuais !== null && row.ganhosManuais !== undefined && !isNaN(Number(row.ganhosManuais))) {
+        manualEarningsStr = Number(row.ganhosManuais).toFixed(2);
+    }
+    document.getElementById('edit-earnings').value = manualEarningsStr;
     document.getElementById('edit-earnings').placeholder = `Calculado: R$ ${Number(row.ganhos || 0).toFixed(2)}`;
     
     // Injetar valores adicionais de status e trajets

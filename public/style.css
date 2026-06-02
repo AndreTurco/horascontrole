@@ -1364,7 +1364,7 @@ body.light-theme::after {
     height: 100%;
     background-color: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(8px);
-    z-index: 100;
+    z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
