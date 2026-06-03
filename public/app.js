@@ -561,6 +561,9 @@ function renderHistory() {
             </td>
         `;
         tr.style.cursor = 'pointer';
+        tr.addEventListener('click', () => {
+            triggerRowEdit(row.rowNum);
+        });
         tableBody.appendChild(tr);
     });
 
@@ -1572,22 +1575,7 @@ function bindEvents() {
     document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
     document.getElementById('btn-export-pdf').addEventListener('click', exportPDFReport);
 
-    // 13. Event Delegation para edição rápida de linhas (Tabela Histórico e Trajetos)
-    document.getElementById('history-table-body').addEventListener('click', (e) => {
-        const tr = e.target.closest('tr');
-        if (tr && tr.id && tr.id.startsWith('history-row-')) {
-            const rowNum = parseInt(tr.id.replace('history-row-', ''), 10);
-            triggerRowEdit(rowNum);
-        }
-    });
-
-    document.getElementById('commute-table-body').addEventListener('click', (e) => {
-        const tr = e.target.closest('tr');
-        if (tr && tr.id && tr.id.startsWith('commute-row-')) {
-            const rowNum = parseInt(tr.id.replace('commute-row-', ''), 10);
-            triggerRowEdit(rowNum);
-        }
-    });
+    // 13. Event Delegation (Removed in favor of direct click binding on tr elements for reliability)
 }
 
 // Alternar Ícone do Tema
