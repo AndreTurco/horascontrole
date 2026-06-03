@@ -16,6 +16,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Middleware para desativar cache em todas as rotas de API
+app.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    next();
+});
+
 // Fila de Gravação Segura para Concorrência
 let excelLock = Promise.resolve();
 async function safeExcelOp(fn) {

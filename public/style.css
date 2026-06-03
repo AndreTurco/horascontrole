@@ -175,6 +175,18 @@ body.light-theme::after {
     border: 1px solid rgba(16, 185, 129, 0.2);
     font-size: 0.75rem;
     font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    user-select: none;
+}
+
+.sync-badge:hover {
+    background: rgba(16, 185, 129, 0.2);
+    transform: translateY(-1px);
+}
+
+.sync-badge.offline:hover {
+    background: rgba(239, 68, 68, 0.2);
 }
 
 .sync-badge.offline {

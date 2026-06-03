@@ -94,6 +94,24 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('filter-month').value = state.selectedMonth;
 
+    // Tentar carregar dados em cache do localStorage para exibição imediata (Offline-first)
+    const cachedData = localStorage.getItem('app_state_data');
+    if (cachedData) {
+        try {
+            const parsed = JSON.parse(cachedData);
+            state.globalRate = parsed.globalRate || 12.0;
+            state.rows = parsed.rows || [];
+            state.financeEntries = parsed.financeEntries || [];
+            state.investEntries = parsed.investEntries || [];
+            state.totalEarningsSinceJan = parsed.totalEarningsSinceJan || 0;
+            state.pendingEarnings = parsed.pendingEarnings || 0;
+            state.totalInvested = parsed.totalInvested || 0.0;
+            applyFilters(); // Exibir imediatamente o que está no cache local!
+        } catch (e) {
+            console.error('Falha ao carregar cache local:', e);
+        }
+    }
+
     // Iniciar Relógio
     startClock();
     
@@ -119,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchData() {
     try {
         setSyncStatus('syncing', 'Sincronizando...');
-        const response = await fetch('/api/data');
+        const response = await fetch(`/api/data?_=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) throw new Error('Erro ao carregar do servidor');
         
         const data = await response.json();
@@ -130,6 +148,9 @@ async function fetchData() {
         state.financeEntries = data.financeEntries || [];
         state.investEntries = data.investEntries || [];
         state.totalInvested = data.totalInvested || 0.0;
+        
+        // Salvar cópia local no localStorage (Offline-first)
+        saveStateToLocalStorage();
         
         // Injetar URLs de IP dinamicamente para o MacroDroid
         updateMacroDroidLink();
@@ -223,6 +244,57 @@ async function registerClockIn() {
             String(now.getDate()).padStart(2, '0');
         const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
             String(now.getMinutes()).padStart(2, '0');
+
+        // Atualizar memória local imediatamente (Offline-first)
+        const todayRowIndex = state.rows.findIndex(r => r.date === dateStr);
+        if (todayRowIndex !== -1) {
+            const target = state.rows[todayRowIndex];
+            let slotName = '';
+            if (!target.entrada1) {
+                target.entrada1 = timeStr;
+                slotName = 'Entrada 1';
+            } else if (!target.saida1) {
+                target.saida1 = timeStr;
+                slotName = 'Saída 1';
+            } else if (!target.entrada2) {
+                target.entrada2 = timeStr;
+                slotName = 'Entrada 2';
+            } else if (!target.saida2) {
+                target.saida2 = timeStr;
+                slotName = 'Saída 2';
+            }
+            
+            if (slotName) {
+                // Recalcular horas e trajetos locais para exibição instantânea
+                const wMin = calculateWorkedMinutes(target.entrada1, target.saida1, target.entrada2, target.saida2);
+                target.minutosTrabalhados = wMin;
+                target.horasMinutos = minutesToTimeStr(wMin);
+                target.horasFracionarias = wMin / 60;
+                
+                let dayRate = state.globalRate;
+                if (target.valorHora !== null && target.valorHora !== '') {
+                    dayRate = parseFloat(target.valorHora);
+                }
+                
+                if (target.ganhosManuais !== null && target.ganhosManuais !== undefined) {
+                    target.ganhos = parseFloat(target.ganhosManuais);
+                } else {
+                    target.ganhos = (wMin / 60) * dayRate;
+                }
+                
+                // Atualizar tempo de trajetos locais para exibição instantânea
+                const commuteMinutes = calculateCommuteMinutes(target.saidaCasa, target.entrada1, target.saida1, target.entrada2, target.saida2, target.chegadaCasa);
+                const timeOutsideMinutes = calculateTimeOutsideMinutes(target.saidaCasa, target.chegadaCasa);
+                target.tempoTrajeto = minutesToTimeStr(commuteMinutes);
+                target.minutosTrajeto = commuteMinutes;
+                target.tempoForaCasa = minutesToTimeStr(timeOutsideMinutes);
+                target.minutosForaCasa = timeOutsideMinutes;
+
+                // Salvar no localStorage e atualizar a tela imediatamente
+                saveStateToLocalStorage();
+                applyFilters();
+            }
+        }
 
         const response = await fetch('/api/clock-in', {
             method: 'POST',
@@ -1173,6 +1245,12 @@ function updateMacroDroidLink() {
 // EVENT BINDINGS
 // ==========================================================================
 function bindEvents() {
+    // 0. Botão de sincronização manual (Sync Badge)
+    document.getElementById('sync-status').addEventListener('click', () => {
+        fetchData();
+        showToast('Atualizando dados da planilha...', 'success');
+    });
+
     // 1. Navegação de Abas
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => {
@@ -1395,6 +1473,52 @@ function bindEvents() {
             chegadaCasa: document.getElementById('edit-chegada-casa').value || null,
             ganhos: document.getElementById('edit-earnings').value || null
         };
+        
+        // Atualizar memória local imediatamente (Offline-first)
+        const localRowIndex = state.rows.findIndex(r => r.rowNum === rowData.rowNum);
+        if (localRowIndex !== -1) {
+            const target = state.rows[localRowIndex];
+            target.entrada1 = rowData.entrada1;
+            target.saida1 = rowData.saida1;
+            target.entrada2 = rowData.entrada2;
+            target.saida2 = rowData.saida2;
+            target.saidaCasa = rowData.saidaCasa;
+            target.chegadaCasa = rowData.chegadaCasa;
+            target.valorHora = rowData.valorHora;
+            target.observacoes = rowData.observacoes;
+            target.statusPagamento = rowData.statusPagamento;
+            
+            // Recalcular horas e trajetos locais para exibição instantânea
+            const wMin = calculateWorkedMinutes(rowData.entrada1, rowData.saida1, rowData.entrada2, rowData.saida2);
+            target.minutosTrabalhados = wMin;
+            target.horasMinutos = minutesToTimeStr(wMin);
+            target.horasFracionarias = wMin / 60;
+            
+            let dayRate = state.globalRate;
+            if (rowData.valorHora !== null && rowData.valorHora !== '') {
+                dayRate = parseFloat(rowData.valorHora);
+            }
+            
+            if (rowData.ganhos !== null && rowData.ganhos !== '') {
+                target.ganhos = parseFloat(rowData.ganhos);
+                target.ganhosManuais = parseFloat(rowData.ganhos);
+            } else {
+                target.ganhos = (wMin / 60) * dayRate;
+                target.ganhosManuais = null;
+            }
+            
+            // Atualizar tempo de trajetos locais para exibição instantânea
+            const commuteMinutes = calculateCommuteMinutes(rowData.saidaCasa, rowData.entrada1, rowData.saida1, rowData.entrada2, rowData.saida2, rowData.chegadaCasa);
+            const timeOutsideMinutes = calculateTimeOutsideMinutes(rowData.saidaCasa, rowData.chegadaCasa);
+            target.tempoTrajeto = minutesToTimeStr(commuteMinutes);
+            target.minutosTrajeto = commuteMinutes;
+            target.tempoForaCasa = minutesToTimeStr(timeOutsideMinutes);
+            target.minutosForaCasa = timeOutsideMinutes;
+
+            // Salvar no localStorage e atualizar a tela imediatamente
+            saveStateToLocalStorage();
+            applyFilters();
+        }
         
         saveRow(rowData);
         closeEditModal();
@@ -1832,6 +1956,22 @@ function parseDateParts(dateStr) {
         month: parseInt(parts[1], 10) - 1, // 0-indexed
         day: parseInt(parts[2], 10)
     };
+}
+
+function saveStateToLocalStorage() {
+    try {
+        localStorage.setItem('app_state_data', JSON.stringify({
+            globalRate: state.globalRate,
+            rows: state.rows,
+            financeEntries: state.financeEntries,
+            investEntries: state.investEntries,
+            totalEarningsSinceJan: state.totalEarningsSinceJan,
+            pendingEarnings: state.pendingEarnings,
+            totalInvested: state.totalInvested
+        }));
+    } catch (e) {
+        console.error('Falha ao salvar no localStorage:', e);
+    }
 }
 
 function calculateWorkedMinutes(e1, s1, e2, s2) {
