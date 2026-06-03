@@ -1,27 +1,27 @@
 @echo off
 title Servidor - Controle de Horas Premium
-chcp 65001 > nul
+chcp 1252 > nul
 
 echo ==========================================================
 echo   INICIANDO O SISTEMA DE CONTROLE DE HORAS PREMIUM
 echo ==========================================================
 echo.
-echo [INFO] Verificando dependências do projeto...
+echo [INFO] Verificando dependencias do projeto...
 
 if not exist node_modules (
-    echo [INFO] Pasta node_modules não encontrada. Instalando dependências...
+    echo [INFO] Pasta node_modules nao encontrada. Instalando dependencias...
     echo [INFO] Isso pode levar alguns segundos, por favor aguarde...
-    call npm.cmd install
+    call npm install
     if %errorlevel% neq 0 (
         echo.
-        echo [ERRO] Ocorreu uma falha ao instalar as dependências do npm.
-        echo [ERRO] Certifique-se de que o Node.js está instalado e você tem acesso à internet.
+        echo [ERRO] Ocorreu uma falha ao instalar as dependencias do npm.
+        echo [ERRO] Certifique-se de que o Node.js esta instalado e voce tem acesso a internet.
         pause
         exit /b
     )
-    echo [INFO] Dependências instaladas com sucesso!
+    echo [INFO] Dependencias instaladas com sucesso!
 ) else (
-    echo [INFO] Dependências já instaladas.
+    echo [INFO] Dependencias ja instaladas.
 )
 
 echo.
