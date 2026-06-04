@@ -2370,10 +2370,40 @@ function renderComparisonChart() {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker registrado com sucesso!', reg.active))
+            .then(reg => {
+                console.log('Service Worker registrado com sucesso!');
+                
+                // Escutar por atualizações encontradas
+                reg.onupdatefound = () => {
+                    const installingWorker = reg.installing;
+                    if (installingWorker) {
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    console.log('Novo Service Worker instalado! Recarregando para aplicar atualizações...');
+                                    showToast('Aplicativo atualizado! Recarregando dados...', 'info');
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 1200);
+                                }
+                            }
+                        };
+                    }
+                };
+            })
             .catch(err => console.warn('Erro ao registrar Service Worker:', err));
+
+        // Monitorar mudança de controlador para recarregar a página
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                refreshing = true;
+                window.location.reload();
+            }
+        });
     }
 }
+
 
 // ==========================================================================
 // ELITE AUTOMATIONS & ANALYTICS WIDGETS (NOVO)
