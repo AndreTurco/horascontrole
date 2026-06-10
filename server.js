@@ -1541,7 +1541,11 @@ function generateApkPackage(tunnelUrl) {
                 resolveHostIp(hostname)
                     .then(ip => {
                         console.log(`  [DNS-DOH] Resolvido ${hostname} -> ${ip}`);
-                        cb(null, ip, 4);
+                        if (opts.all) {
+                            cb(null, [{ address: ip, family: 4 }]);
+                        } else {
+                            cb(null, ip, 4);
+                        }
                     })
                     .catch(err => {
                         console.warn(`  [DNS-AVISO] Falha no DoH para ${hostname} (${err.message}). Usando lookup padrão do Windows...`);
