@@ -1202,6 +1202,71 @@ app.post('/api/auto-arrival', async (req, res) => {
 });
 
 // Inicia Servidor, descobre IPs locais e cria Túnel Externo Seguro
+// Variável global para armazenar a URL atual do localtunnel
+let currentTunnelUrl = '';
+
+// API: Obter informações de rede para conexão do celular
+app.get('/api/network-info', (req, res) => {
+    const networkInterfaces = os.networkInterfaces();
+    const ips = [];
+    for (const interfaceName in networkInterfaces) {
+        for (const iface of networkInterfaces[interfaceName]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                ips.push(iface.address);
+            }
+        }
+    }
+    res.json({
+        tunnelUrl: currentTunnelUrl || null,
+        localIps: ips,
+        port: PORT
+    });
+});
+
+// Função para iniciar e reconectar o túnel remoto automaticamente
+async function startTunnel(retryCount = 0) {
+    const urlFilePath = path.join(__dirname, 'url_acesso.txt');
+    const jsonFilePath = path.join(__dirname, 'public', 'tunnel_url.json');
+
+    try {
+        console.log(`  [INFO] Estabelecendo conexão para acesso remoto (Tentativa ${retryCount + 1})...`);
+        const tunnel = await localtunnel({ port: PORT });
+        
+        currentTunnelUrl = tunnel.url;
+        console.log();
+        console.log(`  ===================================================`);
+        console.log(`  ACESSO DE QUALQUER LUGAR DO MUNDO (Outras Redes/4G):`);
+        console.log(`  > ${currentTunnelUrl}`);
+        console.log();
+        console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
+        qrcode.generate(currentTunnelUrl, { small: true });
+        console.log(`  ===================================================`);
+        
+        // Gravar a URL atual em arquivo txt e json para facilidade de consulta
+        fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
+        fs.writeFileSync(jsonFilePath, JSON.stringify({ url: currentTunnelUrl, updated: new Date().toISOString() }), 'utf8');
+
+        tunnel.on('close', () => {
+            console.log('  [INFO] Túnel remoto fechado. Tentando reconectar em 10 segundos...');
+            currentTunnelUrl = '';
+            try { fs.unlinkSync(urlFilePath); } catch (e) {}
+            try { fs.unlinkSync(jsonFilePath); } catch (e) {}
+            setTimeout(() => startTunnel(retryCount + 1), 10000);
+        });
+
+        tunnel.on('error', (err) => {
+            console.error('  [Erro] Erro no túnel remoto:', err.message);
+            try { tunnel.close(); } catch (e) {}
+        });
+
+    } catch (err) {
+        console.warn('  [Aviso] Não foi possível criar o túnel remoto:', err.message);
+        console.log('  [INFO] Tentando novamente em 15 segundos...');
+        setTimeout(() => startTunnel(retryCount + 1), 15000);
+    }
+}
+
+// Inicia Servidor, descobre IPs locais e cria Túnel Externo Seguro com auto-reconnect
 app.listen(PORT, async () => {
     try {
         await ensureExcelFileExists();
@@ -1238,30 +1303,7 @@ app.listen(PORT, async () => {
         });
     }
     
-    // Iniciar túnel de rede externo via localtunnel (Acesso Remoto/Outras Redes/4G)
-    setTimeout(async () => {
-        try {
-            console.log(`  [INFO] Estabelecendo conexão para acesso remoto...`);
-            const tunnel = await localtunnel({ port: PORT });
-            
-            console.log();
-            console.log(`  ===================================================`);
-            console.log(`  ACESSO DE QUALQUER LUGAR DO MUNDO (Outras Redes/4G):`);
-            console.log(`  > ${tunnel.url}`);
-            console.log();
-            console.log(`  Escaneie o QR Code abaixo para abrir fora de casa:`);
-            qrcode.generate(tunnel.url, { small: true });
-            console.log(`  ===================================================`);
-            console.log(`  Nota: No primeiro acesso externo, o localtunnel pedirá`);
-            console.log(`  o IP público do seu computador por segurança.`);
-            console.log(`  (Pesquise "meu ip" no Google do PC para descobrir)`);
-            console.log(`  ===================================================`);
-
-            tunnel.on('close', () => {
-                console.log('  [INFO] Túnel externo fechado.');
-            });
-        } catch (err) {
-            console.warn('  [Aviso] Não foi possível criar o túnel externo de internet.');
-        }
-    }, 1500);
+    // Iniciar túnel de rede remoto auto-reconectável
+    setTimeout(() => startTunnel(0), 1500);
 });
+

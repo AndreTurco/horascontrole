@@ -12,3 +12,8 @@ temp/
 # Arquivos de configuração pessoal
 .env
 .gemini/
+
+# Arquivos de conexão dinâmica (Localtunnel)
+url_acesso.txt
+public/tunnel_url.json
+

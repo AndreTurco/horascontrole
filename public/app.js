@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Carregar do Servidor
     fetchData();
+    fetchNetworkInfo();
 
     // Eventos
     bindEvents();
@@ -177,6 +178,60 @@ async function fetchData() {
         setSyncStatus('offline', 'Desconectado');
     }
 }
+
+// Obter informações de rede do computador/servidor
+async function fetchNetworkInfo() {
+    try {
+        const response = await fetch('/api/network-info');
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        
+        const tunnelInput = document.getElementById('phone-tunnel-url');
+        const localInput = document.getElementById('phone-local-url');
+        
+        const tunnelQrImg = document.getElementById('tunnel-qr-img');
+        const localQrImg = document.getElementById('local-qr-img');
+        const tunnelQrWrapper = document.getElementById('tunnel-qr-wrapper');
+        const localQrWrapper = document.getElementById('local-qr-wrapper');
+        
+        if (data.tunnelUrl) {
+            if (tunnelInput) tunnelInput.value = data.tunnelUrl;
+            if (tunnelQrImg) {
+                tunnelQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data.tunnelUrl)}`;
+                if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'block';
+            }
+        } else {
+            if (tunnelInput) tunnelInput.value = 'Sem túnel remoto ativo (tente reiniciar o servidor)';
+            if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'none';
+        }
+        
+        if (data.localIps && data.localIps.length > 0) {
+            const localUrl = `http://${data.localIps[0]}:${data.port}`;
+            if (localInput) localInput.value = localUrl;
+            if (localQrImg) {
+                localQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(localUrl)}`;
+                if (localQrWrapper) localQrWrapper.style.display = 'block';
+            }
+        } else {
+            if (localInput) localInput.value = 'IP local não detectado';
+            if (localQrWrapper) localQrWrapper.style.display = 'none';
+        }
+    } catch (err) {
+        console.warn('Erro ao carregar informações de rede do servidor:', err);
+    }
+}
+
+// Copiar texto para a área de transferência
+window.copyText = function(elementId) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.select();
+        el.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(el.value)
+            .then(() => showToast('Link copiado com sucesso!', 'success'))
+            .catch(() => showToast('Falha ao copiar link.', 'error'));
+    }
+};
 
 // Salvar linha específica com dados absolutos
 async function saveRow(rowData) {
@@ -1248,6 +1303,7 @@ function bindEvents() {
     // 0. Botão de sincronização manual (Sync Badge)
     document.getElementById('sync-status').addEventListener('click', () => {
         fetchData();
+        fetchNetworkInfo();
         showToast('Atualizando dados da planilha...', 'success');
     });
 
@@ -1273,6 +1329,8 @@ function bindEvents() {
                 setTimeout(renderInvestments, 50);
             } else if (tab === 'commutes') {
                 setTimeout(renderCommutes, 50);
+            } else if (tab === 'settings') {
+                fetchNetworkInfo();
             }
         });
     });

@@ -908,6 +908,42 @@
                         </div>
                     </div>
 
+                    <!-- Conectar Celular / Acesso Externo Card -->
+                    <div class="glass-card settings-card">
+                        <h3 class="settings-title"><i class="fa-solid fa-mobile-screen-button color-green"></i> Conectar Celular / Acesso Externo</h3>
+                        <p class="settings-desc">Use as opções abaixo para abrir este aplicativo no seu celular (4G/Rede Externa ou na mesma rede Wi-Fi).</p>
+                        
+                        <div class="connection-links-box" style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1rem;">
+                            <!-- Opção 1: Túnel Remoto -->
+                            <div class="connection-option" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: var(--radius-md); padding: 1rem;">
+                                <strong style="display: block; font-size: 0.9rem; color: var(--accent-blue); margin-bottom: 0.25rem;"><i class="fa-solid fa-globe"></i> Opção 1: Pela Internet (4G / Fora de Casa)</strong>
+                                <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Acesse de qualquer lugar usando o túnel seguro gerado automaticamente pelo servidor:</span>
+                                <div class="link-display" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
+                                    <input type="text" id="phone-tunnel-url" class="form-control-flat read-only" readonly value="Carregando túnel..." style="flex-grow: 1; font-family: monospace; font-size: 0.8rem;">
+                                    <button class="btn btn-secondary btn-xs ripple" onclick="copyText('phone-tunnel-url')" style="min-width: 70px; height: 38px;">Copiar</button>
+                                </div>
+                                <div id="tunnel-qr-wrapper" class="qr-code-wrapper" style="display: none; text-align: center; padding: 0.5rem 0;">
+                                    <img id="tunnel-qr-img" src="" alt="QR Code Acesso Remoto" style="max-width: 130px; border-radius: var(--radius-sm); border: 2px solid var(--border-card); background: white; padding: 4px;">
+                                    <span style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Escaneie para acessar fora de casa</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Opção 2: IP Local Wi-Fi -->
+                            <div class="connection-option" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: var(--radius-md); padding: 1rem;">
+                                <strong style="display: block; font-size: 0.9rem; color: var(--accent-green); margin-bottom: 0.25rem;"><i class="fa-solid fa-wifi"></i> Opção 2: Pelo Wi-Fi Local (Mesma Rede)</strong>
+                                <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Se estiver conectado no mesmo Wi-Fi do computador, acesse via rede local:</span>
+                                <div class="link-display" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
+                                    <input type="text" id="phone-local-url" class="form-control-flat read-only" readonly value="Carregando IP local..." style="flex-grow: 1; font-family: monospace; font-size: 0.8rem;">
+                                    <button class="btn btn-secondary btn-xs ripple" onclick="copyText('phone-local-url')" style="min-width: 70px; height: 38px;">Copiar</button>
+                                </div>
+                                <div id="local-qr-wrapper" class="qr-code-wrapper" style="display: none; text-align: center; padding: 0.5rem 0;">
+                                    <img id="local-qr-img" src="" alt="QR Code Acesso Local" style="max-width: 130px; border-radius: var(--radius-sm); border: 2px solid var(--border-card); background: white; padding: 4px;">
+                                    <span style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Escaneie para acessar na rede local</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Meta e Alertas -->
                     <div class="glass-card settings-card">
                         <h3 class="settings-title"><i class="fa-solid fa-bullseye color-purple"></i> Definição de Metas Pessoais</h3>
