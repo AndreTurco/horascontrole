@@ -71,3 +71,22 @@ As três abas continuam 100% integradas e sincronizadas:
 ### 3. 📅 Saneamento de Filtros Mobile ("Não consigo filtrar corretamente")
 - **Problema**: Certas partes como o heatmap de produtividade diário utilizavam o parser de data padrão do navegador (`new Date(row.date)`), o qual retorna `NaN` / `Invalid Date` em dispositivos mobile (iOS/Safari/Android WebView), quebrando a exibição de dados e filtros.
 - **Solução**: Refatoramos o mapa de calor para usar a função utilitária `parseDateParts()`, garantindo compatibilidade e filtragem perfeitas em qualquer celular.
+
+---
+
+## 🛠️ Atualizações de Sincronização e Conectividade Celular (APK/PWA) (10/06/2026)
+
+### 1. 🔄 Túnel Externo Auto-Reconectável (Localtunnel Self-Healing)
+- **Problema**: O túnel do Localtunnel costumava expirar ou desconectar sozinho após algumas horas/dias de inatividade, invalidando a URL no celular e deixando o app offline (não salvava dados ou sincronizava).
+- **Solução**: O servidor Express (`server.js`) agora gerencia a conexão do túnel ativamente. Em caso de queda ou erro no túnel, o servidor tenta restabelecer o link automaticamente a cada 10 segundos.
+
+### 2. 📁 Arquivo Físico de Acesso Rápido (`url_acesso.txt`)
+- **Melhoria**: Toda vez que o servidor inicia ou reconecta, a URL do túnel atual é gravada nos arquivos `url_acesso.txt` e `public/tunnel_url.json`. Isso permite verificar a URL ativa sem precisar abrir o console do servidor.
+
+### 3. 📡 Painel de Conexão no Aplicativo com QR Codes (Configurações)
+- **Melhoria**: Adicionamos o card **"Conectar Celular / Acesso Externo"** na aba **Configurações**. Ele exibe os links ativos em tempo real (tanto o link remoto do 4G quanto o IP local do Wi-Fi) e gera **QR Codes escaneáveis** na tela instantaneamente, permitindo que você conecte o seu celular simplesmente apontando a câmera para o monitor.
+
+### 4. 🎛️ Suporte a APK Único com Troca Dinâmica de Servidor (API Host Customizado)
+- **Melhoria**: Adicionamos o card **"Endereço do Servidor Customizado"** nas **Configurações**. O usuário pode digitar a URL de um novo servidor (ex: um túnel novo do Serveo/Localtunnel) diretamente no formulário do aplicativo. 
+- **Independência de Compilação**: Isso significa que você pode compilar seu aplicativo Android (`.apk`) **apenas uma vez** (com qualquer link temporário ou local) e instalá-lo permanentemente no celular. Quando a URL do túnel mudar, basta colar a nova URL nas configurações do app instalado no celular para reconectar, sem necessidade de baixar um novo APK.
+
