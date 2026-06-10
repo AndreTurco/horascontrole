@@ -1426,6 +1426,61 @@ function tryServeoTunnel() {
     });
 }
 
+// Função auxiliar de DNS over HTTPS para resolver IP de domínios ignorando restrições locais do Windows
+function resolveHostIp(hostname) {
+    const tryGoogle = () => new Promise((resolve, reject) => {
+        const req = https.get(`https://8.8.8.8/resolve?name=${encodeURIComponent(hostname)}&type=A`, {
+            rejectUnauthorized: false,
+            timeout: 5000
+        }, (res) => {
+            if (res.statusCode !== 200) return reject(new Error('Google DoH status ' + res.statusCode));
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.Answer && json.Answer.length > 0) {
+                        const aRecord = json.Answer.find(ans => ans.type === 1);
+                        if (aRecord && aRecord.data) return resolve(aRecord.data);
+                    }
+                    reject(new Error('No A record'));
+                } catch (e) { reject(e); }
+            });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Google DoH timeout')); });
+    });
+
+    const tryCloudflare = () => new Promise((resolve, reject) => {
+        const req = https.get(`https://1.1.1.1/dns-query?name=${encodeURIComponent(hostname)}&type=A`, {
+            headers: { 'Accept': 'application/dns-json' },
+            rejectUnauthorized: false,
+            timeout: 5000
+        }, (res) => {
+            if (res.statusCode !== 200) return reject(new Error('Cloudflare DoH status ' + res.statusCode));
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.Answer && json.Answer.length > 0) {
+                        const aRecord = json.Answer.find(ans => ans.type === 1);
+                        if (aRecord && aRecord.data) return resolve(aRecord.data);
+                    }
+                    reject(new Error('No A record'));
+                } catch (e) { reject(e); }
+            });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Cloudflare DoH timeout')); });
+    });
+
+    return tryGoogle().catch(err => {
+        console.warn(`  [DNS] Falha no Google DoH (${err.message}). Tentando Cloudflare DoH...`);
+        return tryCloudflare();
+    });
+}
+
 // Função para gerar o APK via API do PWABuilder
 function generateApkPackage(tunnelUrl) {
     if (isApkCompiling) {
@@ -1483,12 +1538,15 @@ function generateApkPackage(tunnelUrl) {
             },
             timeout: 90000,
             lookup: (hostname, opts, cb) => {
-                dns.resolve4(hostname, (err, addresses) => {
-                    if (err || !addresses || addresses.length === 0) {
-                        return dns.lookup(hostname, opts, cb);
-                    }
-                    cb(null, addresses[0], 4);
-                });
+                resolveHostIp(hostname)
+                    .then(ip => {
+                        console.log(`  [DNS-DOH] Resolvido ${hostname} -> ${ip}`);
+                        cb(null, ip, 4);
+                    })
+                    .catch(err => {
+                        console.warn(`  [DNS-AVISO] Falha no DoH para ${hostname} (${err.message}). Usando lookup padrão do Windows...`);
+                        dns.lookup(hostname, opts, cb);
+                    });
             }
         };
 
