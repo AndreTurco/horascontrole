@@ -8,6 +8,14 @@ const qrcode = require('qrcode-terminal');
 const localtunnel = require('localtunnel');
 const { spawn, exec } = require('child_process');
 const https = require('https');
+const dns = require('dns');
+
+// Configurar servidores DNS públicos para o Node.js resolver domínios externos de forma robusta no Windows
+try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+    console.warn('[AVISO] Não foi possível definir servidores DNS públicos:', e.message);
+}
 
 const app = express();
 // Porta 3080 para evitar conflitos na porta 3000
@@ -1473,7 +1481,15 @@ function generateApkPackage(tunnelUrl) {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(postData)
             },
-            timeout: 90000
+            timeout: 90000,
+            lookup: (hostname, opts, cb) => {
+                dns.resolve4(hostname, (err, addresses) => {
+                    if (err || !addresses || addresses.length === 0) {
+                        return dns.lookup(hostname, opts, cb);
+                    }
+                    cb(null, addresses[0], 4);
+                });
+            }
         };
 
         const req = https.request(options, (res) => {
