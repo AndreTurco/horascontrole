@@ -1525,7 +1525,7 @@ function generateApkPackage(tunnelUrl) {
             includeSourceCode: false
         });
 
-        const url = 'https://pwabuilder-android-docker.azurewebsites.net/generateAppPackage';
+        const url = 'https://api.pwabuilder.com/generateAppPackage';
         const parsedUrl = new URL(url);
 
         const options = {
