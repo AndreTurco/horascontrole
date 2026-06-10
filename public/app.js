@@ -40,6 +40,15 @@ const state = {
     comparisonChart: null
 };
 
+// Obter a URL base da API (suporta servidor customizado para APK)
+function getApiHost() {
+    const customHost = localStorage.getItem('custom_api_host');
+    if (customHost) {
+        return customHost.replace(/\/$/, ''); // Remove barra no final
+    }
+    return ''; // Padrão é o host atual
+}
+
 // Categoria Financeira com seus respectivo ícones e cores Mobills
 const categoriesMeta = {
     'Moradia': { icon: 'fa-house-chimney', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
@@ -93,6 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     document.getElementById('filter-month').value = state.selectedMonth;
+    
+    const customHostInput = document.getElementById('input-custom-host');
+    if (customHostInput) {
+        customHostInput.value = localStorage.getItem('custom_api_host') || '';
+    }
 
     // Tentar carregar dados em cache do localStorage para exibição imediata (Offline-first)
     const cachedData = localStorage.getItem('app_state_data');
@@ -138,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchData() {
     try {
         setSyncStatus('syncing', 'Sincronizando...');
-        const response = await fetch(`/api/data?_=${Date.now()}`, { cache: 'no-store' });
+        const response = await fetch(`${getApiHost()}/api/data?_=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) throw new Error('Erro ao carregar do servidor');
         
         const data = await response.json();
@@ -182,7 +196,7 @@ async function fetchData() {
 // Obter informações de rede do computador/servidor
 async function fetchNetworkInfo() {
     try {
-        const response = await fetch('/api/network-info');
+        const response = await fetch(`${getApiHost()}/api/network-info`);
         if (!response.ok) throw new Error();
         const data = await response.json();
         
@@ -237,7 +251,7 @@ window.copyText = function(elementId) {
 async function saveRow(rowData) {
     try {
         setSyncStatus('syncing', 'Gravando...');
-        const response = await fetch('/api/save', {
+        const response = await fetch(`${getApiHost()}/api/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(rowData)
@@ -260,7 +274,7 @@ async function saveRow(rowData) {
 async function saveGlobalRate(rate) {
     try {
         setSyncStatus('syncing', 'Salvando taxa...');
-        const response = await fetch('/api/rate', {
+        const response = await fetch(`${getApiHost()}/api/rate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ globalRate: rate })
@@ -351,7 +365,7 @@ async function registerClockIn() {
             }
         }
 
-        const response = await fetch('/api/clock-in', {
+        const response = await fetch(`${getApiHost()}/api/clock-in`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ date: dateStr, time: timeStr })
@@ -383,7 +397,7 @@ async function registerClockIn() {
 async function payBatch(dateLimit) {
     try {
         setSyncStatus('syncing', 'Quitando lote...');
-        const response = await fetch('/api/pay-batch', {
+        const response = await fetch(`${getApiHost()}/api/pay-batch`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dateLimit })
@@ -409,7 +423,7 @@ async function payBatch(dateLimit) {
 async function saveFinanceEntry(entryData) {
     try {
         setSyncStatus('syncing', 'Salvando transação...');
-        const response = await fetch('/api/finance/save', {
+        const response = await fetch(`${getApiHost()}/api/finance/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(entryData)
@@ -437,7 +451,7 @@ async function saveFinanceEntry(entryData) {
 async function deleteFinanceEntry(id) {
     try {
         setSyncStatus('syncing', 'Excluindo transação...');
-        const response = await fetch('/api/finance/delete', {
+        const response = await fetch(`${getApiHost()}/api/finance/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id })
@@ -1737,6 +1751,39 @@ function bindEvents() {
         renderDashboard();
     });
 
+    // 10b. Servidor Customizado (API Host)
+    const btnSaveHost = document.getElementById('btn-save-custom-host');
+    if (btnSaveHost) {
+        btnSaveHost.addEventListener('click', () => {
+            let val = document.getElementById('input-custom-host').value.trim();
+            if (val) {
+                // Adicionar http:// se não tiver protocolo
+                if (!/^https?:\/\//i.test(val)) {
+                    val = 'http://' + val;
+                }
+                localStorage.setItem('custom_api_host', val);
+                document.getElementById('input-custom-host').value = val;
+                showToast('Servidor customizado salvo com sucesso!', 'success');
+            } else {
+                showToast('Por favor, digite uma URL válida.', 'error');
+                return;
+            }
+            fetchData();
+            fetchNetworkInfo();
+        });
+    }
+
+    const btnClearHost = document.getElementById('btn-clear-custom-host');
+    if (btnClearHost) {
+        btnClearHost.addEventListener('click', () => {
+            localStorage.removeItem('custom_api_host');
+            document.getElementById('input-custom-host').value = '';
+            showToast('Configuração resetada! Usando host atual.', 'success');
+            fetchData();
+            fetchNetworkInfo();
+        });
+    }
+
     // 11. Alternador de Tema Escuro / Claro
     document.getElementById('theme-toggle').addEventListener('click', () => {
         const body = document.body;
@@ -2234,7 +2281,7 @@ function renderInvestments() {
 async function saveInvestEntry(investData) {
     try {
         setSyncStatus('syncing', 'Salvando aporte...');
-        const response = await fetch('/api/invest/save', {
+        const response = await fetch(`${getApiHost()}/api/invest/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(investData)
@@ -2263,7 +2310,7 @@ async function saveInvestEntry(investData) {
 async function deleteInvestEntry(id) {
     try {
         setSyncStatus('syncing', 'Excluindo aporte...');
-        const response = await fetch('/api/invest/delete', {
+        const response = await fetch(`${getApiHost()}/api/invest/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id })

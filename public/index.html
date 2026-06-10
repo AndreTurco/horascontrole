@@ -944,6 +944,30 @@
                         </div>
                     </div>
 
+                    <!-- Endereço do Servidor Customizado Card -->
+                    <div class="glass-card settings-card">
+                        <h3 class="settings-title"><i class="fa-solid fa-server color-blue"></i> Endereço do Servidor Customizado</h3>
+                        <p class="settings-desc">Se você está usando um aplicativo instalado (.apk) ou em outro domínio, insira a URL do seu servidor abaixo para sincronizar.</p>
+                        
+                        <div class="form-row">
+                            <div class="form-group-flat flex-grow">
+                                <label for="input-custom-host">URL do Servidor (API Host)</label>
+                                <div class="input-icon-wrapper">
+                                    <span class="input-addon"><i class="fa-solid fa-link"></i></span>
+                                    <input type="url" id="input-custom-host" class="form-control-flat" placeholder="Ex: https://metal-lights-hang.loca.lt" style="font-family: monospace; font-size: 0.85rem;">
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; align-items: flex-end; margin-top: 1rem;">
+                                <button id="btn-save-custom-host" class="btn btn-primary btn-inline ripple">
+                                    <i class="fa-solid fa-check"></i> Salvar
+                                </button>
+                                <button id="btn-clear-custom-host" class="btn btn-secondary btn-inline ripple">
+                                    <i class="fa-solid fa-trash"></i> Limpar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Meta e Alertas -->
                     <div class="glass-card settings-card">
                         <h3 class="settings-title"><i class="fa-solid fa-bullseye color-purple"></i> Definição de Metas Pessoais</h3>
