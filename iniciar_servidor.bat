@@ -6,6 +6,9 @@ echo ==========================================================
 echo   INICIANDO O SISTEMA DE CONTROLE DE HORAS PREMIUM
 echo ==========================================================
 echo.
+echo [INFO] Atualizando o projeto com as últimas correções...
+call git pull
+echo.
 echo [INFO] Verificando dependencias do projeto...
 
 if not exist node_modules (
