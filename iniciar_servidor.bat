@@ -25,6 +25,9 @@ if not exist node_modules (
 )
 
 echo.
+echo [INFO] Liberando a porta 3080 caso esteja em uso...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3080 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
+
 echo [INFO] Iniciando o servidor local...
 echo.
 
