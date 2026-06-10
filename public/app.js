@@ -202,11 +202,15 @@ async function fetchNetworkInfo() {
         
         const tunnelInput = document.getElementById('phone-tunnel-url');
         const localInput = document.getElementById('phone-local-url');
+        const apkInput = document.getElementById('phone-apk-url');
         
         const tunnelQrImg = document.getElementById('tunnel-qr-img');
         const localQrImg = document.getElementById('local-qr-img');
+        const apkQrImg = document.getElementById('apk-qr-img');
+        
         const tunnelQrWrapper = document.getElementById('tunnel-qr-wrapper');
         const localQrWrapper = document.getElementById('local-qr-wrapper');
+        const apkQrWrapper = document.getElementById('apk-qr-wrapper');
         
         if (data.tunnelUrl) {
             if (tunnelInput) tunnelInput.value = data.tunnelUrl;
@@ -214,9 +218,18 @@ async function fetchNetworkInfo() {
                 tunnelQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data.tunnelUrl)}`;
                 if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'block';
             }
+            
+            const apkUrl = `${data.tunnelUrl}/controle-horas.apk`;
+            if (apkInput) apkInput.value = apkUrl;
+            if (apkQrImg) {
+                apkQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(apkUrl)}`;
+                if (apkQrWrapper) apkQrWrapper.style.display = 'block';
+            }
         } else {
             if (tunnelInput) tunnelInput.value = 'Sem túnel remoto ativo (tente reiniciar o servidor)';
             if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'none';
+            if (apkInput) apkInput.value = 'Sem túnel ativo para download';
+            if (apkQrWrapper) apkQrWrapper.style.display = 'none';
         }
         
         if (data.localIps && data.localIps.length > 0) {

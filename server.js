@@ -6,6 +6,8 @@ const fs = require('fs');
 const os = require('os');
 const qrcode = require('qrcode-terminal');
 const localtunnel = require('localtunnel');
+const { spawn, exec } = require('child_process');
+const https = require('https');
 
 const app = express();
 // Porta 3080 para evitar conflitos na porta 3000
@@ -1202,8 +1204,51 @@ app.post('/api/auto-arrival', async (req, res) => {
 });
 
 // Inicia Servidor, descobre IPs locais e cria Túnel Externo Seguro
-// Variável global para armazenar a URL atual do localtunnel
+// Variável global para armazenar a URL atual do túnel
 let currentTunnelUrl = '';
+let sshProcess = null;
+
+// Rota de download do APK com controle de status
+let isApkCompiling = false;
+let apkCompilationError = null;
+
+app.get('/controle-horas.apk', (req, res) => {
+    const apkPath = path.join(__dirname, 'public', 'controle-horas.apk');
+    if (fs.existsSync(apkPath)) {
+        res.setHeader('Content-Disposition', 'attachment; filename=controle-horas.apk');
+        res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+        return res.sendFile(apkPath);
+    }
+    
+    if (isApkCompiling) {
+        return res.status(503).send(`
+            <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Compilando Aplicativo...</title>
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0b0f19; color: #fff; text-align: center; padding: 50px; }
+                        .spinner { border: 4px solid rgba(255,255,255,0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #9d4edd; animation: spin 1s linear infinite; margin: 30px auto; }
+                        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                        h1 { color: #9d4edd; }
+                    </style>
+                </head>
+                <body>
+                    <h1>O Aplicativo está sendo compilado!</h1>
+                    <p>O servidor está gerando o seu APK personalizado pré-configurado na nuvem via PWABuilder.</p>
+                    <div class="spinner"></div>
+                    <p>Por favor, aguarde cerca de 30 a 60 segundos e <strong>atualize esta página</strong>.</p>
+                </body>
+            </html>
+        `);
+    }
+
+    if (apkCompilationError) {
+        return res.status(500).send(`Erro na compilação do APK: ${apkCompilationError}. Verifique o console do servidor.`);
+    }
+
+    return res.status(404).send('APK não disponível e não está sendo compilado. Certifique-se de que o túnel de internet está ativo.');
+});
 
 // API: Obter informações de rede para conexão do celular
 app.get('/api/network-info', (req, res) => {
@@ -1223,47 +1268,286 @@ app.get('/api/network-info', (req, res) => {
     });
 });
 
-// Função para iniciar e reconectar o túnel remoto automaticamente
+// Função para iniciar e reconectar o túnel remoto automaticamente (Tenta Serveo SSH primeiro, depois Localtunnel)
 async function startTunnel(retryCount = 0) {
     const urlFilePath = path.join(__dirname, 'url_acesso.txt');
     const jsonFilePath = path.join(__dirname, 'public', 'tunnel_url.json');
 
+    if (sshProcess) {
+        try { sshProcess.kill(); } catch (e) {}
+        sshProcess = null;
+    }
+
+    console.log(`  [INFO] Estabelecendo conexão para acesso remoto (Tentativa ${retryCount + 1})...`);
+
     try {
-        console.log(`  [INFO] Estabelecendo conexão para acesso remoto (Tentativa ${retryCount + 1})...`);
-        const tunnel = await localtunnel({ port: PORT });
-        
-        currentTunnelUrl = tunnel.url;
+        // Tentar o túnel alternativo (Serveo) primeiro via SSH nativo
+        const serveoUrl = await tryServeoTunnel();
+        currentTunnelUrl = serveoUrl;
+
         console.log();
         console.log(`  ===================================================`);
-        console.log(`  ACESSO DE QUALQUER LUGAR DO MUNDO (Outras Redes/4G):`);
+        console.log(`  TÚNEL REMOTO ATIVO (SERVEO - TUNEL ALTERNATIVO):`);
         console.log(`  > ${currentTunnelUrl}`);
         console.log();
         console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
         qrcode.generate(currentTunnelUrl, { small: true });
         console.log(`  ===================================================`);
-        
-        // Gravar a URL atual em arquivo txt e json para facilidade de consulta
+
         fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
         fs.writeFileSync(jsonFilePath, JSON.stringify({ url: currentTunnelUrl, updated: new Date().toISOString() }), 'utf8');
 
-        tunnel.on('close', () => {
-            console.log('  [INFO] Túnel remoto fechado. Tentando reconectar em 10 segundos...');
-            currentTunnelUrl = '';
-            try { fs.unlinkSync(urlFilePath); } catch (e) {}
-            try { fs.unlinkSync(jsonFilePath); } catch (e) {}
-            setTimeout(() => startTunnel(retryCount + 1), 10000);
-        });
-
-        tunnel.on('error', (err) => {
-            console.error('  [Erro] Erro no túnel remoto:', err.message);
-            try { tunnel.close(); } catch (e) {}
+        // Disparar compilação do APK em segundo plano
+        generateApkPackage(currentTunnelUrl).catch(err => {
+            console.error('[APK-ERRO] Falha na compilação em segundo plano:', err.message);
         });
 
     } catch (err) {
-        console.warn('  [Aviso] Não foi possível criar o túnel remoto:', err.message);
-        console.log('  [INFO] Tentando novamente em 15 segundos...');
-        setTimeout(() => startTunnel(retryCount + 1), 15000);
+        console.warn(`  [Aviso] Serveo SSH indisponível (${err.message}). Tentando fallback com localtunnel...`);
+
+        try {
+            const tunnel = await localtunnel({ port: PORT });
+            currentTunnelUrl = tunnel.url;
+
+            console.log();
+            console.log(`  ===================================================`);
+            console.log(`  TÚNEL REMOTO ATIVO (LOCALTUNNEL FALLBACK):`);
+            console.log(`  > ${currentTunnelUrl}`);
+            console.log();
+            console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
+            qrcode.generate(currentTunnelUrl, { small: true });
+            console.log(`  ===================================================`);
+
+            fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
+            fs.writeFileSync(jsonFilePath, JSON.stringify({ url: currentTunnelUrl, updated: new Date().toISOString() }), 'utf8');
+
+            // Disparar compilação do APK
+            generateApkPackage(currentTunnelUrl).catch(err => {
+                console.error('[APK-ERRO] Falha na compilação em segundo plano:', err.message);
+            });
+
+            tunnel.on('close', () => {
+                console.log('  [INFO] Túnel localtunnel fechado. Tentando reconectar em 10 segundos...');
+                currentTunnelUrl = '';
+                try { fs.unlinkSync(urlFilePath); } catch (e) {}
+                try { fs.unlinkSync(jsonFilePath); } catch (e) {}
+                setTimeout(() => startTunnel(retryCount + 1), 10000);
+            });
+
+            tunnel.on('error', (err) => {
+                console.error('  [Erro] Erro no localtunnel:', err.message);
+                try { tunnel.close(); } catch (e) {}
+            });
+
+        } catch (ltErr) {
+            console.error('  [Erro] Falha ao iniciar ambos os túneis (Serveo e localtunnel):', ltErr.message);
+            console.log('  [INFO] Tentando novamente toda a pilha de conexões em 15 segundos...');
+            setTimeout(() => startTunnel(retryCount + 1), 15000);
+        }
     }
+}
+
+// Função para estabelecer túnel via SSH com o Serveo
+function tryServeoTunnel() {
+    return new Promise((resolve, reject) => {
+        console.log('  [INFO] Iniciando túnel SSH do Serveo...');
+        const ssh = spawn('ssh', [
+            '-o', 'StrictHostKeyChecking=no',
+            '-R', '80:localhost:3080',
+            'serveo.net'
+        ]);
+
+        sshProcess = ssh;
+        let resolved = false;
+        let outputBuffer = '';
+
+        const timer = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                ssh.kill();
+                reject(new Error('Timeout de 15s excedido sem resposta do serveo.net'));
+            }
+        }, 15000);
+
+        ssh.stdout.on('data', (data) => {
+            const str = data.toString();
+            outputBuffer += str;
+            const match = str.match(/https:\/\/[a-zA-Z0-9-]+\.serveo\.net/);
+            if (match && !resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                resolve(match[0]);
+            }
+        });
+
+        ssh.stderr.on('data', (data) => {
+            const str = data.toString();
+            if (str.includes('Warning') || str.includes('Forwarding')) {
+                const match = str.match(/https:\/\/[a-zA-Z0-9-]+\.serveo\.net/);
+                if (match && !resolved) {
+                    resolved = true;
+                    clearTimeout(timer);
+                    resolve(match[0]);
+                }
+            }
+        });
+
+        ssh.on('close', (code) => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                reject(new Error(`Conexão SSH fechada com código de saída ${code}`));
+            } else {
+                console.log('  [INFO] Conexão do Serveo caiu. Tentando reconectar...');
+                currentTunnelUrl = '';
+                const urlFilePath = path.join(__dirname, 'url_acesso.txt');
+                const jsonFilePath = path.join(__dirname, 'public', 'tunnel_url.json');
+                try { fs.unlinkSync(urlFilePath); } catch (e) {}
+                try { fs.unlinkSync(jsonFilePath); } catch (e) {}
+                setTimeout(() => startTunnel(0), 10000);
+            }
+        });
+
+        ssh.on('error', (err) => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                reject(err);
+            }
+        });
+    });
+}
+
+// Função para gerar o APK via API do PWABuilder
+function generateApkPackage(tunnelUrl) {
+    if (isApkCompiling) {
+        console.log('  [APK] Uma compilação de APK já está em andamento. Ignorando.');
+        return Promise.resolve();
+    }
+
+    isApkCompiling = true;
+    apkCompilationError = null;
+
+    console.log();
+    console.log(`  ===================================================`);
+    console.log(`  [APK] INICIANDO COMPILAÇÃO DO APK NA NUVEM...`);
+    console.log(`  [APK] URL de Origem: ${tunnelUrl}`);
+    console.log(`  [APK] Isso pode levar de 30 a 60 segundos...`);
+    console.log(`  ===================================================`);
+
+    const zipPath = path.join(__dirname, 'fetchedTemplate.zip');
+    const extractPath = path.join(__dirname, 'decompressedTemplate');
+    const apkDestPath = path.join(__dirname, 'public', 'controle-horas.apk');
+
+    try { fs.unlinkSync(zipPath); } catch (e) {}
+    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+
+    return new Promise((resolve, reject) => {
+        const postData = JSON.stringify({
+            host: tunnelUrl,
+            manifestUrl: `${tunnelUrl}/manifest.json`,
+            name: "Controle de Horas Premium",
+            packageName: "com.andreturco.horascontrole",
+            appVersion: "1.0.0.0",
+            appVersionCode: 1,
+            backgroundColor: "#0b0f19",
+            themeColor: "#0b0f19",
+            display: "standalone",
+            iconUrl: "https://img.icons8.com/color/512/000000/clock.png",
+            fallbackType: "customtabs",
+            features: {
+                locationDelegation: { enabled: true },
+                playBilling: { enabled: false }
+            },
+            includeSourceCode: false
+        });
+
+        const url = 'https://android.pwabuilder.com/generateAppPackage';
+        const parsedUrl = new URL(url);
+
+        const options = {
+            hostname: parsedUrl.hostname,
+            path: parsedUrl.pathname,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            },
+            timeout: 90000
+        };
+
+        const req = https.request(options, (res) => {
+            if (res.statusCode !== 200) {
+                let errData = '';
+                res.on('data', chunk => errData += chunk);
+                res.on('end', () => {
+                    const errMsg = `PWABuilder API retornou erro ${res.statusCode}: ${errData}`;
+                    isApkCompiling = false;
+                    apkCompilationError = errMsg;
+                    reject(new Error(errMsg));
+                });
+                return;
+            }
+
+            const fileStream = fs.createWriteStream(zipPath);
+            res.pipe(fileStream);
+
+            fileStream.on('finish', () => {
+                fileStream.close();
+                console.log('  [APK] Download concluído. Extraindo pacote no Windows...');
+                
+                const psCommand = `powershell -Command "Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${extractPath}'; Get-ChildItem -Path '${extractPath}' -Filter '*.apk' -Recurse | Select-Object -First 1 | Move-Item -Destination '${apkDestPath}' -Force"`;
+                
+                exec(psCommand, (error, stdout, stderr) => {
+                    try { fs.unlinkSync(zipPath); } catch (e) {}
+                    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+
+                    if (error) {
+                        const errMsg = `Erro ao extrair/mover o APK: ${stderr || error.message}`;
+                        isApkCompiling = false;
+                        apkCompilationError = errMsg;
+                        return reject(new Error(errMsg));
+                    }
+
+                    isApkCompiling = false;
+                    console.log();
+                    console.log(`  ===================================================`);
+                    console.log(`  [APK] APK COMPILADO E PRONTO PARA DOWNLOAD!`);
+                    console.log(`  [APK] Caminho: public/controle-horas.apk`);
+                    console.log(`  [APK] Link de Download: ${tunnelUrl}/controle-horas.apk`);
+                    console.log();
+                    console.log(`  Escaneie o QR Code abaixo para baixar o APK no celular:`);
+                    qrcode.generate(`${tunnelUrl}/controle-horas.apk`, { small: true });
+                    console.log(`  ===================================================`);
+                    console.log();
+                    resolve();
+                });
+            });
+
+            fileStream.on('error', (err) => {
+                isApkCompiling = false;
+                apkCompilationError = err.message;
+                reject(err);
+            });
+        });
+
+        req.on('error', (e) => {
+            isApkCompiling = false;
+            apkCompilationError = e.message;
+            reject(e);
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            const errMsg = 'Timeout de conexão com o servidor do PWABuilder (90s)';
+            isApkCompiling = false;
+            apkCompilationError = errMsg;
+            reject(new Error(errMsg));
+        });
+
+        req.write(postData);
+        req.end();
+    });
 }
 
 // Inicia Servidor, descobre IPs locais e cria Túnel Externo Seguro com auto-reconnect
@@ -1280,7 +1564,6 @@ app.listen(PORT, async () => {
     console.log(`  > http://localhost:${PORT}`);
     console.log();
 
-    // Detectar Interfaces de Rede Local IPv4
     const networkInterfaces = os.networkInterfaces();
     const ips = [];
     for (const interfaceName in networkInterfaces) {

@@ -941,6 +941,20 @@
                                     <span style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Escaneie para acessar na rede local</span>
                                 </div>
                             </div>
+
+                            <!-- Opção 3: Baixar APK -->
+                            <div class="connection-option" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: var(--radius-md); padding: 1rem;">
+                                <strong style="display: block; font-size: 0.9rem; color: var(--accent-purple); margin-bottom: 0.25rem;"><i class="fa-solid fa-download"></i> Opção 3: Baixar Aplicativo Nativo (.APK)</strong>
+                                <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Instale o app permanentemente no seu celular. Ele já virá pré-configurado com a URL do servidor atual!</span>
+                                <div class="link-display" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
+                                    <input type="text" id="phone-apk-url" class="form-control-flat read-only" readonly value="Carregando link do APK..." style="flex-grow: 1; font-family: monospace; font-size: 0.8rem;">
+                                    <button class="btn btn-primary btn-xs ripple" onclick="window.open(document.getElementById('phone-apk-url').value)" style="min-width: 90px; height: 38px; padding: 0 10px;">Baixar</button>
+                                </div>
+                                <div id="apk-qr-wrapper" class="qr-code-wrapper" style="display: none; text-align: center; padding: 0.5rem 0;">
+                                    <img id="apk-qr-img" src="" alt="QR Code Download APK" style="max-width: 130px; border-radius: var(--radius-sm); border: 2px solid var(--border-card); background: white; padding: 4px;">
+                                    <span style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Escaneie para BAIXAR o instalador APK no celular</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
