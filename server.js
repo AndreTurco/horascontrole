@@ -1462,7 +1462,7 @@ function generateApkPackage(tunnelUrl) {
             includeSourceCode: false
         });
 
-        const url = 'https://android.pwabuilder.com/generateAppPackage';
+        const url = 'https://pwabuilder-android.azurewebsites.net/generateAppPackage';
         const parsedUrl = new URL(url);
 
         const options = {
