@@ -1525,7 +1525,7 @@ function generateApkPackage(tunnelUrl) {
             includeSourceCode: false
         });
 
-        const url = 'https://api.pwabuilder.com/generateAppPackage';
+        const url = 'https://pwabuilder.com/api/generateAppPackage';
         const parsedUrl = new URL(url);
 
         const options = {
