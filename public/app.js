@@ -40,6 +40,8 @@ const state = {
     comparisonChart: null
 };
 
+let resolvedApiHost = '';
+
 // Obter a URL base da API (suporta servidor customizado para APK)
 function getApiHost() {
     const customHost = localStorage.getItem('custom_api_host');
@@ -54,13 +56,13 @@ function getApiHost() {
                     localStorage.removeItem('custom_api_host');
                     const input = document.getElementById('input-custom-host');
                     if (input) input.value = '';
-                    return '';
+                    return resolvedApiHost || '';
                 }
             }
         } catch (e) {}
         return customHost.replace(/\/$/, ''); // Remove barra no final
     }
-    return ''; // Padrão é o host atual
+    return resolvedApiHost || ''; // Padrão é a resolvida do GitHub (se houver), ou o host atual
 }
 
 // Categoria Financeira com seus respectivo ícones e cores Mobills
@@ -93,7 +95,7 @@ const ptMonths = [
 // ==========================================================================
 // INITIALIZATION
 // ==========================================================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Carregar configurações locais
     const savedGoal = localStorage.getItem('goalEarnings');
     if (savedGoal) {
@@ -142,6 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Iniciar Relógio
     startClock();
+    
+    // Buscar dinamicamente a URL ativa do túnel no GitHub (se estiver acessando remotamente)
+    await resolveActiveTunnelUrl();
     
     // Carregar do Servidor
     fetchData();
@@ -2513,7 +2518,7 @@ function renderComparisonChart() {
 
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('sw.js')
             .then(reg => {
                 console.log('Service Worker registrado com sucesso!');
                 
@@ -3063,12 +3068,23 @@ window.launchRecurring = function(desc, amount, type, category) {
 };
 
 // Função para ouvir atualizações em tempo real enviadas pelo servidor
-function setupRealtimeUpdates() {
+async function setupRealtimeUpdates() {
+    // Buscar dinamicamente a URL ativa do túnel no GitHub antes de tentar conectar
+    await resolveActiveTunnelUrl();
+
     const apiHost = getApiHost();
     const sseUrl = `${apiHost}/api/updates-stream`;
     console.log('[SSE] Conectando ao canal de atualizações em tempo real:', sseUrl);
     
     let eventSource = new EventSource(sseUrl);
+    
+    eventSource.onopen = function() {
+        console.log('[SSE] Conexão com o servidor estabelecida com sucesso!');
+        setSyncStatus('connected', 'Online');
+        // Ao conectar/reconectar, sincroniza imediatamente os dados com o servidor
+        fetchData();
+        fetchNetworkInfo();
+    };
     
     eventSource.onmessage = function(event) {
         try {
@@ -3084,7 +3100,31 @@ function setupRealtimeUpdates() {
     
     eventSource.onerror = function(err) {
         console.warn('[SSE] Canal desconectado. Tentando reconectar em 5 segundos...');
+        setSyncStatus('offline', 'Desconectado');
         eventSource.close();
         setTimeout(setupRealtimeUpdates, 5000);
     };
+}
+
+// Resolver dinamicamente a URL ativa do túnel a partir do repositório público do GitHub do usuário
+async function resolveActiveTunnelUrl() {
+    const currentHost = window.location.hostname;
+    // Se estiver rodando localmente (localhost ou rede local Wi-Fi 192.168.x.x), não altera nada
+    if (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.')) {
+        return;
+    }
+
+    try {
+        console.log('[API] Resolvendo URL do túnel dinâmico via GitHub...');
+        const response = await fetch('https://raw.githubusercontent.com/AndreTurco/horascontrole/main/tunnel_url.json?_=' + Date.now(), { cache: 'no-store' });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.url) {
+                resolvedApiHost = data.url.replace(/\/$/, '');
+                console.log('[API] URL ativa resolvida do GitHub:', resolvedApiHost);
+            }
+        }
+    } catch (e) {
+        console.error('[API-ERROR] Falha ao ler tunnel_url.json do GitHub:', e);
+    }
 }

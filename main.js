@@ -1,10 +1,26 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, Tray, Menu } = require('electron');
 const path = require('path');
 
 // Iniciar o Express Backend e os túneis SSH
 const server = require('./server.js');
 
 let mainWindow;
+let tray = null;
+let isQuitting = false;
+let hasShownMinimizeNotification = false;
+
+// Configurar o aplicativo para iniciar automaticamente com o Windows
+function configureAutoStart() {
+    try {
+        app.setLoginItemSettings({
+            openAtLogin: true,
+            openAsHidden: true,
+            path: process.execPath
+        });
+    } catch (e) {
+        console.warn('[WARNING] Não foi possível configurar inicialização automática:', e.message);
+    }
+}
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -26,13 +42,84 @@ function createWindow() {
         mainWindow.loadURL('http://localhost:3080');
     }, 1200);
 
+    // Interceptar o fechamento da janela para minimizar na bandeja do sistema (System Tray)
+    mainWindow.on('close', (event) => {
+        if (!isQuitting) {
+            event.preventDefault();
+            mainWindow.hide();
+            
+            if (!hasShownMinimizeNotification && tray) {
+                try {
+                    tray.displayBalloon({
+                        title: 'Controle de Horas Premium',
+                        content: 'O sistema continua ativo em segundo plano na barra de tarefas (próximo ao relógio) para manter a sincronização com o celular.',
+                        iconType: 'info'
+                    });
+                    hasShownMinimizeNotification = true;
+                } catch (e) {
+                    console.warn('[WARNING] Não foi possível exibir notificação do tray:', e.message);
+                }
+            }
+        }
+    });
+
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
 }
 
+function createTray() {
+    const iconPath = path.join(__dirname, 'public', 'icon.ico');
+    tray = new Tray(iconPath);
+    
+    const contextMenu = Menu.buildFromTemplate([
+        { 
+            label: 'Abrir Painel', 
+            click: () => {
+                if (mainWindow) {
+                    mainWindow.show();
+                    mainWindow.focus();
+                } else {
+                    createWindow();
+                }
+            } 
+        },
+        { type: 'separator' },
+        { 
+            label: 'Sair Completamente', 
+            click: () => {
+                isQuitting = true;
+                app.quit();
+            } 
+        }
+    ]);
+
+    tray.setToolTip('Controle de Horas Premium (Rodando em Segundo Plano)');
+    tray.setContextMenu(contextMenu);
+
+    // Dar clique simples ou duplo clique no ícone para restaurar
+    tray.on('double-click', () => {
+        if (mainWindow) {
+            mainWindow.show();
+            mainWindow.focus();
+        } else {
+            createWindow();
+        }
+    });
+    tray.on('click', () => {
+        if (mainWindow) {
+            mainWindow.show();
+            mainWindow.focus();
+        } else {
+            createWindow();
+        }
+    });
+}
+
 app.whenReady().then(() => {
+    configureAutoStart();
     createWindow();
+    createTray();
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -41,9 +128,15 @@ app.whenReady().then(() => {
     });
 });
 
-// Fechar completamente o processo do Express e conexões de túnel SSH quando fechar a janela
+// Fechar completamente o processo quando o app for finalizado pelo menu da bandeja
+app.on('before-quit', () => {
+    isQuitting = true;
+});
+
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
-        app.quit();
+        if (isQuitting) {
+            app.quit();
+        }
     }
 });

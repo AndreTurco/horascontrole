@@ -2,19 +2,19 @@
   "name": "Controle de Horas Premium",
   "short_name": "Horas Tracker",
   "description": "Aplicativo premium de controle de horas integrado ao Excel",
-  "start_url": "/",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b0f19",
   "theme_color": "#0b0f19",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/clock-192.png",
+      "src": "clock-192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "/clock-512.png",
+      "src": "clock-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }

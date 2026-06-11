@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const qrcode = require('qrcode-terminal');
 const localtunnel = require('localtunnel');
-const { spawn, exec } = require('child_process');
+const { spawn, exec, execSync } = require('child_process');
 const https = require('https');
 const dns = require('dns');
 
@@ -1329,9 +1329,23 @@ function updateTunnelUrlJson() {
         fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2), 'utf8');
         // Notificar todos os clientes (inclusive o Electron) para recarregar as infos de rede / QR Code
         sendSSEUpdate('reload');
+        // Sincronizar link do túnel no GitHub para o celular resolver dinamicamente sem pareamento manual
+        pushTunnelUrlToGit();
     } catch (e) {
         console.error('  [ERRO] Falha ao escrever tunnel_url.json:', e.message);
     }
+}
+
+// Sincronizar URL ativa do túnel no repositório GitHub de forma assíncrona em segundo plano
+function pushTunnelUrlToGit() {
+    const cmd = 'git add tunnel_url.json && git commit -m "chore: update active tunnel url [auto]" && git push';
+    exec(cmd, { cwd: basePath }, (error, stdout, stderr) => {
+        if (error) {
+            // Falha silenciosa caso o git não esteja no path ou a pasta não seja um repositório clonado
+            return;
+        }
+        console.log('  [GIT] URL ativa do túnel atualizada com sucesso no repositório GitHub!');
+    });
 }
 
 // Função auxiliar para limpar informações do túnel e excluir os arquivos de referência
@@ -1690,8 +1704,56 @@ function uploadToCatbox(filePath) {
     });
 }
 
+// Analisar as informações do Git remote origin para obter usuário e repositório
+function parseGitOrigin() {
+    try {
+        let remoteUrl = execSync('git config --get remote.origin.url', { encoding: 'utf8' }).trim();
+        if (remoteUrl.endsWith('.git')) {
+            remoteUrl = remoteUrl.slice(0, -4);
+        }
+        
+        const parts = remoteUrl.split('/');
+        if (parts.length >= 2) {
+            const repo = parts[parts.length - 1];
+            const rawUser = parts[parts.length - 2];
+            let username = rawUser;
+            if (rawUser.includes(':')) {
+                username = rawUser.split(':').pop();
+            } else {
+                username = rawUser.split('@').pop();
+            }
+            return {
+                username: username,
+                repo: repo
+            };
+        }
+    } catch (e) {
+        console.warn('  [GIT-AVISO] Não foi possível ler remote.origin.url:', e.message);
+    }
+    return {
+        username: 'AndreTurco',
+        repo: 'horascontrole'
+    };
+}
+
+// Obter a URL permanente do GitHub Pages
+function getGitHubPagesUrl() {
+    const gitInfo = parseGitOrigin();
+    return `https://${gitInfo.username.toLowerCase()}.github.io/${gitInfo.repo.toLowerCase()}/public/`;
+}
+
 // Função para gerar o APK via API do PWABuilder
 function generateApkPackage(tunnelUrl) {
+    const apkDestPath = path.join(basePath, 'controle-horas.apk');
+    
+    // Se o APK já existe localmente, não recompile. Apenas sirva-o e atualize a URL
+    if (fs.existsSync(apkDestPath)) {
+        console.log('  [APK] APK permanente já compilado anteriormente. Pronto para uso!');
+        currentApkUrl = `${tunnelUrl}/controle-horas.apk`;
+        updateTunnelUrlJson();
+        return Promise.resolve();
+    }
+
     if (isApkCompiling) {
         console.log('  [APK] Uma compilação de APK já está em andamento. Ignorando.');
         return Promise.resolve();
@@ -1700,28 +1762,35 @@ function generateApkPackage(tunnelUrl) {
     isApkCompiling = true;
     apkCompilationError = null;
 
+    const gitInfo = parseGitOrigin();
+    const pwaUrl = getGitHubPagesUrl();
+    
+    let hostNameOnly = 'andreturco.github.io';
+    try {
+        hostNameOnly = new URL(pwaUrl).host;
+    } catch (err) {
+        console.error('  [APK-ERRO] Erro ao extrair host da URL do GitHub Pages:', err.message);
+    }
+
+    const iconUrl = `https://raw.githubusercontent.com/${gitInfo.username}/${gitInfo.repo}/main/public/clock-512.png`;
+    const webManifestUrl = `${pwaUrl}manifest.json`;
+
     console.log();
     console.log(`  ===================================================`);
     console.log(`  [APK] INICIANDO COMPILAÇÃO DO APK NA NUVEM...`);
-    console.log(`  [APK] URL de Origem: ${tunnelUrl}`);
+    console.log(`  [APK] URL PWA Permanente: ${pwaUrl}`);
+    console.log(`  [APK] URL de Manifesto: ${webManifestUrl}`);
+    console.log(`  [APK] URL de Ícone: ${iconUrl}`);
     console.log(`  [APK] Isso pode levar de 30 a 60 segundos...`);
     console.log(`  ===================================================`);
 
     const zipPath = path.join(basePath, 'fetchedTemplate.zip');
     const extractPath = path.join(basePath, 'decompressedTemplate');
-    const apkDestPath = path.join(basePath, 'controle-horas.apk');
 
     try { fs.unlinkSync(zipPath); } catch (e) {}
     try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
 
     return new Promise((resolve, reject) => {
-        let hostNameOnly = 'localhost';
-        try {
-            hostNameOnly = new URL(tunnelUrl).host;
-        } catch (err) {
-            console.error('  [APK-ERRO] Erro ao extrair host do túnel URL:', err.message);
-        }
-
         const postData = JSON.stringify({
             appVersion: "1.0.0.0",
             appVersionCode: 1,
@@ -1735,7 +1804,7 @@ function generateApkPackage(tunnelUrl) {
                 playBilling: { enabled: false }
             },
             host: hostNameOnly,
-            iconUrl: `${tunnelUrl}/clock-512.png`,
+            iconUrl: iconUrl,
             includeSourceCode: false,
             isChromeOSOnly: false,
             isMetaQuest: false,
@@ -1762,12 +1831,12 @@ function generateApkPackage(tunnelUrl) {
             },
             signingMode: "new",
             splashScreenFadeOutDuration: 300,
-            startUrl: "/",
+            startUrl: `/${gitInfo.repo.toLowerCase()}/public/index.html`,
             themeColor: "#0b0f19",
             themeColorDark: "#0b0f19",
-            webManifestUrl: `${tunnelUrl}/manifest.json`,
-            pwaUrl: tunnelUrl,
-            fullScopeUrl: `${tunnelUrl}/`,
+            webManifestUrl: webManifestUrl,
+            pwaUrl: pwaUrl,
+            fullScopeUrl: pwaUrl,
             minSdkVersion: 23
         });
 
