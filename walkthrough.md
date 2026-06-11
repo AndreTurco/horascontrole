@@ -1,92 +1,54 @@
-# Walkthrough: Identidade Visual Premium de Elite e Automação Inteligente
+# Walkthrough: Conexão Permanente Celular-PC e Otimização do Aplicativo
 
-O aplicativo de **Controle Premium e Finanças** recebeu uma evolução definitiva para alinhar-se com os padrões visuais de aplicativos líderes globais e de elite. Ele conta com efeitos dinâmicos tridimensionais, total legibilidade mobile-first sem barra de rolagem horizontal, e regras de automação inteligentes.
-
----
-
-## 🚀 Novidades de Elite e Alta Tecnologia
-
-### 1. 🌌 Vida e Profundidade (Mesh Gradients)
-- **Backgrounds Tridimensionais**: Introduzimos esferas de degradê de malha flutuantes e desfocadas (`body::before` e `body::after` com filtro radial de blur de 100px) que flutuam ao fundo do aplicativo.
-- **Modos de Luz Adaptativos**:
-  - **Modo Escuro**: As auroras emitem um brilho suave e futurista em tons azuis e violetas profundos.
-  - **Modo Claro**: As auroras emitem um reflexo translúcido e luminoso de alta energia, garantindo profundidade visual sem comprometer a legibilidade.
-
-### 2. 📱 Tabela Reativa Mobile Sem Rolagem Horizontal
-- **Conversão Automática em Cartões**: Em telas de celulares Android (menores que 768px), as tabelas de listagem (como o histórico de registros e controle de trajetos) são convertidas automaticamente por CSS em **cartões empilhados verticais**.
-- **Identificadores Dinâmicos**: O cabeçalho horizontal da tabela é ocultado e substituído por etiquetas reativas em cada linha (usando o atributo `data-label` em negrito, ex: `DATA`, `STATUS`, `NOTAS`), alinhadas lateralmente. 
-- **Zero Scroll Lateral**: Você lê todas as colunas de forma vertical, limpa, responsiva e integrada, sem precisar arrastar a tela para o lado!
-
-### 3. 📈 Gráfico de Linhas Fluido e Brilhante (Spline Area Chart)
-- **Estética de Alta Tecnologia**: Substituímos o gráfico genérico por um **Spline Area Chart** reativo e suave (com curvas cúbicas do Chart.js, `tension: 0.4`).
-- **Gradientes Luminosos**: O gráfico de faturamento conta com um preenchimento luminoso translúcido que se dissipa gradualmente sob a linha.
-- **Brilho nos Pontos**: Os pontos diários ganharam um contorno branco brilhante, facilitando o toque em cada dia para abrir a edição absoluta na hora.
-
-### 4. 🧠 Automação Wi-Fi Condicional Inteligente
-- **Filtro de Registro Seguro**: A rota `/api/auto-arrival` foi atualizada com uma regra lógica de validação: o horário de chegada em casa só será registrado se o respectivo dia **tiver o horário de entrada e saída do trabalho preenchidos na planilha**.
-- **Proteção a Dias de Folga**: Evita que o MacroDroid sobrescreva ou lance registros de chegada em finais de semana, feriados, ou folgas em que você não trabalhou, preservando a fidelidade da planilha local de controle!
-
-### 5. 🛡️ Reconciliação Autônoma de Investimentos 20% (Self-Healing)
-- **Sincronização 100% Automática**: O servidor agora faz uma verificação e conciliação completa a cada carregamento de dados. Ele busca todos os pontos marcados como "Pago" desde **1º de Janeiro de 2026** e garante que o aporte automático de 20% correspondente esteja presente e com o valor exato na aba "Investimentos".
-- **Liberdade de Edição Manual**: Se você abrir a planilha diretamente no Microsoft Excel (no OneDrive) e alterar registros ou marcar pontos como "Pago", o backend irá detectar e reconciliar tudo de forma transparente no próximo carregamento de dados do aplicativo.
-
-### 6. 💼 Novo KPI de Reserva 20% no Dashboard
-- **Métrica Viva no Dashboard**: Inserimos um quinto card inteligente no painel principal ("Reserva 20% Recebida"). Ele calcula e exibe em tempo real o valor correspondente a 20% de todo o faturamento que já foi quitado e recebido por você desde janeiro, com o detalhamento do montante base no subtítulo.
-
-### 7. ⏱️ Correção do Ponto Rápido (Bater Ponto)
-- **Novo Endpoint Integrado**: Implementamos a rota `/api/clock-in` no servidor Express. O botão "Bater Ponto" da tela inicial agora registra as batidas de turno em tempo real na planilha (de forma sequencial e inteligente: Entrada 1 -> Saída 1 -> Entrada 2 -> Saída 2) sem causar falhas de conexão ou timeouts.
+Este documento detalha o que foi feito para garantir que o seu aplicativo de celular permaneça conectado ao servidor do PC sem exigir reconfigurações diárias, além de melhorar o comportamento do aplicativo de desktop (Electron) no Windows.
 
 ---
 
-## 📂 Pasta de Trabalho e Banco de Dados Local
+## 🛠️ O que foi feito?
 
-Todas as informações permanecem salvas na sua planilha local:
-`c:\Users\aline\OneDrive\Documentos\Projetos\controle de Horas\Controle_de_Horas_Trabalho-1.xlsx`
+### 1. Suporte a Subpastas PWA no GitHub Pages
+- **`public/sw.js`**: Alterado a lista de arquivos cacheados (`ASSETS`) de caminhos absolutos (como `/index.html`) para relativos (`index.html`). Isso evita erros 404 ao hospedar o app em subpastas.
+- **`public/manifest.json`**: Atualizado a propriedade `start_url` para `./index.html` e tornado os caminhos dos ícones relativos (`clock-192.png`, `clock-512.png`), proporcionando portabilidade total.
+- **`public/app.js`**: Atualizado o registro do Service Worker para carregar `'sw.js'` usando caminho relativo.
 
-As três abas continuam 100% integradas e sincronizadas:
-1. **`Controle de Horas`**: Carga de trabalho, valor de hora, e trajetos diários.
-2. **`Gestão Financeira`**: Lançamentos Mobills categorizados.
-3. **`Investimentos`**: O faturamento retido de 20% das suas horas pagas sincroniza automaticamente aqui.
+### 2. Reconexão e Autoresolução de Endereço em Tempo Real
+- **`public/app.js` (setupRealtimeUpdates)**:
+  - Modificado o loop de reconexão do Server-Sent Events (SSE). Toda vez que o aplicativo perde a conexão com o PC (ex: PC desligado, rede desconectada), ele aguarda 5 segundos, busca a URL ativa atualizada a partir do repositório público do GitHub do usuário via `resolveActiveTunnelUrl()`, e tenta reconectar à nova URL.
+  - Ao estabelecer ou restabelecer a conexão com sucesso, o aplicativo executa um `fetchData()` e `fetchNetworkInfo()` imediato para sincronizar o celular com quaisquer alterações feitas offline ou no computador.
+
+### 3. Notificação do Sistema ao Minimizar para a Tray (Windows)
+- **`main.js`**:
+  - Implementado um balão de notificação nativa do Windows (`tray.displayBalloon`) na primeira vez que o painel do aplicativo é minimizado na bandeja do sistema ao fechar ("X").
+  - A notificação avisa claramente: *"O sistema continua ativo em segundo plano na barra de tarefas (próximo ao relógio) para manter a sincronização com o celular."*
+
+### 4. Configuração Estática Permanente para o APK
+- **`server.js`**:
+  - Criada a função `parseGitOrigin()` para ler o remote origin do git do usuário no computador e `getGitHubPagesUrl()` para construir dinamicamente o link do GitHub Pages.
+  - Atualizado o gerador do PWABuilder para usar o endereço fixo do GitHub Pages (ex: `https://andreturco.github.io/horascontrole/public/`) como a URL de origem do APK. Isso torna o APK permanente; o usuário só precisa instalá-lo uma única vez.
+  - Otimizado a inicialização: se o arquivo `controle-horas.apk` já existir localmente na pasta, o servidor ignora a compilação na nuvem do PWABuilder (evitando esperas e limites de taxa), servindo o APK local a partir da URL do túnel ativa. Para forçar uma nova compilação, basta apagar o arquivo `.apk` local.
+
+### 5. Sistema de PIN de Acesso Seguro (Privacidade Total)
+- **`server.js`**:
+  - Implementada a função `getAccessPin()` que gera um PIN de 6 dígitos aleatório único no primeiro início e o grava em `senha_acesso.txt`.
+  - Adicionado um middleware para todas as rotas `/api/*`. Se a requisição vier de um celular (via internet ou rede local), o servidor exige um cabeçalho `x-access-pin` correspondente ao PIN correto.
+  - A rota `/api/network-info` foi ajustada para retornar o PIN apenas se a requisição for feita de forma local no PC (segurança total: o PIN nunca é exposto na internet e só pode ser visto na tela física do computador).
+- **`public/index.html`**:
+  - Adicionado um painel visual destacado exibindo o PIN de acesso (exibido apenas no computador).
+- **`public/app.js`**:
+  - Adicionado um interceptador global de requisições `fetch` que injeta o cabeçalho de autenticação `x-access-pin` a partir do `localStorage` e escuta por retornos `401` (Não Autorizado).
+  - Se um celular tentar conectar e não tiver o PIN (ou se o PIN estiver errado), o app exibe um popup premium solicitando a senha. Uma vez digitado corretamente, ele é memorizado no celular e não precisa mais ser inserido.
+
 ---
 
-## 🌐 Endereços de Conexão Ativos (Porta 3080)
+## 🔬 Como testar e validar?
 
-- **Local (PC)**: [http://localhost:3080](http://localhost:3080)
-- **Rede Local (Android/Wi-Fi)**: [http://192.168.2.123:3080](http://192.168.2.123:3080)
-- **Acesso de Qualquer Lugar (4G)**: [https://khaki-dodos-prove.loca.lt](https://khaki-dodos-prove.loca.lt)
-
----
-
-## 🛠️ Correções Realizadas Recentes (02/06/2026)
-
-### 1. ⏱️ Prevenção de Duplo Clique no Ponto Rápido ("Abriu e Fechou")
-- **Problema**: Ao clicar rapidamente ou dar duplo toque no botão "Bater Ponto", o cliente disparava duas requisições simultâneas para o servidor. A primeira registrava a **Entrada** e a segunda registrava a **Saída** no mesmo minuto, fechando o ponto imediatamente.
-- **Solução Frontend**: O botão "Bater Ponto" agora é desabilitado e entra em estado de "Registrando..." por 3 segundos após o clique, bloqueando toques múltiplos.
-- **Solução Backend**: Adicionada uma validação no servidor que impede o registro de dois turnos com o mesmo minuto exato. Se houver tentativa no mesmo minuto, o servidor retorna erro amigável, impedindo a sobreposição e fechamento precoce.
-
-### 2. 📝 Correção de Edição Manual ("Não consigo alterar manualmente")
-- **Problema**: A edição manual de pontos falhava com erro de servidor (`ReferenceError: globalRate is not defined`), impedindo que o usuário corrigisse ou alterasse qualquer marcação manualmente.
-- **Solução**: O backend foi corrigido para carregar a taxa horária padrão dinamicamente a partir da célula `I2` da planilha, eliminando a variável indefinida e permitindo alterações manuais com sucesso.
-
-### 3. 📅 Saneamento de Filtros Mobile ("Não consigo filtrar corretamente")
-- **Problema**: Certas partes como o heatmap de produtividade diário utilizavam o parser de data padrão do navegador (`new Date(row.date)`), o qual retorna `NaN` / `Invalid Date` em dispositivos mobile (iOS/Safari/Android WebView), quebrando a exibição de dados e filtros.
-- **Solução**: Refatoramos o mapa de calor para usar a função utilitária `parseDateParts()`, garantindo compatibilidade e filtragem perfeitas em qualquer celular.
-
----
-
-## 🛠️ Atualizações de Sincronização e Conectividade Celular (APK/PWA) (10/06/2026)
-
-### 1. 🔄 Túnel Externo Auto-Reconectável (Localtunnel Self-Healing)
-- **Problema**: O túnel do Localtunnel costumava expirar ou desconectar sozinho após algumas horas/dias de inatividade, invalidando a URL no celular e deixando o app offline (não salvava dados ou sincronizava).
-- **Solução**: O servidor Express (`server.js`) agora gerencia a conexão do túnel ativamente. Em caso de queda ou erro no túnel, o servidor tenta restabelecer o link automaticamente a cada 10 segundos.
-
-### 2. 📁 Arquivo Físico de Acesso Rápido (`url_acesso.txt`)
-- **Melhoria**: Toda vez que o servidor inicia ou reconecta, a URL do túnel atual é gravada nos arquivos `url_acesso.txt` e `public/tunnel_url.json`. Isso permite verificar a URL ativa sem precisar abrir o console do servidor.
-
-### 3. 📡 Painel de Conexão no Aplicativo com QR Codes (Configurações)
-- **Melhoria**: Adicionamos o card **"Conectar Celular / Acesso Externo"** na aba **Configurações**. Ele exibe os links ativos em tempo real (tanto o link remoto do 4G quanto o IP local do Wi-Fi) e gera **QR Codes escaneáveis** na tela instantaneamente, permitindo que você conecte o seu celular simplesmente apontando a câmera para o monitor.
-
-### 4. 🎛️ Suporte a APK Único com Troca Dinâmica de Servidor (API Host Customizado)
-- **Melhoria**: Adicionamos o card **"Endereço do Servidor Customizado"** nas **Configurações**. O usuário pode digitar a URL de um novo servidor (ex: um túnel novo do Serveo/Localtunnel) diretamente no formulário do aplicativo. 
-- **Independência de Compilação**: Isso significa que você pode compilar seu aplicativo Android (`.apk`) **apenas uma vez** (com qualquer link temporário ou local) e instalá-lo permanentemente no celular. Quando a URL do túnel mudar, basta colar a nova URL nas configurações do app instalado no celular para reconectar, sem necessidade de baixar um novo APK.
-
+1. **GitHub Pages Ativo**:
+   - As alterações já foram comitadas e enviadas para o seu repositório no GitHub.
+   - Ative o GitHub Pages em seu repositório seguindo os passos descritos na seção abaixo.
+2. **Abra o App no Computador**:
+   - Abra o `iniciar_app.bat` para iniciar a versão desktop final.
+   - Feche a janela principal clicando no "X". Um balão de notificação aparecerá no canto do Windows informando que o programa continua rodando em segundo plano.
+3. **No Celular**:
+   - Abra o seu navegador (Chrome ou Safari) e acesse: `https://andreturco.github.io/horascontrole/public/`
+   - O aplicativo carregará instantaneamente. Instale-o na tela inicial clicando em "Adicionar à tela inicial" ou "Instalar aplicativo".
+   - **Pronto!** A partir de agora, você pode desligar o computador à noite, reiniciá-lo, etc. Sempre que o servidor no notebook estiver ativo, o aplicativo de celular se conectará a ele automaticamente em poucos segundos, sem precisar alterar nada no celular!
