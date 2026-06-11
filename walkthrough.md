@@ -38,17 +38,22 @@ Este documento detalha o que foi feito para garantir que o seu aplicativo de cel
   - Adicionado um interceptador global de requisições `fetch` que injeta o cabeçalho de autenticação `x-access-pin` a partir do `localStorage` e escuta por retornos `401` (Não Autorizado).
   - Se um celular tentar conectar e não tiver o PIN (ou se o PIN estiver errado), o app exibe um popup premium solicitando a senha. Uma vez digitado corretamente, ele é memorizado no celular e não precisa mais ser inserido.
 
+### 6. Sincronização Automática do Túnel no Executável Empacotado (Electron)
+- **`.gitignore`**: Removido o `tunnel_url.json` das regras de ignorados para permitir que o Git rastreie e publique as alterações deste arquivo no repositório.
+- **`server.js` (findGitRoot / pushTunnelUrlToGit)**:
+  - Implementada a busca dinâmica da raiz do repositório Git subindo a árvore de diretórios a partir do executável.
+  - Ao iniciar o servidor empacotado, ele gera o arquivo `tunnel_url.json` na subpasta `dist/...`, copia o arquivo para a raiz do repositório Git e realiza o comando de `git push` a partir da raiz. Isso resolve a falha em que o celular ficava com dados zerados/desconectados por não ter acesso ao novo link gerado.
+
 ---
 
 ## 🔬 Como testar e validar?
 
-1. **GitHub Pages Ativo**:
-   - As alterações já foram comitadas e enviadas para o seu repositório no GitHub.
-   - Ative o GitHub Pages em seu repositório seguindo os passos descritos na seção abaixo.
-2. **Abra o App no Computador**:
-   - Abra o `iniciar_app.bat` para iniciar a versão desktop final.
-   - Feche a janela principal clicando no "X". Um balão de notificação aparecerá no canto do Windows informando que o programa continua rodando em segundo plano.
-3. **No Celular**:
-   - Abra o seu navegador (Chrome ou Safari) e acesse: `https://andreturco.github.io/horascontrole/public/`
-   - O aplicativo carregará instantaneamente. Instale-o na tela inicial clicando em "Adicionar à tela inicial" ou "Instalar aplicativo".
-   - **Pronto!** A partir de agora, você pode desligar o computador à noite, reiniciá-lo, etc. Sempre que o servidor no notebook estiver ativo, o aplicativo de celular se conectará a ele automaticamente em poucos segundos, sem precisar alterar nada no celular!
+1. **Atualizar e Iniciar o App no Computador**:
+   - Certifique-se de fechar completamente qualquer instância do programa rodando em segundo plano (próximo ao relógio do Windows).
+   - Inicie o sistema no computador clicando em `iniciar_servidor.bat` (para baixar as últimas atualizações do Git) ou execute a versão atualizada empacotada por `iniciar_app.bat`.
+   - Assim que o aplicativo abrir e o túnel for estabelecido, ele atualizará o `tunnel_url.json` na raiz do projeto e enviará automaticamente ao GitHub.
+2. **Sincronização no Celular**:
+   - Abra o aplicativo no celular. Ele buscará o novo link do túnel que o computador acabou de enviar ao GitHub.
+   - Os dados deixarão de estar zerados e passarão a exibir exatamente as mesmas informações ativas no PC em tempo real.
+   - Qualquer batida de ponto ou edição feita no celular será transmitida diretamente para o computador e salva na planilha Excel local.
+
