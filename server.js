@@ -1363,6 +1363,7 @@ function updateTunnelUrlJson() {
     const data = {
         url: currentTunnelUrl || null,
         apkUrl: currentApkUrl || null,
+        pin: getAccessPin(),
         updated: new Date().toISOString()
     };
     try {

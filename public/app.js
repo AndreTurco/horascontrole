@@ -3245,6 +3245,12 @@ async function resolveActiveTunnelUrl() {
                 resolvedApiHost = data.url.replace(/\/$/, '');
                 console.log('[API] URL ativa resolvida do GitHub:', resolvedApiHost);
             }
+            if (data.pin) {
+                localStorage.setItem('access_pin', data.pin);
+                const accessPinInput = document.getElementById('input-access-pin');
+                if (accessPinInput) accessPinInput.value = data.pin;
+                console.log('[API] PIN de acesso configurado automaticamente do GitHub.');
+            }
         }
     } catch (e) {
         console.error('[API-ERROR] Falha ao ler tunnel_url.json do GitHub:', e);
