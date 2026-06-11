@@ -144,6 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Registrar PWA Service Worker
     registerServiceWorker();
+    
+    // Configurar atualizações em tempo real (SSE)
+    setupRealtimeUpdates();
 });
 
 // ==========================================================================
@@ -3044,3 +3047,30 @@ window.launchRecurring = function(desc, amount, type, category) {
     }
     showToast(`Despesa recorrente '${desc}' lançada instantaneamente!`, 'success');
 };
+
+// Função para ouvir atualizações em tempo real enviadas pelo servidor
+function setupRealtimeUpdates() {
+    const apiHost = getApiHost();
+    const sseUrl = `${apiHost}/api/updates-stream`;
+    console.log('[SSE] Conectando ao canal de atualizações em tempo real:', sseUrl);
+    
+    let eventSource = new EventSource(sseUrl);
+    
+    eventSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'reload') {
+                console.log('[SSE] Sincronização em tempo real acionada! Atualizando dados...');
+                fetchData();
+            }
+        } catch (e) {
+            console.error('[SSE] Erro ao analisar evento SSE:', e);
+        }
+    };
+    
+    eventSource.onerror = function(err) {
+        console.warn('[SSE] Canal desconectado. Tentando reconectar em 5 segundos...');
+        eventSource.close();
+        setTimeout(setupRealtimeUpdates, 5000);
+    };
+}

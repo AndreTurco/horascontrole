@@ -2,11 +2,13 @@
   "name": "controle-de-horas",
   "version": "1.0.0",
   "description": "Aplicativo de Controle de Horas conectado a Planilha Excel",
-  "main": "server.js",
+  "main": "main.js",
   "bin": "server.js",
   "scripts": {
     "start": "node server.js",
-    "package": "pkg ."
+    "package": "pkg .",
+    "start-desktop": "electron .",
+    "package-desktop": "electron-packager . controle-de-horas --platform=win32 --arch=x64 --icon=public/icon.ico --overwrite --out=dist"
   },
   "pkg": {
     "assets": [
@@ -22,5 +24,9 @@
     "express": "^4.21.2",
     "localtunnel": "^2.0.2",
     "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "electron": "^42.4.0",
+    "electron-packager": "^17.1.2"
   }
 }

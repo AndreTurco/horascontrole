@@ -10,10 +10,10 @@ echo.
 echo [INFO] Liberando a porta 3080 caso esteja em uso...
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3080 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 
-echo [INFO] Iniciando o aplicativo desktop...
+echo [INFO] Iniciando o aplicativo desktop Electron...
 echo.
 
-controle-de-horas.exe
+start "" "dist\controle-de-horas-win32-x64\controle-de-horas.exe"
 
 if %errorlevel% neq 0 (
     echo.

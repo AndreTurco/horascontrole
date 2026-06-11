@@ -20,12 +20,50 @@ try {
 const app = express();
 // Porta 3080 para evitar conflitos na porta 3000
 const PORT = 3080;
-const basePath = process.pkg ? path.dirname(process.execPath) : __dirname;
+const isPackaged = process.pkg || (process.versions && process.versions.electron && !process.defaultApp);
+const basePath = isPackaged ? path.dirname(process.execPath) : __dirname;
 const xlsxPath = path.join(basePath, 'Controle_de_Horas_Trabalho-1.xlsx');
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Gerenciador de conexões em tempo real (SSE)
+let sseClients = [];
+
+function sendSSEUpdate(type, data = {}) {
+    const payload = JSON.stringify({ type, ...data });
+    sseClients.forEach(client => {
+        try {
+            client.res.write(`data: ${payload}\n\n`);
+        } catch (e) {
+            // Cliente desconectado
+        }
+    });
+}
+
+async function saveWorkbook(workbook, filePath) {
+    await workbook.xlsx.writeFile(filePath);
+    sendSSEUpdate('reload');
+}
+
+// Rota de stream do SSE para atualizações em tempo real
+app.get('/api/updates-stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const clientId = Date.now();
+    const newClient = { id: clientId, res };
+    sseClients.push(newClient);
+
+    res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+
+    req.on('close', () => {
+        sseClients = sseClients.filter(client => client.id !== clientId);
+    });
+});
 
 // Middleware para desativar cache em todas as rotas de API
 app.use('/api', (req, res, next) => {
@@ -123,7 +161,7 @@ async function ensureExcelFileExists() {
         investSheet.getRow(1).values = ['ID', 'Data', 'Origem', 'Valor', 'Tipo'];
         investSheet.getRow(1).font = { bold: true };
         
-        await workbook.xlsx.writeFile(xlsxPath);
+        await saveWorkbook(workbook, xlsxPath);
         console.log('[INIT] Planilha 2026 criada e salva com sucesso!');
     }
 }
@@ -435,7 +473,7 @@ async function getSpreadsheetData() {
     const hasChanges = await autoSyncInvestments(workbook);
     if (hasChanges) {
         createBackup(xlsxPath);
-        await workbook.xlsx.writeFile(xlsxPath);
+        await saveWorkbook(workbook, xlsxPath);
         console.log('[SYNC-INVEST] Aportes automáticos de 20% conciliados e gravados com sucesso!');
     }
     
@@ -654,7 +692,7 @@ app.post('/api/rate', async (req, res) => {
             
             const sheet = workbook.getWorksheet('Controle de Horas');
             sheet.getRow(2).getCell(9).value = Number(globalRate);
-            await workbook.xlsx.writeFile(xlsxPath);
+            await saveWorkbook(workbook, xlsxPath);
         });
 
         res.json({ success: true, message: 'Valor global de hora atualizado com sucesso' });
@@ -773,7 +811,7 @@ app.post('/api/save', async (req, res) => {
             const targetDateStr = date || formatCellDate(row.getCell(1).value);
             syncAutoInvestment(investSheet, targetDateStr, finalEarnings, currentStatus);
 
-            await workbook.xlsx.writeFile(xlsxPath);
+            await saveWorkbook(workbook, xlsxPath);
         });
 
         res.json({ success: true, message: 'Dados salvos com sucesso na planilha!' });
@@ -844,7 +882,7 @@ app.post('/api/pay-batch', async (req, res) => {
                     }
                 }
             }
-            await workbook.xlsx.writeFile(xlsxPath);
+            await saveWorkbook(workbook, xlsxPath);
         });
 
         res.json({ success: true, message: `Todos os registros até ${dateLimit} foram quitados e 20% reinvestido!` });
@@ -895,7 +933,7 @@ app.post('/api/finance/save', async (req, res) => {
             targetRow.getCell(5).value = Number(amount);
             targetRow.getCell(6).value = category || 'Outros';
 
-            await workbook.xlsx.writeFile(xlsxPath);
+            await saveWorkbook(workbook, xlsxPath);
         });
 
         res.json({ success: true, message: 'Lançamento financeiro gravado com sucesso!' });
@@ -932,7 +970,7 @@ app.post('/api/finance/delete', async (req, res) => {
 
             if (targetRowIndex) {
                 finSheet.deleteRows(targetRowIndex, 1);
-                await workbook.xlsx.writeFile(xlsxPath);
+                await saveWorkbook(workbook, xlsxPath);
             }
         });
 
@@ -983,7 +1021,7 @@ app.post('/api/invest/save', async (req, res) => {
             targetRow.getCell(4).value = Number(amount);
             targetRow.getCell(5).value = 'Manual';
 
-            await workbook.xlsx.writeFile(xlsxPath);
+            await saveWorkbook(workbook, xlsxPath);
         });
 
         res.json({ success: true, message: 'Registro de investimento gravado com sucesso!' });
@@ -1020,7 +1058,7 @@ app.post('/api/invest/delete', async (req, res) => {
 
             if (targetRowIndex) {
                 investSheet.deleteRows(targetRowIndex, 1);
-                await workbook.xlsx.writeFile(xlsxPath);
+                await saveWorkbook(workbook, xlsxPath);
             }
         });
 
@@ -1111,7 +1149,7 @@ app.post('/api/clock-in', async (req, res) => {
             row.getCell(14).value = commuteMinutes > 0 ? minutesToTimeStr(commuteMinutes) : null;
             row.getCell(15).value = timeOutsideMinutes > 0 ? minutesToTimeStr(timeOutsideMinutes) : null;
             
-            await workbook.xlsx.writeFile(xlsxPath);
+            await saveWorkbook(workbook, xlsxPath);
             
             return {
                 success: true,
@@ -1187,7 +1225,7 @@ app.post('/api/auto-arrival', async (req, res) => {
             row.getCell(14).value = commuteMinutes > 0 ? minutesToTimeStr(commuteMinutes) : null;
             row.getCell(15).value = timeOutsideMinutes > 0 ? minutesToTimeStr(timeOutsideMinutes) : null;
 
-            await workbook.xlsx.writeFile(xlsxPath);
+            await saveWorkbook(workbook, xlsxPath);
             
             console.log(`[AUTOMAÇÃO] Chegada em casa registrada automaticamente às ${timeStr} via Wi-Fi no dia ${dateStr}!`);
             
@@ -1316,13 +1354,13 @@ async function startTunnel(retryCount = 0) {
     console.log(`  [INFO] Estabelecendo conexão para acesso remoto (Tentativa ${retryCount + 1})...`);
 
     try {
-        // Tentar o túnel alternativo (Serveo) primeiro via SSH nativo
-        const serveoUrl = await tryServeoTunnel();
-        currentTunnelUrl = serveoUrl;
+        // Tentar o túnel localhost.run primeiro via SSH nativo
+        const lhrUrl = await tryLocalhostRunTunnel();
+        currentTunnelUrl = lhrUrl;
 
         console.log();
         console.log(`  ===================================================`);
-        console.log(`  TÚNEL REMOTO ATIVO (SERVEO - TUNEL ALTERNATIVO):`);
+        console.log(`  TÚNEL REMOTO ATIVO (LOCALHOST.RUN):`);
         console.log(`  > ${currentTunnelUrl}`);
         console.log();
         console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
@@ -1338,15 +1376,16 @@ async function startTunnel(retryCount = 0) {
         });
 
     } catch (err) {
-        console.warn(`  [Aviso] Serveo SSH indisponível (${err.message}). Tentando fallback com localtunnel...`);
+        console.warn(`  [Aviso] localhost.run indisponível (${err.message}). Tentando fallback com Serveo SSH...`);
 
         try {
-            const tunnel = await localtunnel({ port: PORT });
-            currentTunnelUrl = tunnel.url;
+            // Tentar o túnel alternativo (Serveo) via SSH nativo
+            const serveoUrl = await tryServeoTunnel();
+            currentTunnelUrl = serveoUrl;
 
             console.log();
             console.log(`  ===================================================`);
-            console.log(`  TÚNEL REMOTO ATIVO (LOCALTUNNEL FALLBACK):`);
+            console.log(`  TÚNEL REMOTO ATIVO (SERVEO - TUNEL ALTERNATIVO):`);
             console.log(`  > ${currentTunnelUrl}`);
             console.log();
             console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
@@ -1356,28 +1395,111 @@ async function startTunnel(retryCount = 0) {
             fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
             updateTunnelUrlJson();
 
-            // Disparar compilação do APK
+            // Disparar compilação do APK em segundo plano
             generateApkPackage(currentTunnelUrl).catch(err => {
                 console.error('[APK-ERRO] Falha na compilação em segundo plano:', err.message);
             });
 
-            tunnel.on('close', () => {
-                console.log('  [INFO] Túnel localtunnel fechado. Tentando reconectar em 10 segundos...');
-                clearTunnelUrlJson();
-                setTimeout(() => startTunnel(retryCount + 1), 10000);
-            });
+        } catch (serveoErr) {
+            console.warn(`  [Aviso] Serveo SSH indisponível (${serveoErr.message}). Tentando fallback com localtunnel...`);
 
-            tunnel.on('error', (err) => {
-                console.error('  [Erro] Erro no localtunnel:', err.message);
-                try { tunnel.close(); } catch (e) {}
-            });
+            try {
+                const tunnel = await localtunnel({ port: PORT });
+                currentTunnelUrl = tunnel.url;
 
-        } catch (ltErr) {
-            console.error('  [Erro] Falha ao iniciar ambos os túneis (Serveo e localtunnel):', ltErr.message);
-            console.log('  [INFO] Tentando novamente toda a pilha de conexões em 15 segundos...');
-            setTimeout(() => startTunnel(retryCount + 1), 15000);
+                console.log();
+                console.log(`  ===================================================`);
+                console.log(`  TÚNEL REMOTO ATIVO (LOCALTUNNEL FALLBACK):`);
+                console.log(`  > ${currentTunnelUrl}`);
+                console.log();
+                console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
+                qrcode.generate(currentTunnelUrl, { small: true });
+                console.log(`  ===================================================`);
+
+                fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
+                updateTunnelUrlJson();
+
+                // Disparar compilação do APK
+                generateApkPackage(currentTunnelUrl).catch(err => {
+                    console.error('[APK-ERRO] Falha na compilação em segundo plano:', err.message);
+                });
+
+                tunnel.on('close', () => {
+                    console.log('  [INFO] Túnel localtunnel fechado. Tentando reconectar em 10 segundos...');
+                    clearTunnelUrlJson();
+                    setTimeout(() => startTunnel(retryCount + 1), 10000);
+                });
+
+                tunnel.on('error', (err) => {
+                    console.error('  [Erro] Erro no localtunnel:', err.message);
+                    try { tunnel.close(); } catch (e) {}
+                });
+
+            } catch (ltErr) {
+                console.error('  [Erro] Falha ao iniciar todos os túneis (localhost.run, Serveo e localtunnel):', ltErr.message);
+                console.log('  [INFO] Tentando novamente toda a pilha de conexões em 15 segundos...');
+                setTimeout(() => startTunnel(retryCount + 1), 15000);
+            }
         }
     }
+}
+
+// Função para estabelecer túnel via SSH com o localhost.run
+function tryLocalhostRunTunnel() {
+    return new Promise((resolve, reject) => {
+        console.log('  [INFO] Iniciando túnel SSH do localhost.run...');
+        const ssh = spawn('ssh', [
+            '-o', 'StrictHostKeyChecking=no',
+            '-R', `80:localhost:${PORT}`,
+            'nokey@localhost.run'
+        ]);
+
+        sshProcess = ssh;
+        let resolved = false;
+        let outputBuffer = '';
+
+        const timer = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                ssh.kill();
+                reject(new Error('Timeout de 15s excedido sem resposta do localhost.run'));
+            }
+        }, 15000);
+
+        const checkOutput = (data) => {
+            const str = data.toString();
+            outputBuffer += str;
+            const match = str.match(/https:\/\/[a-zA-Z0-9.-]+\.lhr\.(?:life|rocks)/);
+            if (match && !resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                resolve(match[0]);
+            }
+        };
+
+        ssh.stdout.on('data', checkOutput);
+        ssh.stderr.on('data', checkOutput);
+
+        ssh.on('close', (code) => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                reject(new Error(`Conexão SSH do localhost.run fechada com código de saída ${code}`));
+            } else {
+                console.log('  [INFO] Conexão do localhost.run caiu. Tentando reconectar...');
+                clearTunnelUrlJson();
+                setTimeout(() => startTunnel(0), 10000);
+            }
+        });
+
+        ssh.on('error', (err) => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                reject(err);
+            }
+        });
+    });
 }
 
 // Função para estabelecer túnel via SSH com o Serveo
@@ -1386,7 +1508,7 @@ function tryServeoTunnel() {
         console.log('  [INFO] Iniciando túnel SSH do Serveo...');
         const ssh = spawn('ssh', [
             '-o', 'StrictHostKeyChecking=no',
-            '-R', '80:localhost:3080',
+            '-R', `80:localhost:${PORT}`,
             'serveo.net'
         ]);
 
