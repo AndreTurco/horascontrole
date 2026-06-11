@@ -1539,6 +1539,9 @@ function tryLocalhostRunTunnel() {
         console.log('  [INFO] Iniciando túnel SSH do localhost.run...');
         const ssh = spawn('ssh', [
             '-o', 'StrictHostKeyChecking=no',
+            '-o', 'ServerAliveInterval=15',
+            '-o', 'ServerAliveCountMax=3',
+            '-o', 'ExitOnForwardFailure=yes',
             '-R', `80:localhost:${PORT}`,
             'nokey@localhost.run'
         ]);
@@ -1601,6 +1604,9 @@ function tryServeoTunnel() {
         console.log('  [INFO] Iniciando túnel SSH do Serveo...');
         const ssh = spawn('ssh', [
             '-o', 'StrictHostKeyChecking=no',
+            '-o', 'ServerAliveInterval=15',
+            '-o', 'ServerAliveCountMax=3',
+            '-o', 'ExitOnForwardFailure=yes',
             '-R', `80:localhost:${PORT}`,
             'serveo.net'
         ]);
