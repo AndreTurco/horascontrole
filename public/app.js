@@ -41,6 +41,56 @@ const state = {
 };
 
 let resolvedApiHost = '';
+let isPromptingPin = false;
+
+// Interceptar todas as requisições fetch para injetar o PIN de segurança em acessos externos
+const originalFetch = window.fetch;
+window.fetch = async function(resource, options = {}) {
+    if (typeof resource === 'string' && resource.includes('/api/')) {
+        const pin = localStorage.getItem('access_pin');
+        if (pin) {
+            options.headers = options.headers || {};
+            if (options.headers instanceof Headers) {
+                options.headers.set('x-access-pin', pin);
+            } else if (Array.isArray(options.headers)) {
+                options.headers.push(['x-access-pin', pin]);
+            } else {
+                options.headers['x-access-pin'] = pin;
+            }
+        }
+    }
+    
+    try {
+        const response = await originalFetch(resource, options);
+        if (response.status === 401) {
+            handleUnauthorizedAccess();
+        }
+        return response;
+    } catch (err) {
+        throw err;
+    }
+};
+
+function handleUnauthorizedAccess() {
+    if (isPromptingPin) return;
+    isPromptingPin = true;
+    
+    localStorage.removeItem('access_pin');
+    
+    // Mostra popup premium para inserção do PIN
+    setTimeout(() => {
+        const userPin = prompt('Acesso restrito e protegido. Digite o PIN de 6 dígitos configurado no servidor do computador para liberar o acesso:');
+        isPromptingPin = false;
+        if (userPin) {
+            localStorage.setItem('access_pin', userPin.trim());
+            // Recarregar os dados imediatamente
+            fetchData();
+            setupRealtimeUpdates();
+        } else {
+            showToast('PIN de segurança obrigatório!', 'error');
+        }
+    }, 100);
+}
 
 // Obter a URL base da API (suporta servidor customizado para APK)
 function getApiHost() {
@@ -221,6 +271,16 @@ async function fetchNetworkInfo() {
         const response = await fetch(`${getApiHost()}/api/network-info`);
         if (!response.ok) throw new Error();
         const data = await response.json();
+        
+        // Exibir PIN de segurança se fornecido (apenas localmente no PC)
+        const pinDisplayWrapper = document.getElementById('pin-display-wrapper');
+        const desktopAccessPin = document.getElementById('desktop-access-pin');
+        if (data.accessPin) {
+            if (desktopAccessPin) desktopAccessPin.innerText = data.accessPin;
+            if (pinDisplayWrapper) pinDisplayWrapper.style.display = 'block';
+        } else {
+            if (pinDisplayWrapper) pinDisplayWrapper.style.display = 'none';
+        }
         
         const tunnelInput = document.getElementById('phone-tunnel-url');
         const localInput = document.getElementById('phone-local-url');
@@ -3073,7 +3133,8 @@ async function setupRealtimeUpdates() {
     await resolveActiveTunnelUrl();
 
     const apiHost = getApiHost();
-    const sseUrl = `${apiHost}/api/updates-stream`;
+    const pin = localStorage.getItem('access_pin') || '';
+    const sseUrl = `${apiHost}/api/updates-stream?pin=${encodeURIComponent(pin)}`;
     console.log('[SSE] Conectando ao canal de atualizações em tempo real:', sseUrl);
     
     let eventSource = new EventSource(sseUrl);

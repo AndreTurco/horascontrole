@@ -66,9 +66,46 @@ app.get('/api/updates-stream', (req, res) => {
 });
 
 // Middleware para desativar cache em todas as rotas de API
+let accessPin = '';
+function getAccessPin() {
+    if (accessPin) return accessPin;
+    const pinPath = path.join(basePath, 'senha_acesso.txt');
+    try {
+        if (fs.existsSync(pinPath)) {
+            accessPin = fs.readFileSync(pinPath, 'utf8').trim();
+        } else {
+            // Gerar PIN de 6 dígitos aleatório
+            accessPin = Math.floor(100000 + Math.random() * 900000).toString();
+            fs.writeFileSync(pinPath, accessPin, 'utf8');
+        }
+    } catch (e) {
+        console.warn('  [PIN-AVISO] Falha ao ler/criar senha_acesso.txt, usando fallback:', e.message);
+        accessPin = '837261'; // Fallback fixo
+    }
+    return accessPin;
+}
+
+// Middleware para verificar o PIN de acesso remoto e desativar cache
 app.use('/api', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    next();
+    
+    // Obter IP do cliente de forma robusta
+    const ip = req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress;
+    const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.includes('localhost');
+    
+    if (isLocal) {
+        return next();
+    }
+    
+    const pin = req.headers['x-access-pin'] || req.query.pin;
+    const correctPin = getAccessPin();
+    
+    if (pin && pin === correctPin) {
+        return next();
+    }
+    
+    console.warn(`  [BLOQUEADO] Tentativa de acesso não autorizado vinda de: ${ip}`);
+    res.status(401).json({ error: 'unauthorized' });
 });
 
 // Fila de Gravação Segura para Concorrência
@@ -1309,11 +1346,14 @@ app.get('/api/network-info', (req, res) => {
             }
         }
     }
+    const ip = req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress;
+    const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.includes('localhost');
     res.json({
         tunnelUrl: currentTunnelUrl || null,
         apkUrl: currentApkUrl || null,
         localIps: ips,
-        port: PORT
+        port: PORT,
+        accessPin: isLocal ? getAccessPin() : null
     });
 });
 
