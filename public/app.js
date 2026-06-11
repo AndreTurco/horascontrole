@@ -44,6 +44,20 @@ const state = {
 function getApiHost() {
     const customHost = localStorage.getItem('custom_api_host');
     if (customHost) {
+        try {
+            const customOrigin = new URL(customHost).origin;
+            const currentOrigin = window.location.origin;
+            // Se estivermos rodando em um navegador/WebView via HTTP/S e o host salvo for de um túnel antigo diferente do atual, limpa
+            if (window.location.protocol.startsWith('http') && customOrigin !== currentOrigin) {
+                if (customOrigin.includes('lhr.life') || customOrigin.includes('serveo') || customOrigin.includes('loca.lt')) {
+                    console.log('[API] Limpando host de túnel expirado do localStorage:', customOrigin);
+                    localStorage.removeItem('custom_api_host');
+                    const input = document.getElementById('input-custom-host');
+                    if (input) input.value = '';
+                    return '';
+                }
+            }
+        } catch (e) {}
         return customHost.replace(/\/$/, ''); // Remove barra no final
     }
     return ''; // Padrão é o host atual
