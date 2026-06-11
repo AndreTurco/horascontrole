@@ -1327,6 +1327,8 @@ function updateTunnelUrlJson() {
     };
     try {
         fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2), 'utf8');
+        // Notificar todos os clientes (inclusive o Electron) para recarregar as infos de rede / QR Code
+        sendSSEUpdate('reload');
     } catch (e) {
         console.error('  [ERRO] Falha ao escrever tunnel_url.json:', e.message);
     }
@@ -1456,15 +1458,16 @@ function tryLocalhostRunTunnel() {
 
         sshProcess = ssh;
         let resolved = false;
+        let isConnectionEstablished = false;
         let outputBuffer = '';
 
         const timer = setTimeout(() => {
             if (!resolved) {
                 resolved = true;
                 ssh.kill();
-                reject(new Error('Timeout de 15s excedido sem resposta do localhost.run'));
+                reject(new Error('Timeout de 30s excedido sem resposta do localhost.run'));
             }
-        }, 15000);
+        }, 30000); // Aumentado para 30s para dar mais tempo de conexão
 
         const checkOutput = (data) => {
             const str = data.toString();
@@ -1472,6 +1475,7 @@ function tryLocalhostRunTunnel() {
             const match = str.match(/https:\/\/[a-zA-Z0-9.-]+\.lhr\.(?:life|rocks)/);
             if (match && !resolved) {
                 resolved = true;
+                isConnectionEstablished = true;
                 clearTimeout(timer);
                 resolve(match[0]);
             }
@@ -1481,10 +1485,12 @@ function tryLocalhostRunTunnel() {
         ssh.stderr.on('data', checkOutput);
 
         ssh.on('close', (code) => {
-            if (!resolved) {
-                resolved = true;
-                clearTimeout(timer);
-                reject(new Error(`Conexão SSH do localhost.run fechada com código de saída ${code}`));
+            if (!isConnectionEstablished) {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timer);
+                    reject(new Error(`Conexão SSH do localhost.run fechada com código de saída ${code}`));
+                }
             } else {
                 console.log('  [INFO] Conexão do localhost.run caiu. Tentando reconectar...');
                 clearTunnelUrlJson();
@@ -1514,15 +1520,16 @@ function tryServeoTunnel() {
 
         sshProcess = ssh;
         let resolved = false;
+        let isConnectionEstablished = false;
         let outputBuffer = '';
 
         const timer = setTimeout(() => {
             if (!resolved) {
                 resolved = true;
                 ssh.kill();
-                reject(new Error('Timeout de 15s excedido sem resposta do serveo.net'));
+                reject(new Error('Timeout de 20s excedido sem resposta do serveo.net'));
             }
-        }, 15000);
+        }, 20000);
 
         ssh.stdout.on('data', (data) => {
             const str = data.toString();
@@ -1530,6 +1537,7 @@ function tryServeoTunnel() {
             const match = str.match(/https:\/\/(?!console\.)[a-zA-Z0-9.-]+\.(?:serveo\.net|serveousercontent\.com)/);
             if (match && !resolved) {
                 resolved = true;
+                isConnectionEstablished = true;
                 clearTimeout(timer);
                 resolve(match[0]);
             }
@@ -1541,6 +1549,7 @@ function tryServeoTunnel() {
                 const match = str.match(/https:\/\/(?!console\.)[a-zA-Z0-9.-]+\.(?:serveo\.net|serveousercontent\.com)/);
                 if (match && !resolved) {
                     resolved = true;
+                    isConnectionEstablished = true;
                     clearTimeout(timer);
                     resolve(match[0]);
                 }
@@ -1548,10 +1557,12 @@ function tryServeoTunnel() {
         });
 
         ssh.on('close', (code) => {
-            if (!resolved) {
-                resolved = true;
-                clearTimeout(timer);
-                reject(new Error(`Conexão SSH fechada com código de saída ${code}`));
+            if (!isConnectionEstablished) {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timer);
+                    reject(new Error(`Conexão SSH fechada com código de saída ${code}`));
+                }
             } else {
                 console.log('  [INFO] Conexão do Serveo caiu. Tentando reconectar...');
                 clearTunnelUrlJson();
