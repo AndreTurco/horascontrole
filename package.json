@@ -3,8 +3,18 @@
   "version": "1.0.0",
   "description": "Aplicativo de Controle de Horas conectado a Planilha Excel",
   "main": "server.js",
+  "bin": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "package": "pkg ."
+  },
+  "pkg": {
+    "assets": [
+      "public/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
   },
   "dependencies": {
     "cors": "^2.8.5",

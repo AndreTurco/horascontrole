@@ -212,18 +212,27 @@ async function fetchNetworkInfo() {
         const localQrWrapper = document.getElementById('local-qr-wrapper');
         const apkQrWrapper = document.getElementById('apk-qr-wrapper');
         
-        if (data.tunnelUrl) {
-            if (tunnelInput) tunnelInput.value = data.tunnelUrl;
+        if (data.tunnelUrl || data.apkUrl) {
+            if (tunnelInput) tunnelInput.value = data.tunnelUrl || 'Conectando túnel remoto...';
             if (tunnelQrImg) {
-                tunnelQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data.tunnelUrl)}`;
-                if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'block';
+                if (data.tunnelUrl) {
+                    tunnelQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data.tunnelUrl)}`;
+                    if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'block';
+                } else {
+                    if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'none';
+                }
             }
             
-            const apkUrl = `${data.tunnelUrl}/controle-horas.apk`;
-            if (apkInput) apkInput.value = apkUrl;
-            if (apkQrImg) {
-                apkQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(apkUrl)}`;
-                if (apkQrWrapper) apkQrWrapper.style.display = 'block';
+            const apkUrl = data.apkUrl || (data.tunnelUrl ? `${data.tunnelUrl}/controle-horas.apk` : '');
+            if (apkUrl) {
+                if (apkInput) apkInput.value = apkUrl;
+                if (apkQrImg) {
+                    apkQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(apkUrl)}`;
+                    if (apkQrWrapper) apkQrWrapper.style.display = 'block';
+                }
+            } else {
+                if (apkInput) apkInput.value = 'Compilando APK em segundo plano...';
+                if (apkQrWrapper) apkQrWrapper.style.display = 'none';
             }
         } else {
             if (tunnelInput) tunnelInput.value = 'Sem túnel remoto ativo (tente reiniciar o servidor)';

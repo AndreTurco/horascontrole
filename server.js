@@ -20,7 +20,8 @@ try {
 const app = express();
 // Porta 3080 para evitar conflitos na porta 3000
 const PORT = 3080;
-const xlsxPath = path.join(__dirname, 'Controle_de_Horas_Trabalho-1.xlsx');
+const basePath = process.pkg ? path.dirname(process.execPath) : __dirname;
+const xlsxPath = path.join(basePath, 'Controle_de_Horas_Trabalho-1.xlsx');
 
 app.use(cors());
 app.use(express.json());
@@ -1212,8 +1213,9 @@ app.post('/api/auto-arrival', async (req, res) => {
 });
 
 // Inicia Servidor, descobre IPs locais e cria Túnel Externo Seguro
-// Variável global para armazenar a URL atual do túnel
+// Variável global para armazenar a URL atual do túnel e do APK
 let currentTunnelUrl = '';
+let currentApkUrl = '';
 let sshProcess = null;
 
 // Rota de download do APK com controle de status
@@ -1221,7 +1223,7 @@ let isApkCompiling = false;
 let apkCompilationError = null;
 
 app.get('/controle-horas.apk', (req, res) => {
-    const apkPath = path.join(__dirname, 'public', 'controle-horas.apk');
+    const apkPath = path.join(basePath, 'controle-horas.apk');
     if (fs.existsSync(apkPath)) {
         res.setHeader('Content-Disposition', 'attachment; filename=controle-horas.apk');
         res.setHeader('Content-Type', 'application/vnd.android.package-archive');
@@ -1271,15 +1273,40 @@ app.get('/api/network-info', (req, res) => {
     }
     res.json({
         tunnelUrl: currentTunnelUrl || null,
+        apkUrl: currentApkUrl || null,
         localIps: ips,
         port: PORT
     });
 });
 
+// Função auxiliar para atualizar o arquivo tunnel_url.json com a URL do túnel e do APK
+function updateTunnelUrlJson() {
+    const jsonFilePath = path.join(basePath, 'tunnel_url.json');
+    const data = {
+        url: currentTunnelUrl || null,
+        apkUrl: currentApkUrl || null,
+        updated: new Date().toISOString()
+    };
+    try {
+        fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+        console.error('  [ERRO] Falha ao escrever tunnel_url.json:', e.message);
+    }
+}
+
+// Função auxiliar para limpar informações do túnel e excluir os arquivos de referência
+function clearTunnelUrlJson() {
+    currentTunnelUrl = '';
+    currentApkUrl = '';
+    const urlFilePath = path.join(basePath, 'url_acesso.txt');
+    const jsonFilePath = path.join(basePath, 'tunnel_url.json');
+    try { fs.unlinkSync(urlFilePath); } catch (e) {}
+    try { fs.unlinkSync(jsonFilePath); } catch (e) {}
+}
+
 // Função para iniciar e reconectar o túnel remoto automaticamente (Tenta Serveo SSH primeiro, depois Localtunnel)
 async function startTunnel(retryCount = 0) {
-    const urlFilePath = path.join(__dirname, 'url_acesso.txt');
-    const jsonFilePath = path.join(__dirname, 'public', 'tunnel_url.json');
+    const urlFilePath = path.join(basePath, 'url_acesso.txt');
 
     if (sshProcess) {
         try { sshProcess.kill(); } catch (e) {}
@@ -1303,7 +1330,7 @@ async function startTunnel(retryCount = 0) {
         console.log(`  ===================================================`);
 
         fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
-        fs.writeFileSync(jsonFilePath, JSON.stringify({ url: currentTunnelUrl, updated: new Date().toISOString() }), 'utf8');
+        updateTunnelUrlJson();
 
         // Disparar compilação do APK em segundo plano
         generateApkPackage(currentTunnelUrl).catch(err => {
@@ -1327,7 +1354,7 @@ async function startTunnel(retryCount = 0) {
             console.log(`  ===================================================`);
 
             fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
-            fs.writeFileSync(jsonFilePath, JSON.stringify({ url: currentTunnelUrl, updated: new Date().toISOString() }), 'utf8');
+            updateTunnelUrlJson();
 
             // Disparar compilação do APK
             generateApkPackage(currentTunnelUrl).catch(err => {
@@ -1336,9 +1363,7 @@ async function startTunnel(retryCount = 0) {
 
             tunnel.on('close', () => {
                 console.log('  [INFO] Túnel localtunnel fechado. Tentando reconectar em 10 segundos...');
-                currentTunnelUrl = '';
-                try { fs.unlinkSync(urlFilePath); } catch (e) {}
-                try { fs.unlinkSync(jsonFilePath); } catch (e) {}
+                clearTunnelUrlJson();
                 setTimeout(() => startTunnel(retryCount + 1), 10000);
             });
 
@@ -1380,7 +1405,7 @@ function tryServeoTunnel() {
         ssh.stdout.on('data', (data) => {
             const str = data.toString();
             outputBuffer += str;
-            const match = str.match(/https:\/\/[a-zA-Z0-9-]+\.serveo\.net/);
+            const match = str.match(/https:\/\/(?!console\.)[a-zA-Z0-9.-]+\.(?:serveo\.net|serveousercontent\.com)/);
             if (match && !resolved) {
                 resolved = true;
                 clearTimeout(timer);
@@ -1391,7 +1416,7 @@ function tryServeoTunnel() {
         ssh.stderr.on('data', (data) => {
             const str = data.toString();
             if (str.includes('Warning') || str.includes('Forwarding')) {
-                const match = str.match(/https:\/\/[a-zA-Z0-9-]+\.serveo\.net/);
+                const match = str.match(/https:\/\/(?!console\.)[a-zA-Z0-9.-]+\.(?:serveo\.net|serveousercontent\.com)/);
                 if (match && !resolved) {
                     resolved = true;
                     clearTimeout(timer);
@@ -1407,11 +1432,7 @@ function tryServeoTunnel() {
                 reject(new Error(`Conexão SSH fechada com código de saída ${code}`));
             } else {
                 console.log('  [INFO] Conexão do Serveo caiu. Tentando reconectar...');
-                currentTunnelUrl = '';
-                const urlFilePath = path.join(__dirname, 'url_acesso.txt');
-                const jsonFilePath = path.join(__dirname, 'public', 'tunnel_url.json');
-                try { fs.unlinkSync(urlFilePath); } catch (e) {}
-                try { fs.unlinkSync(jsonFilePath); } catch (e) {}
+                clearTunnelUrlJson();
                 setTimeout(() => startTunnel(0), 10000);
             }
         });
@@ -1481,6 +1502,61 @@ function resolveHostIp(hostname) {
     });
 }
 
+// Função para fazer o upload do APK para o Catbox.moe
+function uploadToCatbox(filePath) {
+    return new Promise((resolve, reject) => {
+        const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
+        const filename = path.basename(filePath);
+        
+        let fileBuffer;
+        try {
+            fileBuffer = fs.readFileSync(filePath);
+        } catch (err) {
+            return reject(err);
+        }
+        
+        let body = [];
+        body.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="reqtype"\r\n\r\nfileupload\r\n`));
+        body.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="fileToUpload"; filename="${filename}"\r\nContent-Type: application/vnd.android.package-archive\r\n\r\n`));
+        body.push(fileBuffer);
+        body.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+        
+        const payload = Buffer.concat(body);
+        
+        const options = {
+            hostname: 'catbox.moe',
+            path: '/user/api.php',
+            method: 'POST',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Content-Length': payload.length,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+                'Connection': 'keep-alive'
+            },
+            timeout: 60000
+        };
+        
+        const req = https.request(options, (res) => {
+            let resData = '';
+            res.on('data', chunk => resData += chunk);
+            res.on('end', () => {
+                if (res.statusCode === 200) {
+                    resolve(resData.trim());
+                } else {
+                    reject(new Error(`Catbox upload failed with status ${res.statusCode}: ${resData}`));
+                }
+            });
+        });
+        
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Catbox upload timeout')); });
+        
+        req.write(payload);
+        req.end();
+    });
+}
+
 // Função para gerar o APK via API do PWABuilder
 function generateApkPackage(tunnelUrl) {
     if (isApkCompiling) {
@@ -1498,34 +1574,71 @@ function generateApkPackage(tunnelUrl) {
     console.log(`  [APK] Isso pode levar de 30 a 60 segundos...`);
     console.log(`  ===================================================`);
 
-    const zipPath = path.join(__dirname, 'fetchedTemplate.zip');
-    const extractPath = path.join(__dirname, 'decompressedTemplate');
-    const apkDestPath = path.join(__dirname, 'public', 'controle-horas.apk');
+    const zipPath = path.join(basePath, 'fetchedTemplate.zip');
+    const extractPath = path.join(basePath, 'decompressedTemplate');
+    const apkDestPath = path.join(basePath, 'controle-horas.apk');
 
     try { fs.unlinkSync(zipPath); } catch (e) {}
     try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
 
     return new Promise((resolve, reject) => {
+        let hostNameOnly = 'localhost';
+        try {
+            hostNameOnly = new URL(tunnelUrl).host;
+        } catch (err) {
+            console.error('  [APK-ERRO] Erro ao extrair host do túnel URL:', err.message);
+        }
+
         const postData = JSON.stringify({
-            host: tunnelUrl,
-            manifestUrl: `${tunnelUrl}/manifest.json`,
-            name: "Controle de Horas Premium",
-            packageName: "com.andreturco.horascontrole",
             appVersion: "1.0.0.0",
             appVersionCode: 1,
             backgroundColor: "#0b0f19",
-            themeColor: "#0b0f19",
             display: "standalone",
-            iconUrl: "https://img.icons8.com/color/512/000000/clock.png",
+            enableNotifications: true,
+            enableSiteSettingsShortcut: true,
             fallbackType: "customtabs",
             features: {
                 locationDelegation: { enabled: true },
                 playBilling: { enabled: false }
             },
-            includeSourceCode: false
+            host: hostNameOnly,
+            iconUrl: `${tunnelUrl}/clock-512.png`,
+            includeSourceCode: false,
+            isChromeOSOnly: false,
+            isMetaQuest: false,
+            launcherName: "Controle de Horas",
+            maskableIconUrl: "",
+            monochromeIconUrl: "",
+            name: "Controle de Horas Premium",
+            navigationColor: "#0b0f19",
+            navigationColorDark: "#0b0f19",
+            navigationDividerColor: "#0b0f19",
+            navigationDividerColorDark: "#0b0f19",
+            orientation: "any",
+            packageId: "com.andreturco.horascontrole",
+            shortcuts: [],
+            signing: {
+                file: null,
+                alias: "my-key-alias",
+                fullName: "Controle de Horas Admin",
+                organization: "PWABuilder",
+                organizationalUnit: "Engineering",
+                countryCode: "US",
+                keyPassword: "",
+                storePassword: ""
+            },
+            signingMode: "new",
+            splashScreenFadeOutDuration: 300,
+            startUrl: "/",
+            themeColor: "#0b0f19",
+            themeColorDark: "#0b0f19",
+            webManifestUrl: `${tunnelUrl}/manifest.json`,
+            pwaUrl: tunnelUrl,
+            fullScopeUrl: `${tunnelUrl}/`,
+            minSdkVersion: 23
         });
 
-        const url = 'https://pwabuilder.com/api/generateAppPackage';
+        const url = 'https://pwabuilder-cloudapk.azurewebsites.net/generateAppPackage';
         const parsedUrl = new URL(url);
 
         const options = {
@@ -1534,7 +1647,10 @@ function generateApkPackage(tunnelUrl) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
+                'Content-Length': Buffer.byteLength(postData),
+                'platform-identifier': 'PWABuilder',
+                'platform-identifier-version': '1.0.0',
+                'correlation-id': 'controle-horas-correlation-id'
             },
             timeout: 90000,
             lookup: (hostname, opts, cb) => {
@@ -1587,18 +1703,40 @@ function generateApkPackage(tunnelUrl) {
                         return reject(new Error(errMsg));
                     }
 
-                    isApkCompiling = false;
-                    console.log();
-                    console.log(`  ===================================================`);
-                    console.log(`  [APK] APK COMPILADO E PRONTO PARA DOWNLOAD!`);
-                    console.log(`  [APK] Caminho: public/controle-horas.apk`);
-                    console.log(`  [APK] Link de Download: ${tunnelUrl}/controle-horas.apk`);
-                    console.log();
-                    console.log(`  Escaneie o QR Code abaixo para baixar o APK no celular:`);
-                    qrcode.generate(`${tunnelUrl}/controle-horas.apk`, { small: true });
-                    console.log(`  ===================================================`);
-                    console.log();
-                    resolve();
+                    console.log('  [APK] Uploading APK to Catbox.moe for permanent download link...');
+                    uploadToCatbox(apkDestPath)
+                        .then(uploadedUrl => {
+                            currentApkUrl = uploadedUrl;
+                            updateTunnelUrlJson();
+                            isApkCompiling = false;
+                            console.log();
+                            console.log(`  ===================================================`);
+                            console.log(`  [APK] APK COMPILADO E HOSPEDADO NA NUVEM!`);
+                            console.log(`  [APK] Link Permanente de Download: ${currentApkUrl}`);
+                            console.log();
+                            console.log(`  Escaneie o QR Code abaixo no celular para baixar o APK:`);
+                            qrcode.generate(currentApkUrl, { small: true });
+                            console.log(`  ===================================================`);
+                            console.log();
+                            resolve();
+                        })
+                        .catch(err => {
+                            console.error('  [APK-ERRO] Falha ao enviar APK para Catbox:', err.message);
+                            // Fallback to local tunnel URL
+                            currentApkUrl = `${tunnelUrl}/controle-horas.apk`;
+                            updateTunnelUrlJson();
+                            isApkCompiling = false;
+                            console.log();
+                            console.log(`  ===================================================`);
+                            console.log(`  [APK] APK COMPILADO COM LINK TÚNEL LOCAL (FALLBACK):`);
+                            console.log(`  [APK] Link de Download: ${currentApkUrl}`);
+                            console.log();
+                            console.log(`  Escaneie o QR Code abaixo no celular para baixar o APK:`);
+                            qrcode.generate(currentApkUrl, { small: true });
+                            console.log(`  ===================================================`);
+                            console.log();
+                            resolve();
+                        });
                 });
             });
 

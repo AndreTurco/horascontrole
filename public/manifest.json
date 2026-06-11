@@ -9,12 +9,12 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://img.icons8.com/color/192/000000/clock.png",
+      "src": "/clock-192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "https://img.icons8.com/color/512/000000/clock.png",
+      "src": "/clock-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }
