@@ -1376,12 +1376,44 @@ function updateTunnelUrlJson() {
     }
 }
 
+// Encontrar a raiz do repositório Git subindo os diretórios até achar a pasta .git
+function findGitRoot(startPath) {
+    let current = startPath;
+    for (let i = 0; i < 5; i++) {
+        if (fs.existsSync(path.join(current, '.git'))) {
+            return current;
+        }
+        const parent = path.dirname(current);
+        if (parent === current) break;
+        current = parent;
+    }
+    return null;
+}
+
 // Sincronizar URL ativa do túnel no repositório GitHub de forma assíncrona em segundo plano
 function pushTunnelUrlToGit() {
+    const gitRoot = findGitRoot(basePath);
+    if (!gitRoot) {
+        console.log('  [GIT] Não foi possível encontrar a raiz do repositório Git. Ignorando push.');
+        return;
+    }
+
+    const sourcePath = path.join(basePath, 'tunnel_url.json');
+    const destPath = path.join(gitRoot, 'tunnel_url.json');
+
+    try {
+        if (sourcePath !== destPath && fs.existsSync(sourcePath)) {
+            fs.copyFileSync(sourcePath, destPath);
+        }
+    } catch (err) {
+        console.error('  [GIT] Erro ao copiar tunnel_url.json para a raiz do Git:', err.message);
+        return;
+    }
+
     const cmd = 'git add tunnel_url.json && git commit -m "chore: update active tunnel url [auto]" && git push';
-    exec(cmd, { cwd: basePath }, (error, stdout, stderr) => {
+    exec(cmd, { cwd: gitRoot }, (error, stdout, stderr) => {
         if (error) {
-            // Falha silenciosa caso o git não esteja no path ou a pasta não seja um repositório clonado
+            console.error('  [GIT] Falha ao enviar tunnel_url.json para o GitHub:', error.message);
             return;
         }
         console.log('  [GIT] URL ativa do túnel atualizada com sucesso no repositório GitHub!');
