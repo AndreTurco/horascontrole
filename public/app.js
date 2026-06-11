@@ -71,24 +71,48 @@ window.fetch = async function(resource, options = {}) {
     }
 };
 
+function switchTab(tabName) {
+    state.activeTab = tabName;
+    
+    // Atualizar abas visíveis
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const content = document.getElementById(`tab-${tabName}`);
+    if (content) content.classList.add('active');
+    
+    // Atualizar classe ativa no menu de navegação
+    document.querySelectorAll('.nav-item').forEach(item => {
+        if (item.getAttribute('data-tab') === tabName) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    // Gatilhos específicos de abas
+    if (tabName === 'dashboard') {
+        setTimeout(renderCharts, 50);
+    } else if (tabName === 'settings') {
+        fetchNetworkInfo();
+    }
+}
+
 function handleUnauthorizedAccess() {
     if (isPromptingPin) return;
     isPromptingPin = true;
     
     localStorage.removeItem('access_pin');
+    const accessPinInput = document.getElementById('input-access-pin');
+    if (accessPinInput) accessPinInput.value = '';
     
-    // Mostra popup premium para inserção do PIN
     setTimeout(() => {
-        const userPin = prompt('Acesso restrito e protegido. Digite o PIN de 6 dígitos configurado no servidor do computador para liberar o acesso:');
-        isPromptingPin = false;
-        if (userPin) {
-            localStorage.setItem('access_pin', userPin.trim());
-            // Recarregar os dados imediatamente
-            fetchData();
-            setupRealtimeUpdates();
-        } else {
-            showToast('PIN de segurança obrigatório!', 'error');
+        switchTab('settings');
+        const pinInput = document.getElementById('input-access-pin');
+        if (pinInput) {
+            pinInput.focus();
+            pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        showToast('PIN de acesso incorreto ou expirado! Digite o PIN de 6 dígitos abaixo.', 'error');
+        isPromptingPin = false;
     }, 100);
 }
 
@@ -174,6 +198,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const customHostInput = document.getElementById('input-custom-host');
     if (customHostInput) {
         customHostInput.value = localStorage.getItem('custom_api_host') || '';
+    }
+    const accessPinInput = document.getElementById('input-access-pin');
+    if (accessPinInput) {
+        accessPinInput.value = localStorage.getItem('access_pin') || '';
     }
 
     // Tentar carregar dados em cache do localStorage para exibição imediata (Offline-first)
@@ -1880,21 +1908,30 @@ function bindEvents() {
     const btnSaveHost = document.getElementById('btn-save-custom-host');
     if (btnSaveHost) {
         btnSaveHost.addEventListener('click', () => {
-            let val = document.getElementById('input-custom-host').value.trim();
-            if (val) {
+            let hostVal = document.getElementById('input-custom-host').value.trim();
+            let pinVal = document.getElementById('input-access-pin').value.trim();
+            
+            if (hostVal) {
                 // Adicionar http:// se não tiver protocolo
-                if (!/^https?:\/\//i.test(val)) {
-                    val = 'http://' + val;
+                if (!/^https?:\/\//i.test(hostVal)) {
+                    hostVal = 'http://' + hostVal;
                 }
-                localStorage.setItem('custom_api_host', val);
-                document.getElementById('input-custom-host').value = val;
-                showToast('Servidor customizado salvo com sucesso!', 'success');
+                localStorage.setItem('custom_api_host', hostVal);
+                document.getElementById('input-custom-host').value = hostVal;
             } else {
-                showToast('Por favor, digite uma URL válida.', 'error');
-                return;
+                localStorage.removeItem('custom_api_host');
             }
+            
+            if (pinVal) {
+                localStorage.setItem('access_pin', pinVal);
+            } else {
+                localStorage.removeItem('access_pin');
+            }
+            
+            showToast('Configurações de conexão salvas!', 'success');
             fetchData();
             fetchNetworkInfo();
+            setupRealtimeUpdates();
         });
     }
 
@@ -1902,10 +1939,13 @@ function bindEvents() {
     if (btnClearHost) {
         btnClearHost.addEventListener('click', () => {
             localStorage.removeItem('custom_api_host');
+            localStorage.removeItem('access_pin');
             document.getElementById('input-custom-host').value = '';
-            showToast('Configuração resetada! Usando host atual.', 'success');
+            document.getElementById('input-access-pin').value = '';
+            showToast('Configurações de conexão redefinidas!', 'success');
             fetchData();
             fetchNetworkInfo();
+            setupRealtimeUpdates();
         });
     }
 
