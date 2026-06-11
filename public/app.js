@@ -98,15 +98,17 @@ function getApiHost() {
     if (customHost) {
         try {
             const customOrigin = new URL(customHost).origin;
-            const currentOrigin = window.location.origin;
-            // Se estivermos rodando em um navegador/WebView via HTTP/S e o host salvo for de um túnel antigo diferente do atual, limpa
-            if (window.location.protocol.startsWith('http') && customOrigin !== currentOrigin) {
-                if (customOrigin.includes('lhr.life') || customOrigin.includes('serveo') || customOrigin.includes('loca.lt')) {
-                    console.log('[API] Limpando host de túnel expirado do localStorage:', customOrigin);
-                    localStorage.removeItem('custom_api_host');
-                    const input = document.getElementById('input-custom-host');
-                    if (input) input.value = '';
-                    return resolvedApiHost || '';
+            // Se o host salvo for de um túnel dinâmico antigo (lhr.life, serveo, loca.lt) e for diferente do resolvido, limpa
+            if (resolvedApiHost) {
+                const resolvedOrigin = new URL(resolvedApiHost).origin;
+                if (customOrigin !== resolvedOrigin) {
+                    if (customOrigin.includes('lhr.life') || customOrigin.includes('serveo') || customOrigin.includes('loca.lt')) {
+                        console.log('[API] Limpando host de túnel expirado do localStorage:', customOrigin);
+                        localStorage.removeItem('custom_api_host');
+                        const input = document.getElementById('input-custom-host');
+                        if (input) input.value = '';
+                        return resolvedApiHost || '';
+                    }
                 }
             }
         } catch (e) {}
