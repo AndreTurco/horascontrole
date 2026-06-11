@@ -398,6 +398,7 @@ async function saveGlobalRate(rate) {
 }
 
 // Registrar ponto dinâmico de hoje
+// Registrar ponto dinâmico de hoje
 async function registerClockIn() {
     const btn = document.getElementById('quick-clock-btn');
     const btnText = document.getElementById('clock-btn-text');
@@ -409,6 +410,9 @@ async function registerClockIn() {
     if (btnText) btnText.innerText = 'Registrando...';
     btn.style.opacity = '0.6';
     
+    // Salvar estado original para rollback em caso de falha de rede
+    const originalRows = JSON.parse(JSON.stringify(state.rows));
+    
     try {
         setSyncStatus('syncing', 'Batendo ponto...');
         const now = new Date();
@@ -418,7 +422,7 @@ async function registerClockIn() {
         const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
             String(now.getMinutes()).padStart(2, '0');
 
-        // Atualizar memória local imediatamente (Offline-first)
+        // Atualizar memória local imediatamente (Optimistic Update)
         const todayRowIndex = state.rows.findIndex(r => r.date === dateStr);
         if (todayRowIndex !== -1) {
             const target = state.rows[todayRowIndex];
@@ -485,8 +489,12 @@ async function registerClockIn() {
         await fetchData();
     } catch (err) {
         console.error(err);
+        // Realizar rollback do estado local em caso de erro na rede ou no servidor
+        state.rows = originalRows;
+        saveStateToLocalStorage();
+        applyFilters();
         showToast(err.message || 'Erro de conexão ao bater ponto!', 'error');
-        setSyncStatus('connected', 'Online');
+        setSyncStatus('offline', 'Desconectado');
     } finally {
         // Reabilitar botão após 3 segundos
         setTimeout(() => {
@@ -1632,7 +1640,7 @@ function bindEvents() {
     });
 
     // Salvar do Modal
-    document.getElementById('btn-save-edit').addEventListener('click', () => {
+    document.getElementById('btn-save-edit').addEventListener('click', async () => {
         const rowNum = document.getElementById('edit-row-num').value;
         const rowData = {
             rowNum: parseInt(rowNum, 10),
@@ -1650,7 +1658,10 @@ function bindEvents() {
             ganhos: document.getElementById('edit-earnings').value || null
         };
         
-        // Atualizar memória local imediatamente (Offline-first)
+        // Salvar estado original das linhas para rollback caso ocorra erro de conexão
+        const originalRows = JSON.parse(JSON.stringify(state.rows));
+        
+        // Atualizar memória local imediatamente (Optimistic update)
         const localRowIndex = state.rows.findIndex(r => r.rowNum === rowData.rowNum);
         if (localRowIndex !== -1) {
             const target = state.rows[localRowIndex];
@@ -1696,9 +1707,9 @@ function bindEvents() {
             applyFilters();
         }
         
-        saveRow(rowData);
         closeEditModal();
         
+        // Destacar linha editada
         setTimeout(() => {
             const tr = document.getElementById(`history-row-${rowNum}`) || document.getElementById(`commute-row-${rowNum}`);
             if (tr) {
@@ -1707,6 +1718,14 @@ function bindEvents() {
                 setTimeout(() => tr.classList.remove('pulse-highlight'), 1600);
             }
         }, 600);
+        
+        // Tentar gravar no servidor e disparar rollback em caso de falha de conexão
+        const success = await saveRow(rowData);
+        if (!success) {
+            state.rows = originalRows;
+            saveStateToLocalStorage();
+            applyFilters();
+        }
     });
 
     // 8. Enviar Lançamento Financeiro (Mobills)
