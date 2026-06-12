@@ -410,10 +410,12 @@ async function saveRow(rowData) {
         const res = await response.json();
         showToast(res.message, 'success');
         await fetchData();
+        return true;
     } catch (err) {
         console.error(err);
         showToast(err.message || 'Erro ao gravar dados na planilha!', 'error');
         setSyncStatus('connected', 'Online');
+        return false;
     }
 }
 
