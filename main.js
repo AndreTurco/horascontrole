@@ -1,6 +1,13 @@
 const { app, BrowserWindow, Tray, Menu } = require('electron');
 const path = require('path');
 
+// Garantir instância única do aplicativo e evitar conflitos de porta 3080
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit();
+    process.exit(0);
+}
+
 // Iniciar o Express Backend e os túneis SSH
 const server = require('./server.js');
 
@@ -120,6 +127,15 @@ app.whenReady().then(() => {
     configureAutoStart();
     createWindow();
     createTray();
+
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+        // Alguém tentou abrir uma segunda instância, foca e restaura a janela principal
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    });
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {

@@ -2048,7 +2048,7 @@ function generateApkPackage(tunnelUrl) {
 }
 
 // Inicia Servidor, descobre IPs locais e cria Túnel Externo Seguro com auto-reconnect
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
     try {
         await ensureExcelFileExists();
     } catch (err) {
@@ -2085,5 +2085,14 @@ app.listen(PORT, async () => {
     
     // Iniciar túnel de rede remoto auto-reconectável
     setTimeout(() => startTunnel(0), 1500);
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.warn(`[AVISO] A porta ${PORT} já está em uso. Outra instância do servidor já está rodando.`);
+        process.exit(0);
+    } else {
+        throw err;
+    }
 });
 
