@@ -118,6 +118,19 @@ function handleUnauthorizedAccess() {
 
 // Obter a URL base da API (suporta servidor customizado para APK)
 function getApiHost() {
+    const currentHost = window.location.hostname;
+    
+    // Se estiver rodando localmente no PC ou na rede local Wi-Fi, ignora túneis externos e fala direto com o IP local
+    if (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.')) {
+        const customHost = localStorage.getItem('custom_api_host');
+        if (customHost && (customHost.includes('lhr.life') || customHost.includes('serveo') || customHost.includes('loca.lt'))) {
+            localStorage.removeItem('custom_api_host');
+            const input = document.getElementById('input-custom-host');
+            if (input) input.value = '';
+        }
+        return '';
+    }
+
     const customHost = localStorage.getItem('custom_api_host');
     if (customHost) {
         try {
