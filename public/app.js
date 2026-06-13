@@ -130,9 +130,10 @@ function handleUnauthorizedAccess() {
 // Obter a URL base da API (suporta servidor customizado para APK)
 function getApiHost() {
     const currentHost = window.location.hostname;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Se estiver rodando localmente no PC ou na rede local Wi-Fi, ignora túneis externos e fala direto com o IP local
-    if (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.')) {
+    // Se estiver rodando localmente no PC (não no celular), ignora túneis externos e fala direto com o IP local
+    if (!isMobile && (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.'))) {
         const customHost = localStorage.getItem('custom_api_host');
         if (customHost && (customHost.includes('lhr.life') || customHost.includes('serveo') || customHost.includes('loca.lt'))) {
             localStorage.removeItem('custom_api_host');
@@ -3257,8 +3258,10 @@ async function setupRealtimeUpdates() {
 // Resolver dinamicamente a URL ativa do túnel
 async function resolveActiveTunnelUrl() {
     const currentHost = window.location.hostname;
-    // Se estiver rodando localmente (localhost ou rede local Wi-Fi 192.168.x.x), não altera nada
-    if (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.')) {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Se estiver rodando localmente no PC (não no celular), não altera nada
+    if (!isMobile && (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.'))) {
         return;
     }
 
