@@ -8,7 +8,7 @@
     "start": "node server.js",
     "package": "pkg .",
     "start-desktop": "electron .",
-    "package-desktop": "electron-packager . controle-de-horas --platform=win32 --arch=x64 --icon=public/icon.ico --overwrite --out=dist"
+    "package-desktop": "electron-packager . controle-de-horas --platform=win32 --arch=x64 --icon=public/icon.ico --overwrite --out=dist --ignore=\"^/dist($|/)\" --ignore=\"^/scratch($|/)\" --ignore=\"^/backups($|/)\" --ignore=\"^/\\.git($|/)\" --ignore=\"^/\\.gemini($|/)\""
   },
   "pkg": {
     "assets": [
