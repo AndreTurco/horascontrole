@@ -43,13 +43,15 @@ const state = {
 let resolvedApiHost = '';
 let isPromptingPin = false;
 
-// Interceptar todas as requisições fetch para injetar o PIN de segurança em acessos externos
+// Interceptar todas as requisições fetch para injetar o PIN de segurança e bypass de túnel
 const originalFetch = window.fetch;
 window.fetch = async function(resource, options = {}) {
     if (typeof resource === 'string' && resource.includes('/api/')) {
         const pin = localStorage.getItem('access_pin');
+        options.headers = options.headers || {};
+        
+        // Injetar PIN de segurança se disponível
         if (pin) {
-            options.headers = options.headers || {};
             if (options.headers instanceof Headers) {
                 options.headers.set('x-access-pin', pin);
             } else if (Array.isArray(options.headers)) {
@@ -57,6 +59,15 @@ window.fetch = async function(resource, options = {}) {
             } else {
                 options.headers['x-access-pin'] = pin;
             }
+        }
+
+        // Injetar bypass de aviso de túnel (localtunnel exige isso para pular a tela de confirmação)
+        if (options.headers instanceof Headers) {
+            options.headers.set('bypass-tunnel-reminder', 'true');
+        } else if (Array.isArray(options.headers)) {
+            options.headers.push(['bypass-tunnel-reminder', 'true']);
+        } else {
+            options.headers['bypass-tunnel-reminder'] = 'true';
         }
     }
     
@@ -3243,7 +3254,7 @@ async function setupRealtimeUpdates() {
     };
 }
 
-// Resolver dinamicamente a URL ativa do túnel a partir do repositório público do GitHub do usuário
+// Resolver dinamicamente a URL ativa do túnel
 async function resolveActiveTunnelUrl() {
     const currentHost = window.location.hostname;
     // Se estiver rodando localmente (localhost ou rede local Wi-Fi 192.168.x.x), não altera nada
@@ -3251,6 +3262,30 @@ async function resolveActiveTunnelUrl() {
         return;
     }
 
+    // 1. Tentar primeiro o localtunnel estático baseado no PIN configurado
+    const savedPin = localStorage.getItem('access_pin');
+    if (savedPin) {
+        const localtunnelUrl = `https://controle-horas-${savedPin.trim()}.loca.lt`;
+        try {
+            console.log('[API] Testando conexão direta com o localtunnel estático:', localtunnelUrl);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 segundos de timeout
+            const response = await fetch(`${localtunnelUrl}/api/network-info`, { 
+                signal: controller.signal,
+                headers: { 'bypass-tunnel-reminder': 'true' }
+            });
+            clearTimeout(timeoutId);
+            if (response.ok) {
+                resolvedApiHost = localtunnelUrl;
+                console.log('[API] Conectado com sucesso via localtunnel estático:', resolvedApiHost);
+                return;
+            }
+        } catch (err) {
+            console.log('[API] localtunnel estático indisponível ou offline. Usando fallback...');
+        }
+    }
+
+    // 2. Fallback: buscar a URL ativa resolvida do GitHub
     try {
         console.log('[API] Resolvendo URL do túnel dinâmico via GitHub...');
         const response = await fetch('https://raw.githubusercontent.com/AndreTurco/horascontrole/main/tunnel_url.json?_=' + Date.now(), { cache: 'no-store' });

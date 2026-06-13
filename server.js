@@ -1439,9 +1439,10 @@ function clearTunnelUrlJson() {
     try { fs.unlinkSync(jsonFilePath); } catch (e) {}
 }
 
-// Função para iniciar e reconectar o túnel remoto automaticamente (Tenta Serveo SSH primeiro, depois Localtunnel)
+// Função para iniciar e reconectar o túnel remoto automaticamente (Tenta Localtunnel Estático primeiro, depois fallbacks SSH)
 async function startTunnel(retryCount = 0) {
     const urlFilePath = path.join(basePath, 'url_acesso.txt');
+    const pin = getAccessPin();
 
     if (sshProcess) {
         try { sshProcess.kill(); } catch (e) {}
@@ -1450,14 +1451,19 @@ async function startTunnel(retryCount = 0) {
 
     console.log(`  [INFO] Estabelecendo conexão para acesso remoto (Tentativa ${retryCount + 1})...`);
 
+    // 1. Tentar Localtunnel Estático Primeiro com o Subdomínio baseado no PIN
     try {
-        // Tentar o túnel localhost.run primeiro via SSH nativo
-        const lhrUrl = await tryLocalhostRunTunnel();
-        currentTunnelUrl = lhrUrl;
+        console.log(`  [INFO] Tentando localtunnel estático com o subdomínio: controle-horas-${pin}...`);
+        const tunnel = await localtunnel({ 
+            port: PORT, 
+            subdomain: `controle-horas-${pin}`,
+            timeout: 15000 
+        });
+        currentTunnelUrl = tunnel.url;
 
         console.log();
         console.log(`  ===================================================`);
-        console.log(`  TÚNEL REMOTO ATIVO (LOCALHOST.RUN):`);
+        console.log(`  TÚNEL REMOTO ATIVO (LOCALTUNNEL ESTÁTICO):`);
         console.log(`  > ${currentTunnelUrl}`);
         console.log();
         console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
@@ -1467,22 +1473,33 @@ async function startTunnel(retryCount = 0) {
         fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
         updateTunnelUrlJson();
 
-        // Disparar compilação do APK em segundo plano
+        // Disparar compilação do APK
         generateApkPackage(currentTunnelUrl).catch(err => {
             console.error('[APK-ERRO] Falha na compilação em segundo plano:', err.message);
         });
 
-    } catch (err) {
-        console.warn(`  [Aviso] localhost.run indisponível (${err.message}). Tentando fallback com Serveo SSH...`);
+        tunnel.on('close', () => {
+            console.log('  [INFO] Túnel localtunnel estático fechado. Tentando reconectar em 10 segundos...');
+            clearTunnelUrlJson();
+            setTimeout(() => startTunnel(retryCount + 1), 10000);
+        });
 
+        tunnel.on('error', (err) => {
+            console.error('  [Erro] Erro no localtunnel estático:', err.message);
+            try { tunnel.close(); } catch (e) {}
+        });
+
+    } catch (ltErr) {
+        console.warn(`  [Aviso] Localtunnel estático indisponível (${ltErr.message}). Tentando fallback com localhost.run SSH...`);
+
+        // 2. Fallback: localhost.run via SSH nativo
         try {
-            // Tentar o túnel alternativo (Serveo) via SSH nativo
-            const serveoUrl = await tryServeoTunnel();
-            currentTunnelUrl = serveoUrl;
+            const lhrUrl = await tryLocalhostRunTunnel();
+            currentTunnelUrl = lhrUrl;
 
             console.log();
             console.log(`  ===================================================`);
-            console.log(`  TÚNEL REMOTO ATIVO (SERVEO - TUNEL ALTERNATIVO):`);
+            console.log(`  TÚNEL REMOTO ATIVO (LOCALHOST.RUN FALLBACK):`);
             console.log(`  > ${currentTunnelUrl}`);
             console.log();
             console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
@@ -1497,16 +1514,17 @@ async function startTunnel(retryCount = 0) {
                 console.error('[APK-ERRO] Falha na compilação em segundo plano:', err.message);
             });
 
-        } catch (serveoErr) {
-            console.warn(`  [Aviso] Serveo SSH indisponível (${serveoErr.message}). Tentando fallback com localtunnel...`);
+        } catch (lhrErr) {
+            console.warn(`  [Aviso] Fallback localhost.run indisponível (${lhrErr.message}). Tentando Serveo SSH...`);
 
+            // 3. Fallback: Serveo via SSH nativo
             try {
-                const tunnel = await localtunnel({ port: PORT });
-                currentTunnelUrl = tunnel.url;
+                const serveoUrl = await tryServeoTunnel();
+                currentTunnelUrl = serveoUrl;
 
                 console.log();
                 console.log(`  ===================================================`);
-                console.log(`  TÚNEL REMOTO ATIVO (LOCALTUNNEL FALLBACK):`);
+                console.log(`  TÚNEL REMOTO ATIVO (SERVEO FALLBACK):`);
                 console.log(`  > ${currentTunnelUrl}`);
                 console.log();
                 console.log(`  Escaneie o QR Code abaixo para abrir no celular:`);
@@ -1516,24 +1534,13 @@ async function startTunnel(retryCount = 0) {
                 fs.writeFileSync(urlFilePath, currentTunnelUrl, 'utf8');
                 updateTunnelUrlJson();
 
-                // Disparar compilação do APK
+                // Disparar compilação do APK em segundo plano
                 generateApkPackage(currentTunnelUrl).catch(err => {
                     console.error('[APK-ERRO] Falha na compilação em segundo plano:', err.message);
                 });
 
-                tunnel.on('close', () => {
-                    console.log('  [INFO] Túnel localtunnel fechado. Tentando reconectar em 10 segundos...');
-                    clearTunnelUrlJson();
-                    setTimeout(() => startTunnel(retryCount + 1), 10000);
-                });
-
-                tunnel.on('error', (err) => {
-                    console.error('  [Erro] Erro no localtunnel:', err.message);
-                    try { tunnel.close(); } catch (e) {}
-                });
-
-            } catch (ltErr) {
-                console.error('  [Erro] Falha ao iniciar todos os túneis (localhost.run, Serveo e localtunnel):', ltErr.message);
+            } catch (serveoErr) {
+                console.error('  [Erro] Falha ao iniciar todos os túneis (Localtunnel, localhost.run e Serveo):', serveoErr.message);
                 console.log('  [INFO] Tentando novamente toda a pilha de conexões em 15 segundos...');
                 setTimeout(() => startTunnel(retryCount + 1), 15000);
             }
