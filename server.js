@@ -1419,7 +1419,7 @@ function pushTunnelUrlToGit() {
         return;
     }
 
-    const cmd = 'git add tunnel_url.json && git commit -m "chore: update active tunnel url [auto]" && git push';
+    const cmd = 'git pull --rebase && git add tunnel_url.json && git commit -m "chore: update active tunnel url [auto]" && git push';
     exec(cmd, { cwd: gitRoot }, (error, stdout, stderr) => {
         if (error) {
             console.error('  [GIT] Falha ao enviar tunnel_url.json para o GitHub:', error.message);
