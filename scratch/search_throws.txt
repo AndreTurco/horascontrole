@@ -1,9 +1,0 @@
-123: if (!response.ok) throw new Error('Erro ao carregar do servidor');
-169: if (!response.ok) throw new Error('Falha ao salvar dia');
-189: if (!response.ok) throw new Error('Falha ao salvar taxa');
-219: throw new Error(errRes.error || 'Falha ao bater ponto');
-241: if (!response.ok) throw new Error('Erro ao pagar lote');
-264: if (!response.ok) throw new Error('Erro ao salvar transação');
-289: if (!response.ok) throw new Error('Erro ao excluir transação');
-1945: if (!response.ok) throw new Error('Erro ao salvar investimento');
-1971: if (!response.ok) throw new Error('Erro ao excluir investimento');

@@ -37,7 +37,8 @@ const state = {
     // Instâncias do Chart.js
     chart: null,
     financeChart: null,
-    comparisonChart: null
+    comparisonChart: null,
+    yearlyChart: null
 };
 
 let resolvedApiHost = '';
@@ -307,8 +308,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function fetchData() {
     try {
         setSyncStatus('syncing', 'Sincronizando...');
-        const response = await fetch(`${getApiHost()}/api/data?_=${Date.now()}`, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Erro ao carregar do servidor');
+        const pin = localStorage.getItem('access_pin') || '';
+        const response = await fetch(`${getApiHost()}/api/data?_=${Date.now()}`, { 
+            cache: 'no-store',
+            headers: pin ? { 'x-access-pin': pin } : {}
+        });
+        if (!response.ok) throw new Error(`Servidor retornou ${response.status}`);
         
         const data = await response.json();
         state.globalRate = data.globalRate;
@@ -341,10 +346,29 @@ async function fetchData() {
         // Filtrar e Renderizar
         applyFilters();
         setSyncStatus('connected', 'Online');
+        state._fetchRetryCount = 0; // Reset retry counter on success
     } catch (err) {
-        console.error(err);
-        showToast('Erro ao carregar dados da planilha Excel!', 'error');
+        console.error('[FETCH] Erro ao carregar dados:', err);
         setSyncStatus('offline', 'Desconectado');
+        
+        // Retry logic: re-resolve tunnel URL and retry up to 3 times
+        state._fetchRetryCount = (state._fetchRetryCount || 0) + 1;
+        if (state._fetchRetryCount <= 3) {
+            console.log(`[FETCH] Tentativa ${state._fetchRetryCount}/3: Resolvendo URL do túnel novamente em 5 segundos...`);
+            setSyncStatus('syncing', `Reconectando (${state._fetchRetryCount}/3)...`);
+            setTimeout(async () => {
+                await resolveActiveTunnelUrl();
+                fetchData();
+            }, 5000 * state._fetchRetryCount);
+        } else {
+            showToast('Servidor offline. Verifique se o servidor está rodando no PC.', 'error');
+            state._fetchRetryCount = 0;
+            // After exhausting retries, try again silently every 30 seconds
+            setTimeout(async () => {
+                await resolveActiveTunnelUrl();
+                fetchData();
+            }, 30000);
+        }
     }
 }
 
@@ -355,6 +379,12 @@ async function fetchNetworkInfo() {
         if (!response.ok) throw new Error();
         const data = await response.json();
         
+        // Exibir o caminho da planilha ativa
+        const dbPathInput = document.getElementById('active-database-path');
+        if (dbPathInput && data.xlsxPath) {
+            dbPathInput.value = data.xlsxPath;
+        }
+
         // Exibir PIN de segurança e ID do Servidor se fornecidos (apenas localmente no PC)
         const pinDisplayWrapper = document.getElementById('pin-display-wrapper');
         const desktopAccessPin = document.getElementById('desktop-access-pin');
@@ -383,8 +413,10 @@ async function fetchNetworkInfo() {
             if (tunnelInput) tunnelInput.value = data.tunnelUrl || 'Conectando túnel remoto...';
             if (tunnelQrImg) {
                 if (data.tunnelUrl) {
-                    const qrData = data.serverId 
-                        ? `https://andreturco.github.io/horascontrole/public/?sid=${data.serverId}&pin=${data.accessPin}`
+                    // QR Code aponta para o túnal diretamente com o PIN (sem depender do GitHub Pages)
+                    const pin = data.accessPin || localStorage.getItem('access_pin') || '';
+                    const qrData = pin
+                        ? `${data.tunnelUrl}/?pin=${pin}`
                         : data.tunnelUrl;
                     tunnelQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
                     if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'block';
@@ -412,9 +444,8 @@ async function fetchNetworkInfo() {
         }
         
         if (data.localIps && data.localIps.length > 0) {
-            const localUrl = data.serverId
-                ? `http://${data.localIps[0]}:${data.port}/?sid=${data.serverId}&pin=${data.accessPin}`
-                : `http://${data.localIps[0]}:${data.port}`;
+            const pin = data.accessPin || localStorage.getItem('access_pin') || '';
+            const localUrl = `http://${data.localIps[0]}:${data.port}${pin ? '/?pin=' + pin : ''}`;
             if (localInput) localInput.value = localUrl;
             if (localQrImg) {
                 localQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(localUrl)}`;
@@ -702,6 +733,7 @@ function applyFilters() {
         return matchDate && matchSearch;
     });
     
+    state.filteredRows = state.filteredRows.filter(row => row.date);
     state.filteredRows.sort((a, b) => a.date.localeCompare(b.date));
     
     // 2. Filtrar Transações Financeiras (Aba Mobills)
@@ -710,6 +742,7 @@ function applyFilters() {
         return dateParts.month === monthSelect;
     });
     
+    state.filteredFinanceEntries = state.filteredFinanceEntries.filter(entry => entry.date);
     state.filteredFinanceEntries.sort((a, b) => a.date.localeCompare(b.date));
     
     // 3. Filtrar Investimentos (Aba Investimentos)
@@ -718,6 +751,7 @@ function applyFilters() {
         return dateParts.month === monthSelect;
     });
     
+    state.filteredInvestEntries = state.filteredInvestEntries.filter(entry => entry.date);
     state.filteredInvestEntries.sort((a, b) => a.date.localeCompare(b.date));
     
     // Renderizações reativas
@@ -825,9 +859,18 @@ function renderDashboard() {
         totalEarningsMonth += row.ganhos;
     });
     
-    // Horas da semana atual
+    // Horas da semana (baseado no último dia com registros de horas)
+    let lastWorkedRow = null;
+    for (let i = state.rows.length - 1; i >= 0; i--) {
+        if (state.rows[i].minutosTrabalhados > 0) {
+            lastWorkedRow = state.rows[i];
+            break;
+        }
+    }
+    const refDate = lastWorkedRow ? lastWorkedRow.date : null;
+    const currentWeekDays = getDaysOfCurrentWeek(refDate);
+    
     let totalMinutesWeek = 0;
-    const currentWeekDays = getDaysOfCurrentWeek();
     state.rows.forEach(row => {
         if (currentWeekDays.includes(row.date)) {
             totalMinutesWeek += row.minutosTrabalhados;
@@ -841,6 +884,13 @@ function renderDashboard() {
     document.getElementById('kpi-global-earnings').innerText = formatCurrency(state.totalEarningsSinceJan);
     document.getElementById('kpi-pending-earnings').innerText = formatCurrency(state.pendingEarnings);
     document.getElementById('kpi-week-hours').innerText = formatMinutesToHoursStr(totalMinutesWeek);
+    
+    const subtitleEl = document.getElementById('kpi-week-hours-subtitle');
+    if (subtitleEl && currentWeekDays.length === 7) {
+        const startParts = currentWeekDays[0].split('-');
+        const endParts = currentWeekDays[6].split('-');
+        subtitleEl.innerText = `Ref: ${startParts[2]}/${startParts[1]} a ${endParts[2]}/${endParts[1]}`;
+    }
     
     // Atualizar KPI Reserva 20% Recebida Geral
     const totalReceived = state.totalEarningsSinceJan - state.pendingEarnings;
@@ -1409,6 +1459,132 @@ function renderCharts() {
                     if (targetRow) {
                         openEditModal(targetRow);
                         showToast(`Abrindo dia ${dayNum} para edição!`, 'success');
+                    }
+                }
+            }
+        }
+    });
+
+    renderYearlyOverviewChart();
+}
+
+function renderYearlyOverviewChart() {
+    const canvas = document.getElementById('chart-yearly-overview');
+    if (!canvas) return;
+    
+    if (state.yearlyChart) {
+        state.yearlyChart.destroy();
+    }
+    
+    if (state.rows.length === 0) {
+        return;
+    }
+    
+    const ptMonths = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const ptMonthsShort = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const monthlyMinutes = Array(12).fill(0);
+    const monthlyEarnings = Array(12).fill(0);
+    
+    state.rows.forEach(row => {
+        const dateParts = parseDateParts(row.date);
+        if (dateParts && !isNaN(dateParts.month) && dateParts.month >= 0 && dateParts.month < 12) {
+            monthlyMinutes[dateParts.month] += row.minutosTrabalhados || 0;
+            monthlyEarnings[dateParts.month] += row.ganhos || 0;
+        }
+    });
+
+    const ctx = canvas.getContext('2d');
+    
+    const isDark = !document.body.classList.contains('light-theme');
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    const textColor = isDark ? '#9ca3af' : '#4b5563';
+
+    state.yearlyChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ptMonthsShort,
+            datasets: [
+                {
+                    label: 'Ganhos (R$)',
+                    data: monthlyEarnings,
+                    backgroundColor: 'rgba(16, 185, 129, 0.65)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Horas Trabalhadas',
+                    data: monthlyMinutes.map(min => Number((min / 60).toFixed(1))),
+                    backgroundColor: 'rgba(59, 130, 246, 0.65)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: textColor,
+                        font: { family: 'Outfit', size: 12 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                return `Ganhos: ${formatCurrency(context.raw)}`;
+                            } else {
+                                const totalMin = monthlyMinutes[context.dataIndex];
+                                return `Horas: ${formatMinutesToHoursStr(totalMin)}`;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'Outfit' } }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    grid: { color: gridColor },
+                    ticks: {
+                        color: textColor,
+                        font: { family: 'Outfit' },
+                        callback: function(value) { return 'R$ ' + value; }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        color: textColor,
+                        font: { family: 'Outfit' },
+                        callback: function(value) { return value + 'h'; }
+                    }
+                }
+            },
+            onClick: (event, elements) => {
+                if (elements && elements.length > 0) {
+                    const activeElement = elements[0];
+                    const monthIndex = activeElement.index; // 0 a 11
+                    
+                    const monthSelect = document.getElementById('filter-month');
+                    if (monthSelect) {
+                        monthSelect.value = monthIndex;
+                        applyFilters();
+                        showToast(`Filtrado por ${ptMonths[monthIndex]} de 2026`, 'info');
                     }
                 }
             }
@@ -2261,6 +2437,56 @@ function showToast(message, type = 'success') {
     }, 3200);
 }
 
+function decodeHex(hex) {
+    if (!hex) return '';
+    try {
+        let str = '';
+        for (let i = 0; i < hex.length; i += 2) {
+            str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+        }
+        return decodeURIComponent(escape(str));
+    } catch (e) {
+        let str = '';
+        for (let i = 0; i < hex.length; i += 2) {
+            str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+        }
+        return str;
+    }
+}
+
+function normalizeDate(cellValue) {
+    if (!cellValue) return null;
+    if (cellValue instanceof Date) {
+        const y = cellValue.getUTCFullYear();
+        const m = String(cellValue.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(cellValue.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    if (typeof cellValue === 'string') {
+        const clean = cellValue.trim();
+        const ymdMatch = clean.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+        if (ymdMatch) {
+            return `${ymdMatch[1]}-${ymdMatch[2]}-${ymdMatch[3]}`;
+        }
+        const dmyMatch = clean.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+        if (dmyMatch) {
+            return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+        }
+        const parsed = new Date(clean);
+        if (!isNaN(parsed.getTime())) {
+            const y = parsed.getUTCFullYear();
+            const m = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(parsed.getUTCDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        return clean.substring(0, 10);
+    }
+    if (typeof cellValue === 'object' && cellValue.result) {
+        return normalizeDate(cellValue.result);
+    }
+    return null;
+}
+
 function formatCurrency(value) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
@@ -2286,10 +2512,9 @@ function timeToMinutes(timeStr) {
 }
 
 function parseDateParts(dateStr) {
-    if (!dateStr) return { year: NaN, month: NaN, day: NaN };
-    // dateStr could be 'YYYY-MM-DD' or 'YYYY-MM-DDT00:00:00.000Z'
-    const cleanStr = typeof dateStr === 'string' ? dateStr.substring(0, 10) : '';
-    const parts = cleanStr.split('-');
+    const norm = normalizeDate(dateStr);
+    if (!norm) return { year: NaN, month: NaN, day: NaN };
+    const parts = norm.split('-');
     if (parts.length < 3) return { year: NaN, month: NaN, day: NaN };
     return {
         year: parseInt(parts[0], 10),
@@ -2354,8 +2579,17 @@ function calculateTimeOutsideMinutes(saidaCasa, chegadaCasa) {
     return diff;
 }
 
-function getDaysOfCurrentWeek() {
-    const now = new Date();
+function getDaysOfCurrentWeek(refDateStr) {
+    // Se refDateStr for fornecido, usar como referência (útil para mostrar semana com dados)
+    let now;
+    if (refDateStr) {
+        // Parsear a data de referência sem timezone shift
+        const parts = refDateStr.split('-');
+        now = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+        now = new Date();
+    }
+    
     const currentDay = now.getDay();
     const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
     
@@ -3317,8 +3551,8 @@ function showSetupOverlay() {
                 const sid = serverIdInput ? serverIdInput.value.trim() : '';
                 const pin = accessPinInput ? accessPinInput.value.trim() : '';
                 
-                if (!sid || !pin) {
-                    showToast('Preencha o ID do Servidor e o PIN!', 'error');
+                if (!pin) {
+                    showToast('Preencha o PIN de acesso!', 'error');
                     return;
                 }
                 
@@ -3326,30 +3560,67 @@ function showSetupOverlay() {
                 connectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
                 
                 try {
-                    // Validar se o ID de Registro existe na nuvem
-                    const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${sid}?_=${Date.now()}`, { cache: 'no-store' });
+                    // 1. Tentar parear via KV Store (método estável por PIN)
+                    const appKey = '2ifiuvz0';
+                    const res = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/${appKey}/${pin}?_=${Date.now()}`, { cache: 'no-store' });
                     if (res.ok) {
-                        const data = await res.json();
-                        localStorage.setItem('server_id', sid);
-                        localStorage.setItem('access_pin', pin);
-                        
-                        const mainAccessPinInput = document.getElementById('input-access-pin');
-                        if (mainAccessPinInput) mainAccessPinInput.value = pin;
-                        
-                        if (data.url) {
-                            resolvedApiHost = data.url.replace(/\/$/, '');
+                        const hexData = await res.json();
+                        let data = null;
+                        if (hexData) {
+                            try {
+                                data = JSON.parse(decodeHex(hexData));
+                            } catch (e) {
+                                if (hexData.startsWith('http://') || hexData.startsWith('https://')) {
+                                    data = { url: hexData };
+                                }
+                            }
                         }
                         
-                        showToast('Servidor pareado com sucesso!', 'success');
-                        overlay.style.display = 'none';
-                        
-                        // Inicializar conexões com o servidor pareado
-                        fetchData();
-                        fetchNetworkInfo();
-                        setupRealtimeUpdates();
-                    } else {
-                        showToast('ID do Servidor inválido ou não encontrado!', 'error');
+                        if (data && data.url) {
+                            localStorage.setItem('access_pin', pin);
+                            localStorage.setItem('server_id', 'kv_store');
+                            
+                            const mainAccessPinInput = document.getElementById('input-access-pin');
+                            if (mainAccessPinInput) mainAccessPinInput.value = pin;
+                            
+                            resolvedApiHost = data.url.replace(/\/$/, '');
+                            
+                            showToast('Servidor pareado com sucesso via PIN!', 'success');
+                            overlay.style.display = 'none';
+                            
+                            fetchData();
+                            fetchNetworkInfo();
+                            setupRealtimeUpdates();
+                            return;
+                        }
                     }
+                    
+                    // 2. Fallback: Tentar parear via ID do servidor legado (ExtendsClass) se fornecido
+                    if (sid && sid !== 'kv_store' && sid !== 'local_fallback') {
+                        const legacyRes = await fetch(`https://extendsclass.com/api/json-storage/bin/${sid}?_=${Date.now()}`, { cache: 'no-store' });
+                        if (legacyRes.ok) {
+                            const data = await legacyRes.json();
+                            localStorage.setItem('server_id', sid);
+                            localStorage.setItem('access_pin', pin);
+                            
+                            const mainAccessPinInput = document.getElementById('input-access-pin');
+                            if (mainAccessPinInput) mainAccessPinInput.value = pin;
+                            
+                            if (data.url) {
+                                resolvedApiHost = data.url.replace(/\/$/, '');
+                            }
+                            
+                            showToast('Servidor pareado com sucesso (Legado)!', 'success');
+                            overlay.style.display = 'none';
+                            
+                            fetchData();
+                            fetchNetworkInfo();
+                            setupRealtimeUpdates();
+                            return;
+                        }
+                    }
+                    
+                    showToast('PIN inválido ou servidor offline!', 'error');
                 } catch (e) {
                     console.error('[SETUP] Erro ao parear:', e);
                     showToast('Erro ao parear. Verifique sua conexão.', 'error');
@@ -3373,17 +3644,50 @@ async function resolveActiveTunnelUrl() {
         return;
     }
 
-    // 1. Tentar resolver o túnel dinâmico via ID do Servidor (ExtendsClass JSON bin)
-    const savedServerId = localStorage.getItem('server_id');
-    if (savedServerId && savedServerId !== 'local_fallback') {
+    const savedPin = localStorage.getItem('access_pin');
+    const appKey = '2ifiuvz0';
+
+    // 1. Tentar resolver o túnel dinâmico via KV Store com o PIN de acesso (Novo método estável)
+    if (savedPin) {
         try {
-            console.log('[API] Buscando URL ativa na nuvem com o ID:', savedServerId);
+            console.log('[API] Buscando URL ativa no KV Store para o PIN:', savedPin);
+            const response = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/${appKey}/${savedPin.trim()}?_=${Date.now()}`, { cache: 'no-store' });
+            if (response.ok) {
+                const hexData = await response.json();
+                if (hexData) {
+                    try {
+                        const payload = JSON.parse(decodeHex(hexData));
+                        if (payload && payload.url) {
+                            resolvedApiHost = payload.url.replace(/\/$/, '');
+                            console.log('[API] Conectado via KV Store. URL resolvida:', resolvedApiHost);
+                            return;
+                        }
+                    } catch (e) {
+                        // Fallback em caso de falha no JSON (talvez seja texto plano legível antigo)
+                        if (hexData.startsWith('http://') || hexData.startsWith('https://')) {
+                            resolvedApiHost = hexData.replace(/\/$/, '');
+                            console.log('[API] Conectado via KV Store (legado). URL resolvida:', resolvedApiHost);
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('[API] Falha ao consultar o KV Store. Tentando fallback...', err);
+        }
+    }
+
+    // 2. Tentar resolver o túnel dinâmico via ID do Servidor legado (ExtendsClass JSON bin)
+    const savedServerId = localStorage.getItem('server_id');
+    if (savedServerId && savedServerId !== 'local_fallback' && savedServerId !== 'kv_store') {
+        try {
+            console.log('[API] Buscando URL ativa na nuvem com o ID legado:', savedServerId);
             const response = await fetch(`https://extendsclass.com/api/json-storage/bin/${savedServerId.trim()}?_=${Date.now()}`, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 if (data.url) {
                     resolvedApiHost = data.url.replace(/\/$/, '');
-                    console.log('[API] Conectado via nuvem. URL resolvida:', resolvedApiHost);
+                    console.log('[API] Conectado via nuvem legado. URL resolvida:', resolvedApiHost);
                     
                     if (data.pin) {
                         localStorage.setItem('access_pin', data.pin);
@@ -3394,34 +3698,13 @@ async function resolveActiveTunnelUrl() {
                 }
             }
         } catch (err) {
-            console.warn('[API] Falha ao consultar o ID na nuvem. Tentando fallbacks...', err);
+            console.warn('[API] Falha ao consultar o ID legado na nuvem. Tentando outros...', err);
         }
     }
 
-    // 2. Se não houver ID do servidor, e estiver remoto, exibir a tela de configuração inicial (Setup Overlay)
-    if (!isLocal && !savedServerId) {
+    // 3. Se não houver PIN salvo e estiver remoto, exibir a tela de pareamento inicial
+    if (!isLocal && !savedPin) {
         showSetupOverlay();
-    }
-
-    // 3. Fallback clássico: buscar a URL ativa resolvida do GitHub (caso seja o usuário André usando o legado)
-    try {
-        console.log('[API] Resolvendo URL do túnel dinâmico via repositório legado do GitHub...');
-        const response = await fetch('https://raw.githubusercontent.com/AndreTurco/horascontrole/main/tunnel_url.json?_=' + Date.now(), { cache: 'no-store' });
-        if (response.ok) {
-            const data = await response.json();
-            if (data.url) {
-                resolvedApiHost = data.url.replace(/\/$/, '');
-                console.log('[API] URL ativa resolvida do GitHub (Legado):', resolvedApiHost);
-            }
-            if (data.pin) {
-                localStorage.setItem('access_pin', data.pin);
-                const accessPinInput = document.getElementById('input-access-pin');
-                if (accessPinInput) accessPinInput.value = data.pin;
-                console.log('[API] PIN de acesso configurado automaticamente do GitHub (Legado).');
-            }
-        }
-    } catch (e) {
-        console.error('[API-ERROR] Falha ao ler tunnel_url.json do GitHub:', e);
     }
 }
 

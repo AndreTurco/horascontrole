@@ -36,35 +36,61 @@ function getUnifiedDataPath() {
     return exeDir;
 }
 
-const basePath = getUnifiedDataPath();
+// Determinar de forma inteligente a pasta de dados (Excel + Configurações) para manter as horas do usuário atualizadas
+function resolveDataDirectory() {
+    const home = os.homedir();
+    const possiblePaths = [
+        path.join(home, 'OneDrive', 'Documentos', 'Projetos', 'controle de Horas'),
+        path.join(home, 'Documents', 'Projetos', 'controle de Horas'),
+        path.join(home, 'OneDrive', 'Documents', 'Projetos', 'controle de Horas')
+    ];
+
+    // Se estiver rodando em desenvolvimento (via bat na pasta do projeto com package.json), usa a própria pasta
+    const sourceDir = getUnifiedDataPath();
+    if (fs.existsSync(path.join(sourceDir, 'package.json')) && fs.existsSync(path.join(sourceDir, 'public'))) {
+        if (fs.existsSync(path.join(sourceDir, 'Controle_de_Horas_Trabalho-1.xlsx'))) {
+            return sourceDir;
+        }
+    }
+
+    // Se estiver rodando a versão instalada (.exe empacotado), procura pela pasta do projeto existente no perfil
+    for (const p of possiblePaths) {
+        if (fs.existsSync(path.join(p, 'Controle_de_Horas_Trabalho-1.xlsx'))) {
+            console.log(`[INIT] Banco de dados existente encontrado na pasta do projeto: ${p}`);
+            return p;
+        }
+    }
+
+    // Se não encontrou nenhuma base anterior (caso do amigo iniciando do zero), cria na pasta Documentos segura
+    let userDocsDir = path.join(home, 'Documents');
+    if (fs.existsSync(path.join(home, 'OneDrive', 'Documentos'))) {
+        userDocsDir = path.join(home, 'OneDrive', 'Documentos');
+    } else if (fs.existsSync(path.join(home, 'OneDrive', 'Documents'))) {
+        userDocsDir = path.join(home, 'OneDrive', 'Documents');
+    } else if (fs.existsSync(path.join(home, 'Documentos'))) {
+        userDocsDir = path.join(home, 'Documentos');
+    }
+
+    const appDataFolder = path.join(userDocsDir, 'Controle de Horas');
+    try {
+        if (!fs.existsSync(appDataFolder)) {
+            fs.mkdirSync(appDataFolder, { recursive: true });
+        }
+        console.log(`[INIT] Criando nova pasta de banco de dados do zero em: ${appDataFolder}`);
+        return appDataFolder;
+    } catch (e) {
+        console.warn(`[INIT] Falha ao criar pasta em Documentos: ${e.message}. Usando local.`);
+        return sourceDir;
+    }
+}
+
+const basePath = resolveDataDirectory();
 const xlsxPath = path.join(basePath, 'Controle_de_Horas_Trabalho-1.xlsx');
 
 app.use(cors());
 app.use(express.json());
-// Middleware para redirecionar clientes móveis que acessam via túnel temporário para a PWA permanente
-app.use(async (req, res, next) => {
-    const host = req.headers.host || '';
-    const ua = req.headers['user-agent'] || '';
-    const isRoot = req.path === '/' || req.path === '/index.html';
-    
-    const isTunnel = host.includes('lhr.life') || host.includes('serveo.net') || host.includes('loca.lt');
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-    
-    if (isRoot && isTunnel && isMobile) {
-        try {
-            const config = await getRegistrationConfig();
-            if (config && config.binId && config.binId !== 'local_fallback') {
-                const pin = getAccessPin();
-                const redirectUrl = `https://andreturco.github.io/horascontrole/public/?sid=${config.binId}&pin=${pin}`;
-                console.log(`[REDIRECIONAMENTO-MÓVEL] Cliente móvel acessou pelo túnel. Redirecionando para PWA permanente: ${redirectUrl}`);
-                return res.redirect(redirectUrl);
-            }
-        } catch (e) {
-            console.error('[REDIRECIONAMENTO-MÓVEL-ERRO] Falha ao obter ID de registro:', e.message);
-        }
-    }
-    next();
-});
+
+
 
 app.use(express.static(path.join(__dirname, 'public'), {
     setHeaders: (res, filePath) => {
@@ -134,10 +160,9 @@ async function getRegistrationConfig() {
     if (fs.existsSync(configPath)) {
         try {
             registrationConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            if (registrationConfig.binId && registrationConfig.pin) {
-                // Sincronizar PIN
+            if (registrationConfig.pin) {
                 accessPin = registrationConfig.pin;
-                if (existingPin !== accessPin) {
+                if (!existingPin || existingPin !== accessPin) {
                     fs.writeFileSync(pinPath, accessPin, 'utf8');
                 }
                 return registrationConfig;
@@ -147,42 +172,20 @@ async function getRegistrationConfig() {
         }
     }
     
-    // Se não existir ou estiver inválido, cria um novo
-    try {
-        console.log('  [REGISTRO] Registrando servidor na nuvem (ExtendsClass)...');
-        const res = await fetch('https://extendsclass.com/api/json-storage/bin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: '', updatedAt: 0 })
-        });
-        
-        if (res.ok) {
-            const data = await res.json();
-            if (data.id) {
-                const pin = existingPin || Math.floor(100000 + Math.random() * 900000).toString();
-                registrationConfig = {
-                    binId: data.id,
-                    pin: pin
-                };
-                fs.writeFileSync(configPath, JSON.stringify(registrationConfig, null, 2), 'utf8');
-                fs.writeFileSync(pinPath, pin, 'utf8');
-                accessPin = pin;
-                console.log('  [REGISTRO] Servidor registrado com ID:', data.id);
-                return registrationConfig;
-            }
-        }
-        console.error('  [REGISTRO-ERRO] Falha no retorno do ExtendsClass:', res.status);
-    } catch (e) {
-        console.error('  [REGISTRO-ERRO] Erro ao comunicar com ExtendsClass:', e.message);
-    }
-    
-    // Fallback se falhar a criação na nuvem (usar um provisório)
+    // Se não existir ou estiver inválido, gera um PIN permanente e grava
     const pin = existingPin || Math.floor(100000 + Math.random() * 900000).toString();
     registrationConfig = {
-        binId: 'local_fallback',
+        binId: 'kv_store',
         pin: pin
     };
+    try {
+        fs.writeFileSync(configPath, JSON.stringify(registrationConfig, null, 2), 'utf8');
+        fs.writeFileSync(pinPath, pin, 'utf8');
+    } catch (e) {
+        console.error('  [REGISTRO-ERRO] Falha ao salvar arquivos de configuração:', e.message);
+    }
     accessPin = pin;
+    console.log('  [REGISTRO] Servidor configurado localmente com PIN:', pin);
     return registrationConfig;
 }
 
@@ -351,15 +354,38 @@ function formatCellTime(cellValue) {
 // Formatar Célula de Data para YYYY-MM-DD
 function formatCellDate(cellValue) {
     if (!cellValue) return null;
+    
     if (cellValue instanceof Date) {
-        return cellValue.toISOString().substring(0, 10);
+        const y = cellValue.getUTCFullYear();
+        const m = String(cellValue.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(cellValue.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
+    
     if (typeof cellValue === 'string') {
-        return cellValue.substring(0, 10);
+        const clean = cellValue.trim();
+        const ymdMatch = clean.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+        if (ymdMatch) {
+            return `${ymdMatch[1]}-${ymdMatch[2]}-${ymdMatch[3]}`;
+        }
+        const dmyMatch = clean.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+        if (dmyMatch) {
+            return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+        }
+        const parsed = new Date(clean);
+        if (!isNaN(parsed.getTime())) {
+            const y = parsed.getUTCFullYear();
+            const m = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(parsed.getUTCDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        return clean.substring(0, 10);
     }
+    
     if (typeof cellValue === 'object' && cellValue.result) {
         return formatCellDate(cellValue.result);
     }
+    
     return null;
 }
 
@@ -630,16 +656,35 @@ async function autoSyncInvestments(workbook) {
 // Obter dados combinados das planilhas
 async function getSpreadsheetData() {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(xlsxPath);
+    let tempPath = null;
+    try {
+        await workbook.xlsx.readFile(xlsxPath);
+    } catch (err) {
+        if (err.code === 'EBUSY' || err.message.includes('EBUSY')) {
+            console.log('[EXCEL] Planilha bloqueada. Tentando ler de uma cópia temporária...');
+            tempPath = xlsxPath + '.tmp.read';
+            fs.copyFileSync(xlsxPath, tempPath);
+            await workbook.xlsx.readFile(tempPath);
+            try { fs.unlinkSync(tempPath); } catch (e) {}
+        } else {
+            throw err;
+        }
+    }
     
     await ensureSheetStructure(workbook);
     
-    // Sincronização automática em tempo real para manter as planilhas 100% íntegras
-    const hasChanges = await autoSyncInvestments(workbook);
-    if (hasChanges) {
-        createBackup(xlsxPath);
-        await saveWorkbook(workbook, xlsxPath);
-        console.log('[SYNC-INVEST] Aportes automáticos de 20% conciliados e gravados com sucesso!');
+    const isReadOnly = (tempPath !== null);
+    
+    // Sincronização automática em tempo real para manter as planilhas 100% íntegras (apenas se não for somente leitura)
+    if (!isReadOnly) {
+        const hasChanges = await autoSyncInvestments(workbook);
+        if (hasChanges) {
+            createBackup(xlsxPath);
+            await saveWorkbook(workbook, xlsxPath);
+            console.log('[SYNC-INVEST] Aportes automáticos de 20% conciliados e gravados com sucesso!');
+        }
+    } else {
+        console.log('[SYNC-INVEST] Planilha em modo leitura. Ignorando sincronização de investimentos temporariamente.');
     }
     
     const sheet = workbook.getWorksheet('Controle de Horas');
@@ -1483,53 +1528,39 @@ app.get('/api/network-info', (req, res) => {
         localIps: ips,
         port: PORT,
         accessPin: isLocal ? config.pin : null,
-        serverId: isLocal ? config.binId : null
+        serverId: isLocal ? config.binId : null,
+        xlsxPath: xlsxPath
     });
 });
 
 async function publishTunnelUrlToCloud() {
     try {
         const config = await getRegistrationConfig();
-        if (!config || !config.binId || config.binId === 'local_fallback') {
-            console.log('  [NUVEM] Sem ID de registro válido para enviar à nuvem.');
-            return;
-        }
+        const pin = config.pin || getAccessPin();
 
         const payload = {
             url: currentTunnelUrl || null,
             apkUrl: currentApkUrl || null,
-            pin: config.pin,
+            pin: pin,
             updatedAt: Date.now()
         };
 
-        console.log(`  [NUVEM] Atualizando URL ativa na nuvem (ID: ${config.binId})...`);
-        const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${config.binId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+        const payloadStr = JSON.stringify(payload);
+        const hexValue = Buffer.from(payloadStr).toString('hex');
+        const appKey = '2ifiuvz0';
+
+        console.log(`  [NUVEM-KV] Atualizando URL ativa no KV Store para o PIN: ${pin}...`);
+        const res = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${appKey}/${pin}/${hexValue}`, {
+            method: 'POST'
         });
 
-        if (res.status === 404) {
-            console.warn('  [NUVEM] ID de registro expirou ou foi excluído. Gerando um novo...');
-            registrationConfig = null;
-            const configPath = path.join(basePath, 'config_registro.json');
-            try { fs.unlinkSync(configPath); } catch (e) {}
-            const newConfig = await getRegistrationConfig();
-            if (newConfig && newConfig.binId && newConfig.binId !== 'local_fallback') {
-                await fetch(`https://extendsclass.com/api/json-storage/bin/${newConfig.binId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                console.log('  [NUVEM] Nova URL ativa enviada com sucesso ao novo ID:', newConfig.binId);
-            }
-        } else if (res.ok) {
-            console.log('  [NUVEM] URL ativa enviada com sucesso para a nuvem!');
+        if (res.ok) {
+            console.log('  [NUVEM-KV] URL ativa enviada com sucesso para o KV Store!');
         } else {
-            console.error('  [NUVEM-ERRO] Falha ao atualizar URL na nuvem:', res.status);
+            console.error('  [NUVEM-KV-ERRO] Falha ao atualizar URL no KV Store:', res.status);
         }
     } catch (e) {
-        console.error('  [NUVEM-ERRO] Erro ao enviar para a nuvem:', e.message);
+        console.error('  [NUVEM-KV-ERRO] Erro ao enviar para o KV Store:', e.message);
     }
 }
 
@@ -1547,11 +1578,8 @@ function updateTunnelUrlJson() {
         // Notificar todos os clientes (inclusive o Electron) para recarregar as infos de rede / QR Code
         sendSSEUpdate('reload');
         
-        // Publicar na nuvem do ExtendsClass
+        // Publicar a URL ativa no KV Store para o celular encontrar automaticamente pelo PIN
         publishTunnelUrlToCloud();
-        
-        // Sincronizar link do túnel no GitHub para o celular resolver dinamicamente sem pareamento manual
-        pushTunnelUrlToGit();
     } catch (e) {
         console.error('  [ERRO] Falha ao escrever tunnel_url.json:', e.message);
     }
@@ -1609,6 +1637,7 @@ function clearTunnelUrlJson() {
     const jsonFilePath = path.join(basePath, 'tunnel_url.json');
     try { fs.unlinkSync(urlFilePath); } catch (e) {}
     try { fs.unlinkSync(jsonFilePath); } catch (e) {}
+    publishTunnelUrlToCloud().catch(err => {});
 }
 
 // Função para iniciar e reconectar o túnel remoto automaticamente (Tenta Localtunnel Estático primeiro, depois fallbacks SSH)

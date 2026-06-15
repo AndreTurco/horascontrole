@@ -8,7 +8,8 @@
     "start": "node server.js",
     "package": "pkg .",
     "start-desktop": "electron .",
-    "package-desktop": "electron-packager . controle-de-horas --platform=win32 --arch=x64 --icon=public/icon.ico --overwrite --out=dist --ignore=\"^/dist($|/)\" --ignore=\"^/scratch($|/)\" --ignore=\"^/backups($|/)\" --ignore=\"^/\\.git($|/)\" --ignore=\"^/\\.gemini($|/)\""
+    "package-desktop": "electron-packager . controle-de-horas --platform=win32 --arch=x64 --icon=public/icon.ico --overwrite --out=dist --ignore=\"^/dist($|/)\" --ignore=\"^/scratch($|/)\" --ignore=\"^/backups($|/)\" --ignore=\"^/\\.git($|/)\" --ignore=\"^/\\.gemini($|/)\"",
+    "build-installer": "electron-builder --win --x64"
   },
   "pkg": {
     "assets": [
@@ -27,6 +28,46 @@
   },
   "devDependencies": {
     "electron": "^42.4.0",
-    "electron-packager": "^17.1.2"
+    "electron-packager": "^17.1.2",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.andreturco.controlehoras",
+    "productName": "Controle de Horas Premium",
+    "compression": "store",
+    "directories": {
+      "output": "dist-installer"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Controle de Horas Premium"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/electron/**/*",
+      "!node_modules/electron-builder/**/*",
+      "!node_modules/electron-packager/**/*",
+      "!node_modules/app-builder-bin/**/*",
+      "!node_modules/typescript/**/*",
+      "!dist/**/*",
+      "!dist-installer/**/*",
+      "!backups/**/*",
+      "!scratch/**/*",
+      "!.git/**/*",
+      "!.gemini/**/*",
+      "!Controle_de_Horas_Trabalho-1.xlsx",
+      "!config_registro.json",
+      "!senha_acesso.txt",
+      "!tunnel_url.json",
+      "!url_acesso.txt"
+    ]
   }
 }
+

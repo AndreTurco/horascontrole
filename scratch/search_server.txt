@@ -1,9 +1,0 @@
-617: app.post('/api/rate', async (req, res) => {
-643: app.post('/api/save', async (req, res) => {
-752: app.post('/api/pay-batch', async (req, res) => {
-824: app.post('/api/finance/save', async (req, res) => {
-876: app.post('/api/finance/delete', async (req, res) => {
-915: app.post('/api/invest/save', async (req, res) => {
-966: app.post('/api/invest/delete', async (req, res) => {
-1005: app.post('/api/clock-in', async (req, res) => {
-1093: app.post('/api/auto-arrival', async (req, res) => {

@@ -353,7 +353,7 @@
                             <div class="metric-info">
                                 <span class="metric-title">Horas da Semana</span>
                                 <h3 class="metric-value" id="kpi-week-hours">00h 00m</h3>
-                                <span class="metric-subtitle">Semana atual</span>
+                                <span class="metric-subtitle" id="kpi-week-hours-subtitle">Semana atual</span>
                             </div>
                         </div>
                     </div>
@@ -363,6 +363,14 @@
                         <h3 class="chart-title"><i class="fa-solid fa-chart-column color-blue"></i> Rendimento e Carga Horária Diária (Mês Atual)</h3>
                         <div class="canvas-wrapper-earnings">
                             <canvas id="chart-earnings-hours"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Yearly Overview Graph Container (Novo) -->
+                    <div class="glass-card chart-container-card">
+                        <h3 class="chart-title"><i class="fa-solid fa-chart-bar color-green"></i> Visão Anual Acumulada (Clique no mês para filtrar)</h3>
+                        <div class="canvas-wrapper-earnings">
+                            <canvas id="chart-yearly-overview"></canvas>
                         </div>
                     </div>
 
@@ -1079,6 +1087,18 @@
                             <button id="btn-save-global-rate" class="btn btn-primary btn-inline ripple">
                                 <i class="fa-solid fa-floppy-disk"></i> Salvar Taxa
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Active Excel Database Path Card -->
+                    <div class="glass-card settings-card">
+                        <h3 class="settings-title"><i class="fa-solid fa-file-excel color-green" style="color: #10b981;"></i> Banco de Dados Ativo (Excel)</h3>
+                        <p class="settings-desc">Caminho do arquivo de onde o sistema lê e grava suas horas e finanças:</p>
+                        <div class="form-group-flat" style="width: 100%; margin-top: 0.5rem;">
+                            <div class="input-icon-wrapper">
+                                <span class="input-addon"><i class="fa-solid fa-folder-open"></i></span>
+                                <input type="text" id="active-database-path" class="form-control-flat read-only" readonly value="Carregando caminho da planilha..." style="font-family: monospace; font-size: 0.8rem; width: 100%; color: #10b981;">
+                            </div>
                         </div>
                     </div>
 
