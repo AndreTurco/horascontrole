@@ -143,6 +143,14 @@ function getApiHost() {
         return '';
     }
 
+    const serverId = localStorage.getItem('server_id');
+    if (serverId && serverId !== 'local_fallback') {
+        // Se estamos usando o pareamento por ID na nuvem, limpamos e ignoramos qualquer host customizado anterior
+        localStorage.removeItem('custom_api_host');
+        const input = document.getElementById('input-custom-host');
+        if (input) input.value = '';
+    }
+
     const customHost = localStorage.getItem('custom_api_host');
     if (customHost) {
         try {
@@ -163,7 +171,7 @@ function getApiHost() {
         } catch (e) {}
         return customHost.replace(/\/$/, ''); // Remove barra no final
     }
-    return resolvedApiHost || ''; // Padrão é a resolvida do GitHub (se houver), ou o host atual
+    return resolvedApiHost || ''; // Padrão é a resolvida do ExtendsClass/GitHub, ou o host atual
 }
 
 // Categoria Financeira com seus respectivo ícones e cores Mobills
