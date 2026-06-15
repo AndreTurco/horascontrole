@@ -16,7 +16,7 @@ temp/
 # Arquivos de conexão dinâmica (Localtunnel)
 url_acesso.txt
 public/tunnel_url.json
-controle-horas.apk
+*.apk
 fetchedTemplate.zip
 decompressedTemplate/
 dist/
