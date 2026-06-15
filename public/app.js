@@ -197,6 +197,25 @@ const ptMonths = [
 // INITIALIZATION
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // Capturar parâmetros de sincronização na URL (se presentes)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSid = urlParams.get('sid');
+    const urlPin = urlParams.get('pin');
+    if (urlSid) {
+        localStorage.setItem('server_id', urlSid.trim());
+        console.log('[REGISTRO] ID do servidor configurado via URL:', urlSid);
+    }
+    if (urlPin) {
+        localStorage.setItem('access_pin', urlPin.trim());
+        const accessPinInput = document.getElementById('input-access-pin');
+        if (accessPinInput) accessPinInput.value = urlPin.trim();
+        console.log('[REGISTRO] PIN de acesso configurado via URL:', urlPin);
+    }
+    if (urlSid || urlPin) {
+        // Limpar a barra de endereços para remover as credenciais expostas
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     // Carregar configurações locais
     const savedGoal = localStorage.getItem('goalEarnings');
     if (savedGoal) {
@@ -327,12 +346,14 @@ async function fetchNetworkInfo() {
         if (!response.ok) throw new Error();
         const data = await response.json();
         
-        // Exibir PIN de segurança se fornecido (apenas localmente no PC)
+        // Exibir PIN de segurança e ID do Servidor se fornecidos (apenas localmente no PC)
         const pinDisplayWrapper = document.getElementById('pin-display-wrapper');
         const desktopAccessPin = document.getElementById('desktop-access-pin');
+        const desktopServerId = document.getElementById('desktop-server-id');
         if (data.accessPin) {
             if (desktopAccessPin) desktopAccessPin.innerText = data.accessPin;
-            if (pinDisplayWrapper) pinDisplayWrapper.style.display = 'block';
+            if (desktopServerId) desktopServerId.innerText = data.serverId || 'local_fallback';
+            if (pinDisplayWrapper) pinDisplayWrapper.style.display = 'flex';
         } else {
             if (pinDisplayWrapper) pinDisplayWrapper.style.display = 'none';
         }
@@ -353,7 +374,10 @@ async function fetchNetworkInfo() {
             if (tunnelInput) tunnelInput.value = data.tunnelUrl || 'Conectando túnel remoto...';
             if (tunnelQrImg) {
                 if (data.tunnelUrl) {
-                    tunnelQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data.tunnelUrl)}`;
+                    const qrData = data.serverId 
+                        ? `https://andreturco.github.io/horascontrole/public/?sid=${data.serverId}&pin=${data.accessPin}`
+                        : data.tunnelUrl;
+                    tunnelQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
                     if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'block';
                 } else {
                     if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'none';
@@ -379,7 +403,9 @@ async function fetchNetworkInfo() {
         }
         
         if (data.localIps && data.localIps.length > 0) {
-            const localUrl = `http://${data.localIps[0]}:${data.port}`;
+            const localUrl = data.serverId
+                ? `http://${data.localIps[0]}:${data.port}/?sid=${data.serverId}&pin=${data.accessPin}`
+                : `http://${data.localIps[0]}:${data.port}`;
             if (localInput) localInput.value = localUrl;
             if (localQrImg) {
                 localQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(localUrl)}`;
@@ -3255,54 +3281,126 @@ async function setupRealtimeUpdates() {
     };
 }
 
+// Exibir painel de configuração inicial do celular
+function showSetupOverlay() {
+    const overlay = document.getElementById('setup-overlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        
+        const connectBtn = document.getElementById('setup-connect-btn');
+        const serverIdInput = document.getElementById('setup-server-id');
+        const accessPinInput = document.getElementById('setup-access-pin');
+        
+        // Pré-preencher se já houver algo no localStorage
+        if (serverIdInput) serverIdInput.value = localStorage.getItem('server_id') || '';
+        if (accessPinInput) accessPinInput.value = localStorage.getItem('access_pin') || '';
+        
+        if (connectBtn) {
+            connectBtn.onclick = async () => {
+                const sid = serverIdInput ? serverIdInput.value.trim() : '';
+                const pin = accessPinInput ? accessPinInput.value.trim() : '';
+                
+                if (!sid || !pin) {
+                    showToast('Preencha o ID do Servidor e o PIN!', 'error');
+                    return;
+                }
+                
+                connectBtn.disabled = true;
+                connectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
+                
+                try {
+                    // Validar se o ID de Registro existe na nuvem
+                    const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${sid}?_=${Date.now()}`, { cache: 'no-store' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        localStorage.setItem('server_id', sid);
+                        localStorage.setItem('access_pin', pin);
+                        
+                        const mainAccessPinInput = document.getElementById('input-access-pin');
+                        if (mainAccessPinInput) mainAccessPinInput.value = pin;
+                        
+                        if (data.url) {
+                            resolvedApiHost = data.url.replace(/\/$/, '');
+                        }
+                        
+                        showToast('Servidor pareado com sucesso!', 'success');
+                        overlay.style.display = 'none';
+                        
+                        // Inicializar conexões com o servidor pareado
+                        fetchData();
+                        fetchNetworkInfo();
+                        setupRealtimeUpdates();
+                    } else {
+                        showToast('ID do Servidor inválido ou não encontrado!', 'error');
+                    }
+                } catch (e) {
+                    console.error('[SETUP] Erro ao parear:', e);
+                    showToast('Erro ao parear. Verifique sua conexão.', 'error');
+                } finally {
+                    connectBtn.disabled = false;
+                    connectBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Conectar';
+                }
+            };
+        }
+    }
+}
+
 // Resolver dinamicamente a URL ativa do túnel
 async function resolveActiveTunnelUrl() {
     const currentHost = window.location.hostname;
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     // Se estiver rodando localmente no PC (não no celular), não altera nada
-    if (!isMobile && (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.'))) {
+    const isLocal = currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.') || currentHost.startsWith('10.') || currentHost.startsWith('172.');
+    if (!isMobile && isLocal) {
         return;
     }
 
-    // 1. Tentar primeiro o localtunnel estático baseado no PIN configurado
-    const savedPin = localStorage.getItem('access_pin');
-    if (savedPin) {
-        const localtunnelUrl = `https://controle-horas-${savedPin.trim()}.loca.lt`;
+    // 1. Tentar resolver o túnel dinâmico via ID do Servidor (ExtendsClass JSON bin)
+    const savedServerId = localStorage.getItem('server_id');
+    if (savedServerId && savedServerId !== 'local_fallback') {
         try {
-            console.log('[API] Testando conexão direta com o localtunnel estático:', localtunnelUrl);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 segundos de timeout
-            const response = await fetch(`${localtunnelUrl}/api/network-info`, { 
-                signal: controller.signal,
-                headers: { 'bypass-tunnel-reminder': 'true' }
-            });
-            clearTimeout(timeoutId);
+            console.log('[API] Buscando URL ativa na nuvem com o ID:', savedServerId);
+            const response = await fetch(`https://extendsclass.com/api/json-storage/bin/${savedServerId.trim()}?_=${Date.now()}`, { cache: 'no-store' });
             if (response.ok) {
-                resolvedApiHost = localtunnelUrl;
-                console.log('[API] Conectado com sucesso via localtunnel estático:', resolvedApiHost);
-                return;
+                const data = await response.json();
+                if (data.url) {
+                    resolvedApiHost = data.url.replace(/\/$/, '');
+                    console.log('[API] Conectado via nuvem. URL resolvida:', resolvedApiHost);
+                    
+                    if (data.pin) {
+                        localStorage.setItem('access_pin', data.pin);
+                        const accessPinInput = document.getElementById('input-access-pin');
+                        if (accessPinInput) accessPinInput.value = data.pin;
+                    }
+                    return;
+                }
             }
         } catch (err) {
-            console.log('[API] localtunnel estático indisponível ou offline. Usando fallback...');
+            console.warn('[API] Falha ao consultar o ID na nuvem. Tentando fallbacks...', err);
         }
     }
 
-    // 2. Fallback: buscar a URL ativa resolvida do GitHub
+    // 2. Se não houver ID do servidor, e estiver remoto, exibir a tela de configuração inicial (Setup Overlay)
+    if (!isLocal && !savedServerId) {
+        showSetupOverlay();
+    }
+
+    // 3. Fallback clássico: buscar a URL ativa resolvida do GitHub (caso seja o usuário André usando o legado)
     try {
-        console.log('[API] Resolvendo URL do túnel dinâmico via GitHub...');
+        console.log('[API] Resolvendo URL do túnel dinâmico via repositório legado do GitHub...');
         const response = await fetch('https://raw.githubusercontent.com/AndreTurco/horascontrole/main/tunnel_url.json?_=' + Date.now(), { cache: 'no-store' });
         if (response.ok) {
             const data = await response.json();
             if (data.url) {
                 resolvedApiHost = data.url.replace(/\/$/, '');
-                console.log('[API] URL ativa resolvida do GitHub:', resolvedApiHost);
+                console.log('[API] URL ativa resolvida do GitHub (Legado):', resolvedApiHost);
             }
             if (data.pin) {
                 localStorage.setItem('access_pin', data.pin);
                 const accessPinInput = document.getElementById('input-access-pin');
                 if (accessPinInput) accessPinInput.value = data.pin;
-                console.log('[API] PIN de acesso configurado automaticamente do GitHub.');
+                console.log('[API] PIN de acesso configurado automaticamente do GitHub (Legado).');
             }
         }
     } catch (e) {

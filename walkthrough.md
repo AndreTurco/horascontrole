@@ -1,59 +1,57 @@
-# Walkthrough: Conexão Permanente Celular-PC e Otimização do Aplicativo
+# Walkthrough: Sincronização Dinâmica e Universal Sem Git (Zero-Git)
 
-Este documento detalha o que foi feito para garantir que o seu aplicativo de celular permaneça conectado ao servidor do PC sem exigir reconfigurações diárias, além de melhorar o comportamento do aplicativo de desktop (Electron) no Windows.
+Este documento detalha o que foi implementado para remover toda a dependência do Git/GitHub no pareamento automático celular-PC, permitindo que qualquer pessoa (como seu amigo) execute o sistema instantaneamente e pareie o celular sem precisar configurar repositórios.
 
 ---
 
 ## 🛠️ O que foi feito?
 
-### 1. Suporte a Subpastas PWA no GitHub Pages
-- **`public/sw.js`**: Alterado a lista de arquivos cacheados (`ASSETS`) de caminhos absolutos (como `/index.html`) para relativos (`index.html`). Isso evita erros 404 ao hospedar o app em subpastas.
-- **`public/manifest.json`**: Atualizado a propriedade `start_url` para `./index.html` e tornado os caminhos dos ícones relativos (`clock-192.png`, `clock-512.png`), proporcionando portabilidade total.
-- **`public/app.js`**: Atualizado o registro do Service Worker para carregar `'sw.js'` usando caminho relativo.
+### 1. Registro Automático do Servidor na Nuvem (ExtendsClass REST API)
+* **`server.js`**:
+  * Ao iniciar o servidor, ele verifica a existência do arquivo local [config_registro.json](file:///c:/Users/aline/OneDrive/Documentos/Projetos/controle%20de%20Horas/config_registro.json).
+  * Caso o arquivo não exista, o servidor faz um registro automático e gratuito criando um JSON bin no serviço em nuvem **ExtendsClass**, recebendo um ID único de Registro (ex: `aacbafb`).
+  * Toda vez que o túnel SSH do PC é iniciado ou redefinido, o servidor envia a nova URL ativa à nuvem (através do endpoint `https://extendsclass.com/api/json-storage/bin/{binId}`) via requisição HTTP `PUT`.
+  * **Auto-Recuperação (Self-Healing)**: Se o registro na nuvem expirar por inatividade prolongada (retornando erro 404), o servidor automaticamente exclui o arquivo corrompido, gera um novo ID na nuvem e atualiza a interface.
 
-### 2. Reconexão e Autoresolução de Endereço em Tempo Real
-- **`public/app.js` (setupRealtimeUpdates)**:
-  - Modificado o loop de reconexão do Server-Sent Events (SSE). Toda vez que o aplicativo perde a conexão com o PC (ex: PC desligado, rede desconectada), ele aguarda 5 segundos, busca a URL ativa atualizada a partir do repositório público do GitHub do usuário via `resolveActiveTunnelUrl()`, e tenta reconectar à nova URL.
-  - Ao estabelecer ou restabelecer a conexão com sucesso, o aplicativo executa um `fetchData()` e `fetchNetworkInfo()` imediato para sincronizar o celular com quaisquer alterações feitas offline ou no computador.
+### 2. Tela de Boas-Vindas e Pareamento no Celular (Setup Overlay)
+* **`public/index.html`** & **`public/app.js`**:
+  * Se o celular acessar o aplicativo externamente (via nuvem ou PWA) e não possuir um ID de Servidor pareado localmente, uma tela de boas-vindas premium e moderna (radial-gradient escuro, backdrop-filter de desfoque, ícones e inputs estilizados) é exibida.
+  * O usuário pode digitar o **ID de Registro** do PC (ex: `aacbafb`) e o **PIN de Acesso** de 6 dígitos diretamente nesta tela para realizar o pareamento manual imediato.
+  * **Pareamento por 1 Clique (QR Code)**: Se o usuário escanear o QR Code de Acesso Remoto exibido na tela do PC, a URL já inclui os parâmetros `?sid={ID}&pin={PIN}`. O app móvel detecta esses parâmetros, salva no celular automaticamente, limpa a barra de endereços (para manter o link limpo) e fecha o overlay de configuração sem exigir nenhuma digitação!
 
-### 3. Notificação do Sistema ao Minimizar para a Tray (Windows)
-- **`main.js`**:
-  - Implementado um balão de notificação nativa do Windows (`tray.displayBalloon`) na primeira vez que o painel do aplicativo é minimizado na bandeja do sistema ao fechar ("X").
-  - A notificação avisa claramente: *"O sistema continua ativo em segundo plano na barra de tarefas (próximo ao relógio) para manter a sincronização com o celular."*
+### 3. Exibição do ID de Registro no Computador
+* **`public/index.html`** & **`public/app.js`**:
+  * Atualizamos a caixa de informações de segurança no painel do PC para exibir de forma centralizada tanto o **ID de Registro** quanto o **PIN de Acesso** sob a aba *"Conectar Celular / Acesso Externo"*.
+  * As informações só são expostas se o acesso for local (rodando no próprio computador), garantindo total privacidade contra olhares curiosos na internet.
 
-### 4. Configuração Estática Permanente para o APK
-- **`server.js`**:
-  - Criada a função `parseGitOrigin()` para ler o remote origin do git do usuário no computador e `getGitHubPagesUrl()` para construir dinamicamente o link do GitHub Pages.
-  - Atualizado o gerador do PWABuilder para usar o endereço fixo do GitHub Pages (ex: `https://andreturco.github.io/horascontrole/public/`) como a URL de origem do APK. Isso torna o APK permanente; o usuário só precisa instalá-lo uma única vez.
-  - Otimizado a inicialização: se o arquivo `controle-horas.apk` já existir localmente na pasta, o servidor ignora a compilação na nuvem do PWABuilder (evitando esperas e limites de taxa), servindo o APK local a partir da URL do túnel ativa. Para forçar uma nova compilação, basta apagar o arquivo `.apk` local.
-
-### 5. Sistema de PIN de Acesso Seguro (Privacidade Total)
-- **`server.js`**:
-  - Implementada a função `getAccessPin()` que gera um PIN de 6 dígitos aleatório único no primeiro início e o grava em `senha_acesso.txt`.
-  - Adicionado um middleware para todas as rotas `/api/*`. Se a requisição vier de um celular (via internet ou rede local), o servidor exige um cabeçalho `x-access-pin` correspondente ao PIN correto.
-  - A rota `/api/network-info` foi ajustada para retornar o PIN apenas se a requisição for feita de forma local no PC (segurança total: o PIN nunca é exposto na internet e só pode ser visto na tela física do computador).
-- **`public/index.html`**:
-  - Adicionado um painel visual destacado exibindo o PIN de acesso (exibido apenas no computador).
-- **`public/app.js`**:
-  - Adicionado um interceptador global de requisições `fetch` que injeta o cabeçalho de autenticação `x-access-pin` a partir do `localStorage` e escuta por retornos `401` (Não Autorizado).
-  - Se um celular tentar conectar e não tiver o PIN (ou se o PIN estiver errado), o app exibe um popup premium solicitando a senha. Uma vez digitado corretamente, ele é memorizado no celular e não precisa mais ser inserido.
-
-### 6. Sincronização Automática do Túnel no Executável Empacotado (Electron)
-- **`.gitignore`**: Removido o `tunnel_url.json` das regras de ignorados para permitir que o Git rastreie e publique as alterações deste arquivo no repositório.
-- **`server.js` (findGitRoot / pushTunnelUrlToGit)**:
-  - Implementada a busca dinâmica da raiz do repositório Git subindo a árvore de diretórios a partir do executável.
-  - Ao iniciar o servidor empacotado, ele gera o arquivo `tunnel_url.json` na subpasta `dist/...`, copia o arquivo para a raiz do repositório Git e realiza o comando de `git push` a partir da raiz. Isso resolve a falha em que o celular ficava com dados zerados/desconectados por não ter acesso ao novo link gerado.
+### 4. Empacotamento Limpo Automatizado
+* **`scratch/build_clean_zip.js`**:
+  * Atualizamos o script para excluir de forma automática os arquivos locais de configuração e chaves (`config_registro.json` e `senha_acesso.txt`) antes de gerar o pacote final.
+  * Isso assegura que o arquivo compactado gerado para o seu amigo esteja completamente limpo e pronto para registrar um ID de nuvem exclusivo para ele no primeiro início.
 
 ---
 
-## 🔬 Como testar e validar?
+## 🚀 Como rodar o sistema (Manual de Instruções)
 
-1. **Atualizar e Iniciar o App no Computador**:
-   - Certifique-se de fechar completamente qualquer instância do programa rodando em segundo plano (próximo ao relógio do Windows).
-   - Inicie o sistema no computador clicando em `iniciar_servidor.bat` (para baixar as últimas atualizações do Git) ou execute a versão atualizada empacotada por `iniciar_app.bat`.
-   - Assim que o aplicativo abrir e o túnel for estabelecido, ele atualizará o `tunnel_url.json` na raiz do projeto e enviará automaticamente ao GitHub.
-2. **Sincronização no Celular**:
-   - Abra o aplicativo no celular. Ele buscará o novo link do túnel que o computador acabou de enviar ao GitHub.
-   - Os dados deixarão de estar zerados e passarão a exibir exatamente as mesmas informações ativas no PC em tempo real.
-   - Qualquer batida de ponto ou edição feita no celular será transmitida diretamente para o computador e salva na planilha Excel local.
+Você e seu amigo podem executar o aplicativo de três formas diferentes:
 
+### 1. Versão Integrada de Desktop (Electron)
+*Este é o modo ideal para uso pessoal no computador, rodando com janela própria estilizada e integração com a barra de tarefas do Windows.*
+1. Dê dois cliques no arquivo **[iniciar_app.bat](file:///c:/Users/aline/OneDrive/Documentos/Projetos/controle%20de%20Horas/iniciar_app.bat)**.
+2. O script fecha qualquer processo travado em segundo plano e abre a janela do aplicativo Controle Premium.
+3. Ao fechar a janela no botão "X", o sistema continuará rodando de forma invisível na barra de tarefas (perto do relógio) para manter o celular sincronizado.
+4. Para fechar o programa totalmente, clique com o botão direito no ícone do relógio do Windows e selecione **"Sair Completamente"**.
+
+### 2. Versão Navegador Web (Sem Janela Electron)
+*Ideal se você preferir rodar o painel direto no Chrome/Edge ou em computadores com pouca memória RAM.*
+1. Dê dois cliques no arquivo **[iniciar_servidor.bat](file:///c:/Users/aline/OneDrive/Documentos/Projetos/controle%20de%20Horas/iniciar_servidor.bat)** (ou **[enviar_para_amigo.bat](file:///c:/Users/aline/OneDrive/Documentos/Projetos/controle%20de%20Horas/enviar_para_amigo.bat)** para computadores novos).
+2. O script inicia o servidor em background na porta 3080 e abre seu navegador padrão no link: **`http://localhost:3080`**.
+
+### 3. Versão Mobile (Sincronização no Celular)
+*Para bater o ponto e ver o painel financeiro fora de casa.*
+1. **Primeira Conexão (Pareamento)**:
+   * **Método 1 (Recomendado)**: Abra a câmera do seu celular e escaneie o **QR Code de Acesso Remoto** exibido no painel de ajustes do seu computador. O celular carregará a interface e sincronizará na hora.
+   * **Método 2**: Abra o aplicativo no celular. Na tela de boas-vindas que surgir, digite o **ID de Registro** e o **PIN** exibidos na tela do seu computador.
+2. **Uso nos dias seguintes**:
+   * O celular salva as credenciais de forma definitiva no armazenamento interno. Você pode fechar o aplicativo no celular e reiniciar o computador quando quiser.
+   * Assim que você abrir o programa no PC e iniciar o app no celular, a sincronização será restabelecida automaticamente em qualquer rede (Wi-Fi ou 4G)!

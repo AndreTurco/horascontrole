@@ -75,14 +75,94 @@ app.get('/api/updates-stream', (req, res) => {
 
 // Middleware para desativar cache em todas as rotas de API
 let accessPin = '';
+let registrationConfig = null;
+
+async function getRegistrationConfig() {
+    if (registrationConfig) return registrationConfig;
+    
+    const configPath = path.join(basePath, 'config_registro.json');
+    const pinPath = path.join(basePath, 'senha_acesso.txt');
+    
+    // Ler PIN existente se houver
+    let existingPin = '';
+    if (fs.existsSync(pinPath)) {
+        try {
+            existingPin = fs.readFileSync(pinPath, 'utf8').trim();
+        } catch (e) {}
+    }
+    
+    if (fs.existsSync(configPath)) {
+        try {
+            registrationConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (registrationConfig.binId && registrationConfig.pin) {
+                // Sincronizar PIN
+                accessPin = registrationConfig.pin;
+                if (existingPin !== accessPin) {
+                    fs.writeFileSync(pinPath, accessPin, 'utf8');
+                }
+                return registrationConfig;
+            }
+        } catch (e) {
+            console.warn('  [REGISTRO] Falha ao ler config_registro.json, recriando:', e.message);
+        }
+    }
+    
+    // Se não existir ou estiver inválido, cria um novo
+    try {
+        console.log('  [REGISTRO] Registrando servidor na nuvem (ExtendsClass)...');
+        const res = await fetch('https://extendsclass.com/api/json-storage/bin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: '', updatedAt: 0 })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data.id) {
+                const pin = existingPin || Math.floor(100000 + Math.random() * 900000).toString();
+                registrationConfig = {
+                    binId: data.id,
+                    pin: pin
+                };
+                fs.writeFileSync(configPath, JSON.stringify(registrationConfig, null, 2), 'utf8');
+                fs.writeFileSync(pinPath, pin, 'utf8');
+                accessPin = pin;
+                console.log('  [REGISTRO] Servidor registrado com ID:', data.id);
+                return registrationConfig;
+            }
+        }
+        console.error('  [REGISTRO-ERRO] Falha no retorno do ExtendsClass:', res.status);
+    } catch (e) {
+        console.error('  [REGISTRO-ERRO] Erro ao comunicar com ExtendsClass:', e.message);
+    }
+    
+    // Fallback se falhar a criação na nuvem (usar um provisório)
+    const pin = existingPin || Math.floor(100000 + Math.random() * 900000).toString();
+    registrationConfig = {
+        binId: 'local_fallback',
+        pin: pin
+    };
+    accessPin = pin;
+    return registrationConfig;
+}
+
 function getAccessPin() {
     if (accessPin) return accessPin;
+    const configPath = path.join(basePath, 'config_registro.json');
+    if (fs.existsSync(configPath)) {
+        try {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.pin) {
+                accessPin = config.pin;
+                return accessPin;
+            }
+        } catch (e) {}
+    }
     const pinPath = path.join(basePath, 'senha_acesso.txt');
     try {
         if (fs.existsSync(pinPath)) {
             accessPin = fs.readFileSync(pinPath, 'utf8').trim();
         } else {
-            // Gerar PIN de 6 dígitos aleatório
             accessPin = Math.floor(100000 + Math.random() * 900000).toString();
             fs.writeFileSync(pinPath, accessPin, 'utf8');
         }
@@ -1356,14 +1436,62 @@ app.get('/api/network-info', (req, res) => {
     }
     const ip = req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress;
     const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.includes('localhost');
+    const config = registrationConfig || { binId: null, pin: getAccessPin() };
     res.json({
         tunnelUrl: currentTunnelUrl || null,
         apkUrl: currentApkUrl || null,
         localIps: ips,
         port: PORT,
-        accessPin: isLocal ? getAccessPin() : null
+        accessPin: isLocal ? config.pin : null,
+        serverId: isLocal ? config.binId : null
     });
 });
+
+async function publishTunnelUrlToCloud() {
+    try {
+        const config = await getRegistrationConfig();
+        if (!config || !config.binId || config.binId === 'local_fallback') {
+            console.log('  [NUVEM] Sem ID de registro válido para enviar à nuvem.');
+            return;
+        }
+
+        const payload = {
+            url: currentTunnelUrl || null,
+            apkUrl: currentApkUrl || null,
+            pin: config.pin,
+            updatedAt: Date.now()
+        };
+
+        console.log(`  [NUVEM] Atualizando URL ativa na nuvem (ID: ${config.binId})...`);
+        const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${config.binId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.status === 404) {
+            console.warn('  [NUVEM] ID de registro expirou ou foi excluído. Gerando um novo...');
+            registrationConfig = null;
+            const configPath = path.join(basePath, 'config_registro.json');
+            try { fs.unlinkSync(configPath); } catch (e) {}
+            const newConfig = await getRegistrationConfig();
+            if (newConfig && newConfig.binId && newConfig.binId !== 'local_fallback') {
+                await fetch(`https://extendsclass.com/api/json-storage/bin/${newConfig.binId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                console.log('  [NUVEM] Nova URL ativa enviada com sucesso ao novo ID:', newConfig.binId);
+            }
+        } else if (res.ok) {
+            console.log('  [NUVEM] URL ativa enviada com sucesso para a nuvem!');
+        } else {
+            console.error('  [NUVEM-ERRO] Falha ao atualizar URL na nuvem:', res.status);
+        }
+    } catch (e) {
+        console.error('  [NUVEM-ERRO] Erro ao enviar para a nuvem:', e.message);
+    }
+}
 
 // Função auxiliar para atualizar o arquivo tunnel_url.json com a URL do túnel e do APK
 function updateTunnelUrlJson() {
@@ -1378,6 +1506,10 @@ function updateTunnelUrlJson() {
         fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2), 'utf8');
         // Notificar todos os clientes (inclusive o Electron) para recarregar as infos de rede / QR Code
         sendSSEUpdate('reload');
+        
+        // Publicar na nuvem do ExtendsClass
+        publishTunnelUrlToCloud();
+        
         // Sincronizar link do túnel no GitHub para o celular resolver dinamicamente sem pareamento manual
         pushTunnelUrlToGit();
     } catch (e) {
@@ -2065,6 +2197,11 @@ function generateApkPackage(tunnelUrl) {
 
 // Inicia Servidor, descobre IPs locais e cria Túnel Externo Seguro com auto-reconnect
 const server = app.listen(PORT, async () => {
+    try {
+        await getRegistrationConfig();
+    } catch (e) {
+        console.error('[REGISTRO-ERRO] Falha ao registrar ID de nuvem na inicialização:', e.message);
+    }
     try {
         await ensureExcelFileExists();
     } catch (err) {
