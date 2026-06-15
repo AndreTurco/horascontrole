@@ -1538,11 +1538,9 @@ async function publishTunnelUrlToCloud() {
         const config = await getRegistrationConfig();
         const pin = config.pin || getAccessPin();
 
+        // Minimizar payload para evitar exceder o limite maxUrlLength do IIS (200-250 chars)
         const payload = {
-            url: currentTunnelUrl || null,
-            apkUrl: currentApkUrl || null,
-            pin: pin,
-            updatedAt: Date.now()
+            url: currentTunnelUrl || null
         };
 
         const payloadStr = JSON.stringify(payload);
@@ -1550,6 +1548,9 @@ async function publishTunnelUrlToCloud() {
         const appKey = '2ifiuvz0';
 
         console.log(`  [NUVEM-KV] Atualizando URL ativa no KV Store para o PIN: ${pin}...`);
+        
+        // A API do keyvalue.immanuel.co espera o valor na rota: /UpdateValue/{appkey}/{key}/{value}
+        // O corpo da requisição (body) é ignorado. Passamos a string hexadecimal curta no path.
         const res = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${appKey}/${pin}/${hexValue}`, {
             method: 'POST'
         });
