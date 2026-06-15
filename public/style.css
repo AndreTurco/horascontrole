@@ -2,45 +2,32 @@
    DESIGN SYSTEM & VARIABLES (DARK/LIGHT THEME SUPPORT)
    ========================================================================== */
 :root {
-    /* Dark Theme (Default) */
-    --bg-primary: #0b0f19;
-    --bg-secondary: #121826;
-    --bg-card: rgba(18, 24, 38, 0.7);
-    --border-card: rgba(255, 255, 255, 0.05);
-    --text-primary: #f3f4f6;
-    --text-secondary: #9ca3af;
-    --text-muted: #6b7280;
+    /* Premium Dark Theme */
+    --bg-primary: #090c15;
+    --bg-secondary: #0f1322;
+    --bg-card: rgba(15, 20, 35, 0.8);
+    --border-card: rgba(255, 255, 255, 0.09);
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
     
     /* Vibrant Accent Colors */
-    --accent-blue: #3b82f6;
-    --accent-blue-rgb: 59, 130, 246;
-    --accent-green: #10b981;
-    --accent-green-rgb: 16, 185, 129;
-    --accent-purple: #8b5cf6;
-    --accent-purple-rgb: 139, 92, 246;
-    --accent-yellow: #f59e0b;
-    --accent-yellow-rgb: 245, 158, 11;
-    --accent-red: #ef4444;
+    --accent-blue: #00e1ff; /* Pure cyan */
+    --accent-blue-rgb: 0, 225, 255;
+    --accent-green: #00ffaa; /* Emerald neon */
+    --accent-green-rgb: 0, 255, 170;
+    --accent-purple: #bb66ff; /* Neon violet */
+    --accent-purple-rgb: 187, 102, 255;
+    --accent-yellow: #ffb700;
+    --accent-yellow-rgb: 255, 183, 0;
+    --accent-red: #ff3366;
     
     /* Global Styles */
-    --font-primary: 'Outfit', sans-serif;
-    --shadow-premium: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --font-primary: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+    --shadow-premium: 0 12px 40px 0 rgba(0, 0, 0, 0.6);
     --radius-premium: 16px;
     --radius-pill: 9999px;
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-body.light-theme {
-    /* Light Theme (Glassmorphism-Friendly) */
-    --bg-primary: #f3f4f6;
-    --bg-secondary: #e5e7eb;
-    --bg-card: rgba(255, 255, 255, 0.75);
-    --border-card: rgba(0, 0, 0, 0.06);
-    --text-primary: #111827;
-    --text-secondary: #4b5563;
-    --text-muted: #9ca3af;
-    
-    --shadow-premium: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
 }
 
 /* ==========================================================================
@@ -90,13 +77,7 @@ body::after {
     pointer-events: none;
 }
 
-body.light-theme::before {
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 85%);
-}
 
-body.light-theme::after {
-    background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 85%);
-}
 
 /* Smooth Scrollbar */
 ::-webkit-scrollbar {
@@ -306,20 +287,21 @@ body.light-theme::after {
    GLASSMORPHISM CARD STYLING
    ========================================================================== */
 .glass-card {
-    background: rgba(18, 24, 38, 0.2);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    background: rgba(17, 24, 43, 0.65);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-premium);
-    box-shadow: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     padding: 1.5rem;
     margin-bottom: 1.5rem;
     transition: var(--transition-smooth);
 }
 
 .glass-card:hover {
-    background: rgba(18, 24, 38, 0.35);
-    border-color: rgba(255, 255, 255, 0.04);
+    background: rgba(17, 24, 43, 0.8);
+    border-color: rgba(0, 225, 255, 0.25); /* Cyan glow highlight on hover */
+    box-shadow: 0 12px 40px rgba(0, 225, 255, 0.1);
 }
 
 /* ==========================================================================
@@ -1644,14 +1626,14 @@ body.light-theme::after {
     .nav-item {
         flex-direction: column;
         align-items: center;
-        gap: 0.2rem;
-        font-size: 0.6rem;
-        padding: 0.4rem 0.25rem;
+        gap: 0.25rem;
+        font-size: 0.72rem; /* Slightly larger, more readable on phone screens */
+        padding: 0.45rem 0.25rem;
         text-align: center;
         border-radius: 8px;
     }
     
-    .nav-item i { font-size: 1.1rem; }
+    .nav-item i { font-size: 1.25rem; }
     
     .tab-container {
         padding: 1rem;

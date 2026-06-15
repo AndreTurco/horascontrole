@@ -216,11 +216,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (arrEl) arrEl.value = state.alarms.arrival;
     }
     
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    if (savedTheme === 'light') {
-        document.body.classList.remove('dark-theme');
-        document.body.classList.add('light-theme');
-        updateThemeIcon(true);
+    // Configurações do tema (Sempre escuro por padrão)
+    document.body.classList.add('dark-theme');
+    document.body.classList.remove('light-theme');
+
+    // Carregar nome do usuário
+    const savedUserName = localStorage.getItem('app_user_name') || 'Premium';
+    const greetingEl = document.getElementById('dashboard-greeting-title');
+    if (greetingEl) {
+        greetingEl.innerText = `Olá, ${savedUserName}`;
+    }
+    const inputUserName = document.getElementById('input-user-name');
+    if (inputUserName) {
+        inputUserName.value = savedUserName;
     }
     
     const filterMonthEl = document.getElementById('filter-month');
@@ -276,9 +284,9 @@ async function fetchData() {
         // Primeiro acesso: popular com dados da planilha pré-preenchida se não estiver no modo limpo
         const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode') || 'user';
-        if (rows.length === 0 && mode !== 'clean' && typeof PREFILLED_DATA !== 'undefined' && PREFILLED_DATA) {
-            console.log('[DB] Populando banco com dados pré-preenchidos (mode=user)...');
-            await seedFromPrefilledData();
+        if (rows.length === 0 && mode !== 'clean' && typeof PREFILLED_EXCEL_BASE64 !== 'undefined' && PREFILLED_EXCEL_BASE64) {
+            console.log('[DB] Populando banco com dados da planilha pré-preenchida (mode=user)...');
+            await seedFromPrefilledExcel();
             rows = await dbGetAll('rows');
         }
 
@@ -348,33 +356,138 @@ function recalcRow(row, globalRate) {
     row.minutosForaCasa = timeOutsideMinutes;
 }
 
-async function seedFromPrefilledData() {
+async function seedFromPrefilledExcel() {
     try {
         isImportingData = true; // Set flag
-        // PREFILLED_DATA é um array JSON de linhas definido em prefilled_data.js
-        const data = typeof PREFILLED_DATA === 'string' ? JSON.parse(PREFILLED_DATA) : PREFILLED_DATA;
-        if (!data || !data.rows) return;
-
-        // Salvar taxa global
-        if (data.globalRate) {
-            await dbPut('config', { key: 'globalRate', value: data.globalRate });
-            state.globalRate = data.globalRate;
+        if (typeof PREFILLED_EXCEL_BASE64 === 'undefined' || !PREFILLED_EXCEL_BASE64) {
+            console.warn('[DB-SEED] Base64 da planilha não encontrado.');
+            return;
         }
 
-        // Inserir linhas de ponto
-        const tx = db.transaction('rows', 'readwrite');
-        const store = tx.objectStore('rows');
-        data.rows.forEach(row => store.put(row));
-        await new Promise((resolve, reject) => {
-            tx.oncomplete = resolve;
-            tx.onerror = () => reject(tx.error);
-        });
+        console.log('[DB-SEED] Convertendo base64 da planilha...');
+        const binaryString = atob(PREFILLED_EXCEL_BASE64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const arrayBuffer = bytes.buffer;
 
-        console.log(`[DB] ${data.rows.length} linhas pré-preenchidas importadas com sucesso!`);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+
+        const sheet = workbook.getWorksheet('Controle de Horas');
+        if (!sheet) {
+            console.error('[DB-SEED] Planilha "Controle de Horas" não encontrada!');
+            return;
+        }
+
+        let importedGlobalRate = state.globalRate;
+        const i2Val = sheet.getRow(2).getCell(9).value;
+        if (i2Val !== null && i2Val !== undefined) {
+            if (typeof i2Val === 'number') {
+                importedGlobalRate = i2Val;
+            } else if (typeof i2Val === 'object' && i2Val.result !== undefined) {
+                importedGlobalRate = Number(i2Val.result);
+            }
+        }
+
+        const importedRows = [];
+        const rowCount = sheet.rowCount;
+        for (let r = 2; r <= rowCount; r++) {
+            const excelRow = sheet.getRow(r);
+            const rawDate = excelRow.getCell(1).value;
+            if (!rawDate) continue;
+
+            const dateStr = formatCellDate(rawDate);
+            if (!dateStr) continue;
+
+            const rowData = {
+                rowNum: r - 1,
+                date: dateStr,
+                weekday: excelRow.getCell(2).value || '',
+                entrada1: formatCellTime(excelRow.getCell(3).value),
+                saida1: formatCellTime(excelRow.getCell(4).value),
+                entrada2: formatCellTime(excelRow.getCell(5).value),
+                saida2: formatCellTime(excelRow.getCell(6).value),
+                valorHora: excelRow.getCell(9).value !== null ? Number(excelRow.getCell(9).value) : importedGlobalRate,
+                observacoes: excelRow.getCell(10).value || '',
+                statusPagamento: excelRow.getCell(11).value || 'Pendente',
+                saidaCasa: formatCellTime(excelRow.getCell(12).value),
+                chegadaCasa: formatCellTime(excelRow.getCell(13).value)
+            };
+
+            recalcRow(rowData, importedGlobalRate);
+            importedRows.push(rowData);
+        }
+
+        const importedFinance = [];
+        const finSheet = workbook.getWorksheet('Gestão Financeira');
+        if (finSheet) {
+            const finRowCount = finSheet.rowCount;
+            for (let r = 2; r <= finRowCount; r++) {
+                const excelRow = finSheet.getRow(r);
+                const id = excelRow.getCell(1).value;
+                const dateVal = formatCellDate(excelRow.getCell(2).value);
+                if (!dateVal) continue;
+
+                const entry = {
+                    id: id || generateId(),
+                    date: dateVal,
+                    description: excelRow.getCell(3).value || '',
+                    type: excelRow.getCell(4).value || 'Despesa Fixa',
+                    amount: Number(excelRow.getCell(5).value || 0),
+                    category: excelRow.getCell(6).value || 'Outros'
+                };
+                importedFinance.push(entry);
+            }
+        }
+
+        const importedInvest = [];
+        const investSheet = workbook.getWorksheet('Investimentos');
+        if (investSheet) {
+            const invRowCount = investSheet.rowCount;
+            for (let r = 2; r <= invRowCount; r++) {
+                const excelRow = investSheet.getRow(r);
+                const id = excelRow.getCell(1).value;
+                const dateVal = formatCellDate(excelRow.getCell(2).value);
+                if (!dateVal) continue;
+
+                const entry = {
+                    id: id || generateId(),
+                    date: dateVal,
+                    origin: excelRow.getCell(3).value || '',
+                    amount: Number(excelRow.getCell(4).value || 0),
+                    type: excelRow.getCell(5).value || 'Manual'
+                };
+                importedInvest.push(entry);
+            }
+        }
+
+        // Escrever no banco de dados
+        await dbPut('config', { key: 'globalRate', value: importedGlobalRate });
+        state.globalRate = importedGlobalRate;
+
+        const txRows = db.transaction('rows', 'readwrite');
+        for (const row of importedRows) {
+            await txRows.objectStore('rows').put(row);
+        }
+
+        const txFin = db.transaction('finance', 'readwrite');
+        for (const f of importedFinance) {
+            await txFin.objectStore('finance').put(f);
+        }
+
+        const txInv = db.transaction('invest', 'readwrite');
+        for (const i of importedInvest) {
+            await txInv.objectStore('invest').put(i);
+        }
+
+        console.log(`[DB-SEED] Semente aplicada: ${importedRows.length} pontos, ${importedFinance.length} finanças, ${importedInvest.length} investimentos.`);
     } catch (e) {
-        console.warn('[DB] Falha ao importar dados pré-preenchidos:', e);
+        console.error('[DB-SEED] Erro ao aplicar semente pré-preenchida:', e);
     } finally {
-        isImportingData = false; // Reset flag
+        isImportingData = false;
     }
 }
 
@@ -2094,6 +2207,23 @@ function bindEvents() {
         });
     }
 
+    // 10d. Salvar Nome do Usuário
+    const btnSaveUserName = document.getElementById('btn-save-user-name');
+    if (btnSaveUserName) {
+        btnSaveUserName.addEventListener('click', () => {
+            const inputUserName = document.getElementById('input-user-name');
+            const val = inputUserName ? inputUserName.value.trim() : '';
+            if (val) {
+                localStorage.setItem('app_user_name', val);
+                const gEl = document.getElementById('dashboard-greeting-title');
+                if (gEl) gEl.innerText = `Olá, ${val}`;
+                showToast('Nome do usuário salvo com sucesso!', 'success');
+            } else {
+                showToast('Por favor, informe um nome válido.', 'error');
+            }
+        });
+    }
+
     // 10c. Botão de sincronização manual (recarrega do IndexedDB)
     const syncBadge = document.getElementById('sync-status');
     if (syncBadge) {
@@ -2103,37 +2233,11 @@ function bindEvents() {
         });
     }
 
-    // 11. Alternador de Tema Escuro / Claro
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-        const body = document.body;
-        const isLight = body.classList.toggle('light-theme');
-        body.classList.toggle('dark-theme', !isLight);
-        
-        localStorage.setItem('theme', isLight ? 'light' : 'dark');
-        updateThemeIcon(isLight);
-        
-        setTimeout(() => {
-            renderCharts();
-            renderFinance();
-        }, 100);
-        showToast(`Tema ${isLight ? 'Claro' : 'Escuro'} ativo!`, 'success');
-    });
-
     // 12. Exportações
     document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
     document.getElementById('btn-export-pdf').addEventListener('click', exportPDFReport);
 
     // 13. Event Delegation (Removed in favor of direct click binding on tr elements for reliability)
-}
-
-// Alternar Ícone do Tema
-function updateThemeIcon(isLight) {
-    const icon = document.querySelector('#theme-toggle i');
-    if (isLight) {
-        icon.className = 'fa-solid fa-moon';
-    } else {
-        icon.className = 'fa-solid fa-sun';
-    }
 }
 
 // ==========================================================================
@@ -4356,7 +4460,7 @@ function initGoogleDrive() {
         const mode = urlParams.get('mode') || 'user';
         
         if (savedAutosync === null) {
-            // Se for Aline (mode=user), ativa por padrão. Se limpo, desativa ou ativa
+            // Se for versão Premium (mode=user), ativa por padrão. Se limpo, desativa ou ativa
             chkAutosync.checked = (mode !== 'clean');
             localStorage.setItem('gdrive_autosync', chkAutosync.checked.toString());
         } else {

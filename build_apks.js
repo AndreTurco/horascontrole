@@ -15,8 +15,8 @@ const webManifestUrl = `${pwaUrl}manifest.json`;
 
 async function compileApk(mode) {
     const isPrefilled = (mode === 'user');
-    const label = isPrefilled ? 'PREENCHIDO (Aline)' : 'LIMPO (Distribuição)';
-    const filename = isPrefilled ? 'Controle_de_Horas_Preenchido.apk' : 'Controle_de_Horas_Limpo.apk';
+    const label = isPrefilled ? 'PREENCHIDO (Premium)' : 'LIMPO (Distribuição)';
+    const filename = isPrefilled ? 'Controle_de_Horas_Premium.apk' : 'Controle_de_Horas_Limpo.apk';
     const apkDestPath = path.join(__dirname, filename);
     const zipPath = path.join(__dirname, `temp_${mode}.zip`);
     const extractPath = path.join(__dirname, `temp_decompressed_${mode}`);
@@ -58,7 +58,7 @@ async function compileApk(mode) {
         navigationDividerColor: "#0b0f19",
         navigationDividerColorDark: "#0b0f19",
         orientation: "portrait",
-        packageId: isPrefilled ? "com.andreturco.horascontrole.prefilled" : "com.andreturco.horascontrole",
+        packageId: isPrefilled ? "com.andreturco.horascontrole.premium" : "com.andreturco.horascontrole",
         shortcuts: [],
         signing: {
             file: null,
@@ -117,8 +117,11 @@ async function compileApk(mode) {
                 fileStream.close();
                 console.log(`[APK] Pacote ZIP baixado com sucesso! Extraindo...`);
 
-                // Comando PowerShell para expandir o ZIP e extrair apenas o .apk final
-                const psCommand = `powershell -Command "Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${extractPath}'; Get-ChildItem -Path '${extractPath}' -Filter '*.apk' -Recurse | Select-Object -First 1 | Move-Item -Destination '${apkDestPath}' -Force"`;
+                // Certificar que a pasta .well-known existe
+                fs.mkdirSync(path.join(__dirname, 'public', '.well-known'), { recursive: true });
+
+                // Comando PowerShell para expandir o ZIP, extrair o .apk final e o assetlinks.json
+                const psCommand = `powershell -Command "Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${extractPath}'; Get-ChildItem -Path '${extractPath}' -Filter '*.apk' -Recurse | Select-Object -First 1 | Move-Item -Destination '${apkDestPath}' -Force; Get-ChildItem -Path '${extractPath}' -Filter 'assetlinks.json' -Recurse | Select-Object -First 1 | Copy-Item -Destination '${path.join(__dirname, 'public', '.well-known', 'assetlinks.json')}' -Force"`;
 
                 exec(psCommand, (error, stdout, stderr) => {
                     // Limpeza de arquivos temporários
@@ -158,7 +161,7 @@ async function main() {
     try {
         console.log('Iniciando script de compilação dos APKs do Controle de Horas...');
         
-        // 1. Compilar versão pré-preenchida (para Aline)
+        // 1. Compilar versão pré-preenchida (Premium)
         await compileApk('user');
         
         // 2. Compilar versão limpa (para salvar no Drive e distribuir)
@@ -166,7 +169,7 @@ async function main() {
 
         console.log('\n===================================================');
         console.log('🎉 SUCESSO! Ambos os APKs foram compilados e baixados.');
-        console.log(`   1. Versão Aline: Controle_de_Horas_Preenchido.apk`);
+        console.log(`   1. Versão Premium: Controle_de_Horas_Premium.apk`);
         console.log(`   2. Versão Limpa: Controle_de_Horas_Limpo.apk`);
         console.log('===================================================');
     } catch (err) {

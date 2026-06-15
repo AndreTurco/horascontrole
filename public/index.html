@@ -230,10 +230,7 @@
                     <i class="fa-solid fa-file-shield" style="color: var(--accent-green);"></i>
                 </button>
                 
-                <!-- Dark / Light theme toggle -->
-                <button id="theme-toggle" class="theme-btn" aria-label="Alternar tema">
-                    <i class="fa-solid fa-sun"></i>
-                </button>
+
             </div>
         </header>
 
@@ -276,7 +273,7 @@
                     <div class="dashboard-greeting-wrapper" style="margin-bottom: 1.5rem; text-align: left; padding: 0 5px; display: flex; flex-direction: column; gap: 0.5rem;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
                             <div>
-                                <h2 id="dashboard-greeting-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0;">Olá, Aline</h2>
+                                <h2 id="dashboard-greeting-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0;">Olá, Premium</h2>
                                 <p id="dashboard-greeting-desc" style="font-size: 0.9rem; color: var(--text-secondary); margin: 0.25rem 0 0 0;">Pronto para gerenciar suas horas?</p>
                             </div>
                             <div id="weather-and-ticker" style="display: flex; gap: 0.75rem; align-items: center; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 0.5rem 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">
@@ -539,7 +536,7 @@
                     </div>
                 </section>
 
-                <!-- Tab: Gestão Financeira (Tema Mobills Aprimorado - Sem CC e Sem Aline) -->
+                <!-- Tab: Gestão Financeira (Tema Mobills Aprimorado - Sem CC) -->
                 <section id="tab-finance" class="tab-content">
                     <!-- Financial Summary Cards -->
                     <div class="metrics-grid">
@@ -1118,7 +1115,7 @@
                         <div class="form-row" style="margin-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1rem;">
                             <div class="form-group-flat flex-grow">
                                 <label for="input-user-name"><i class="fa-solid fa-user color-cyan"></i> Nome do Usuário</label>
-                                <input type="text" id="input-user-name" class="form-control-flat" placeholder="Digite seu nome" value="Aline">
+                                <input type="text" id="input-user-name" class="form-control-flat" placeholder="Digite seu nome" value="Premium">
                             </div>
                             <button id="btn-save-user-name" class="btn btn-primary btn-inline ripple" style="background: #06b6d4;">
                                 <i class="fa-solid fa-floppy-disk"></i> Salvar Nome
@@ -1263,23 +1260,34 @@
 
                                 <!-- Advanced Google API configuration (Accordion) -->
                                 <div class="accordion" style="margin-top: 0.25rem;">
-                                    <div class="accordion-header" id="gdrive-accordion-header" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-secondary); border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.5rem; cursor: pointer; user-select: none;">
-                                        <span><i class="fa-solid fa-gears"></i> Configurações Avançadas de API (Clientes Externos)</span>
+                                    <div class="accordion-header" id="gdrive-accordion-header" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary); border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.5rem; cursor: pointer; user-select: none;">
+                                        <span><i class="fa-solid fa-gears color-cyan"></i> Configuração e Tutorial do Google Drive (Evitar Erros de Autenticação)</span>
                                         <i class="fa-solid fa-chevron-down"></i>
                                     </div>
-                                    <div class="accordion-content" id="gdrive-accordion-content" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                                        <span style="font-size: 0.65rem; color: var(--text-secondary); line-height: 1.3;">
-                                            Por padrão, o app usa uma credencial oficial para o domínio <code>andreturco.github.io</code>. Se você hospedar este app em outro servidor ou quiser sua própria chave:
-                                        </span>
-                                        <div class="form-group-flat">
-                                            <label for="input-gdrive-client-id" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Google Client ID Personalizado</label>
-                                            <input type="text" id="input-gdrive-client-id" class="form-control-flat" style="font-size: 0.7rem; padding: 0.4rem 0.5rem;" placeholder="Deixe em branco para usar o padrão">
+                                    <div class="accordion-content" id="gdrive-accordion-content" style="display: none; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-md); padding: 0.75rem;">
+                                        <div style="font-size: 0.7rem; color: var(--text-secondary); line-height: 1.4; display: flex; flex-direction: column; gap: 0.5rem;">
+                                            <strong style="color: #fff;"><i class="fa-solid fa-circle-question"></i> Como evitar o erro "OAuth Client was not found"?</strong>
+                                            <span>Como este aplicativo é executado no seu celular ou no seu próprio domínio no GitHub Pages, você precisa registrar um identificador (Client ID) no Google Cloud Console para autorizar o salvamento de arquivos no seu Drive. Siga o passo a passo simples abaixo:</span>
+                                            
+                                            <ol style="margin-left: 1rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.65rem; color: var(--text-muted);">
+                                                <li>Acesse o <b><a href="https://console.cloud.google.com/" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Google Cloud Console</a></b> com sua conta Google.</li>
+                                                <li>Crie um novo projeto com qualquer nome (ex: <i>"Controle Horas"</i>).</li>
+                                                <li>No menu lateral, vá em <b>Tela de consentimento OAuth</b>, escolha o tipo de usuário <b>Externo</b> (ou Interno), preencha o nome do app e seu e-mail, salve e clique em <b>Publicar Aplicativo</b> (ou adicione seu e-mail como Usuário de Teste).</li>
+                                                <li>Vá em <b>Credenciais</b> -> clique em <b>+ Criar Credenciais</b> no topo -> escolha <b>ID do cliente OAuth</b>.</li>
+                                                <li>Selecione Tipo de Aplicativo: <b>Aplicativo da Web</b>.</li>
+                                                <li>No campo <b>Origens JavaScript autorizadas</b>, adicione exatamente a URL de onde você abre o app (ex: <code>https://andreturco.github.io</code>).</li>
+                                                <li>Clique em Criar, copie o <b>ID do cliente</b> gerado (um texto longo que termina em <code>.apps.googleusercontent.com</code>) e cole-o no campo de entrada abaixo.</li>
+                                            </ol>
                                         </div>
-                                        <div style="display: flex; gap: 0.4rem;">
-                                            <button id="btn-save-gdrive-client-id" class="btn btn-primary ripple" style="font-size: 0.7rem; padding: 0.35rem 0.65rem; background: #06b6d4; border-color: #06b6d4; border-radius: var(--radius-sm);">
+                                        <div class="form-group-flat">
+                                            <label for="input-gdrive-client-id" style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Google Client ID Personalizado</label>
+                                            <input type="text" id="input-gdrive-client-id" class="form-control-flat" style="font-size: 0.7rem; padding: 0.45rem 0.5rem;" placeholder="Cole aqui seu client ID do Google Cloud">
+                                        </div>
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <button id="btn-save-gdrive-client-id" class="btn btn-primary ripple" style="font-size: 0.7rem; padding: 0.45rem 0.75rem; background: #06b6d4; border-color: #06b6d4; border-radius: var(--radius-sm); font-weight: 600;">
                                                 Salvar ID
                                             </button>
-                                            <button id="btn-reset-gdrive-client-id" class="btn btn-secondary ripple" style="font-size: 0.7rem; padding: 0.35rem 0.65rem; border-color: rgba(255,255,255,0.15); border-radius: var(--radius-sm);">
+                                            <button id="btn-reset-gdrive-client-id" class="btn btn-secondary ripple" style="font-size: 0.7rem; padding: 0.45rem 0.75rem; border-color: rgba(255,255,255,0.15); border-radius: var(--radius-sm);">
                                                 Restaurar Padrão
                                             </button>
                                         </div>
