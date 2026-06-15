@@ -1179,6 +1179,35 @@
                         </div>
                     </div>
 
+                    <!-- Painel de Diagnóstico de Conexão (Premium & Dinâmico) -->
+                    <div class="glass-card settings-card">
+                        <h3 class="settings-title"><i class="fa-solid fa-circle-nodes color-green"></i> Diagnóstico de Conexão</h3>
+                        <p class="settings-desc">Verifique a saúde da conexão do seu dispositivo com o servidor local ou em nuvem.</p>
+                        
+                        <div class="diagnostics-box" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.25); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-card);">
+                                <span>Status da Conexão:</span>
+                                <span id="diag-conn-status" style="padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 0.35rem; background: rgba(156, 163, 175, 0.15); color: #9ca3af;"><i class="fa-solid fa-spinner fa-spin"></i> Testando...</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.25); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-card);">
+                                <span>URL Resolvida (API):</span>
+                                <span id="diag-resolved-url" style="font-family: monospace; font-size: 0.75rem; word-break: break-all; text-align: right; color: var(--text-secondary);">Nenhuma</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.25); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-card);">
+                                <span>Latência (Ping):</span>
+                                <span id="diag-latency" style="font-weight: bold; color: var(--text-secondary);">-- ms</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.25); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-card);">
+                                <span>ID do Servidor Pareado:</span>
+                                <span id="diag-server-id" style="font-family: monospace; font-weight: bold; color: var(--accent-blue);">--</span>
+                            </div>
+                            
+                            <button id="btn-run-diagnostics" class="btn btn-secondary ripple" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 0.5rem; height: 42px;">
+                                <i class="fa-solid fa-rotate"></i> Atualizar Diagnóstico
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Meta e Alertas -->
                     <div class="glass-card settings-card">
                         <h3 class="settings-title"><i class="fa-solid fa-bullseye color-purple"></i> Definição de Metas Pessoais</h3>

@@ -21,7 +21,22 @@ const app = express();
 // Porta 3080 para evitar conflitos na porta 3000
 const PORT = 3080;
 const isPackaged = process.pkg || (process.versions && process.versions.electron && !process.defaultApp);
-const basePath = isPackaged ? path.dirname(process.execPath) : __dirname;
+const exeDir = isPackaged ? path.dirname(process.execPath) : __dirname;
+
+function getUnifiedDataPath() {
+    let current = exeDir;
+    for (let i = 0; i < 4; i++) {
+        if (fs.existsSync(path.join(current, 'package.json')) && fs.existsSync(path.join(current, 'public'))) {
+            return current;
+        }
+        const parent = path.dirname(current);
+        if (parent === current) break;
+        current = parent;
+    }
+    return exeDir;
+}
+
+const basePath = getUnifiedDataPath();
 const xlsxPath = path.join(basePath, 'Controle_de_Horas_Trabalho-1.xlsx');
 
 app.use(cors());

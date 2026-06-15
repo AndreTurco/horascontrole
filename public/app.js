@@ -104,6 +104,7 @@ function switchTab(tabName) {
         setTimeout(renderCharts, 50);
     } else if (tabName === 'settings') {
         fetchNetworkInfo();
+        runConnectionDiagnostics();
     }
 }
 
@@ -2010,6 +2011,14 @@ function bindEvents() {
         });
     }
 
+    // 10c. Diagnóstico de Conexão Manual
+    const btnDiag = document.getElementById('btn-run-diagnostics');
+    if (btnDiag) {
+        btnDiag.addEventListener('click', () => {
+            runConnectionDiagnostics();
+        });
+    }
+
     // 11. Alternador de Tema Escuro / Claro
     document.getElementById('theme-toggle').addEventListener('click', () => {
         const body = document.body;
@@ -3414,4 +3423,110 @@ async function resolveActiveTunnelUrl() {
     } catch (e) {
         console.error('[API-ERROR] Falha ao ler tunnel_url.json do GitHub:', e);
     }
+}
+
+// Painel de Diagnóstico de Conexão (Premium & Dinâmico)
+async function runConnectionDiagnostics() {
+    const diagStatus = document.getElementById('diag-conn-status');
+    const diagUrl = document.getElementById('diag-resolved-url');
+    const diagLatency = document.getElementById('diag-latency');
+    const diagServerId = document.getElementById('diag-server-id');
+
+    if (!diagStatus) return; // Se não estiver na tela (ou não carregado)
+
+    const savedServerId = localStorage.getItem('server_id') || '';
+    const pin = localStorage.getItem('access_pin') || '';
+    
+    diagStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testando...';
+    diagStatus.style.background = 'rgba(156, 163, 175, 0.15)';
+    diagStatus.style.color = '#9ca3af';
+    
+    diagServerId.innerText = savedServerId || 'Nenhum (Local)';
+    
+    let apiHost = getApiHost();
+    diagUrl.innerText = apiHost || window.location.origin;
+
+    const start = Date.now();
+    try {
+        const res = await fetch(`${apiHost}/api/data?pin=${encodeURIComponent(pin)}&_=${Date.now()}`, {
+            method: 'GET',
+            cache: 'no-store',
+            headers: {
+                'x-access-pin': pin
+            }
+        });
+        
+        if (res.ok) {
+            const latency = Date.now() - start;
+            diagStatus.innerHTML = '<i class="fa-solid fa-circle-check"></i> Conectado';
+            diagStatus.style.background = 'rgba(16, 185, 129, 0.15)';
+            diagStatus.style.color = '#10b981';
+            diagLatency.innerText = `${latency} ms`;
+            diagLatency.style.color = '#10b981';
+            return;
+        } else if (res.status === 401) {
+            diagStatus.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> PIN Inválido';
+            diagStatus.style.background = 'rgba(245, 158, 11, 0.15)';
+            diagStatus.style.color = '#f59e0b';
+            diagLatency.innerText = '--';
+            diagLatency.style.color = '#f59e0b';
+            return;
+        }
+        throw new Error(`Status HTTP ${res.status}`);
+    } catch (err) {
+        console.warn('[DIAGNOSTICO] Falha no primeiro teste de ping. Tentando resolver URL atualizada...', err.message);
+    }
+
+    // Se falhou, vamos tentar resolver a URL ativa novamente na nuvem
+    if (savedServerId && savedServerId !== 'local_fallback') {
+        try {
+            diagStatus.innerHTML = '<i class="fa-solid fa-magnifying-glass fa-spin"></i> Buscando IP...';
+            const response = await fetch(`https://extendsclass.com/api/json-storage/bin/${savedServerId.trim()}?_=${Date.now()}`, { cache: 'no-store' });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.url) {
+                    resolvedApiHost = data.url.replace(/\/$/, '');
+                    apiHost = resolvedApiHost;
+                    diagUrl.innerText = apiHost;
+                    
+                    const retryPin = data.pin || pin;
+                    if (data.pin) {
+                        localStorage.setItem('access_pin', data.pin);
+                        const accessPinInput = document.getElementById('input-access-pin');
+                        if (accessPinInput) accessPinInput.value = data.pin;
+                    }
+                    
+                    // Segundo teste de ping com a URL recém-resolvida
+                    const retryStart = Date.now();
+                    const res2 = await fetch(`${apiHost}/api/data?pin=${encodeURIComponent(retryPin)}&_=${Date.now()}`, {
+                        method: 'GET',
+                        cache: 'no-store',
+                        headers: {
+                            'x-access-pin': retryPin
+                        }
+                    });
+                    if (res2.ok) {
+                        const latency = Date.now() - retryStart;
+                        diagStatus.innerHTML = '<i class="fa-solid fa-circle-check"></i> Sincronizado';
+                        diagStatus.style.background = 'rgba(16, 185, 129, 0.15)';
+                        diagStatus.style.color = '#10b981';
+                        diagLatency.innerText = `${latency} ms`;
+                        diagLatency.style.color = '#10b981';
+                        
+                        setupRealtimeUpdates();
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[DIAGNOSTICO] Falha ao resolver URL da nuvem no segundo estágio:', e);
+        }
+    }
+
+    // Se tudo falhou
+    diagStatus.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Inacessível';
+    diagStatus.style.background = 'rgba(239, 68, 68, 0.15)';
+    diagStatus.style.color = '#ef4444';
+    diagLatency.innerText = 'Erro / Offline';
+    diagLatency.style.color = '#ef4444';
 }
