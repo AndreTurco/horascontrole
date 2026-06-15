@@ -1759,7 +1759,7 @@ function tryLocalhostRunTunnel() {
             '-o', 'ServerAliveInterval=15',
             '-o', 'ServerAliveCountMax=3',
             '-o', 'ExitOnForwardFailure=yes',
-            '-R', `80:localhost:${PORT}`,
+            '-R', `80:127.0.0.1:${PORT}`,
             'nokey@localhost.run'
         ]);
 
@@ -1824,7 +1824,7 @@ function tryServeoTunnel() {
             '-o', 'ServerAliveInterval=15',
             '-o', 'ServerAliveCountMax=3',
             '-o', 'ExitOnForwardFailure=yes',
-            '-R', `80:localhost:${PORT}`,
+            '-R', `80:127.0.0.1:${PORT}`,
             'serveo.net'
         ]);
 
