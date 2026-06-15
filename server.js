@@ -41,6 +41,31 @@ const xlsxPath = path.join(basePath, 'Controle_de_Horas_Trabalho-1.xlsx');
 
 app.use(cors());
 app.use(express.json());
+// Middleware para redirecionar clientes móveis que acessam via túnel temporário para a PWA permanente
+app.use(async (req, res, next) => {
+    const host = req.headers.host || '';
+    const ua = req.headers['user-agent'] || '';
+    const isRoot = req.path === '/' || req.path === '/index.html';
+    
+    const isTunnel = host.includes('lhr.life') || host.includes('serveo.net') || host.includes('loca.lt');
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    
+    if (isRoot && isTunnel && isMobile) {
+        try {
+            const config = await getRegistrationConfig();
+            if (config && config.binId && config.binId !== 'local_fallback') {
+                const pin = getAccessPin();
+                const redirectUrl = `https://andreturco.github.io/horascontrole/public/?sid=${config.binId}&pin=${pin}`;
+                console.log(`[REDIRECIONAMENTO-MÓVEL] Cliente móvel acessou pelo túnel. Redirecionando para PWA permanente: ${redirectUrl}`);
+                return res.redirect(redirectUrl);
+            }
+        } catch (e) {
+            console.error('[REDIRECIONAMENTO-MÓVEL-ERRO] Falha ao obter ID de registro:', e.message);
+        }
+    }
+    next();
+});
+
 app.use(express.static(path.join(__dirname, 'public'), {
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.json')) {
