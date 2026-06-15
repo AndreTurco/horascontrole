@@ -1,8 +1,94 @@
 // ==========================================================================
-// STATE MANAGEMENT (EXPANDIDO)
+// MODO OFFLINE TOTAL — INDEXEDDB LOCAL (SEM SERVIDOR)
+// ==========================================================================
+const DB_NAME = 'controle_horas_db';
+const DB_VERSION = 3;
+let db = null;
+
+async function initDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains('config')) {
+                d.createObjectStore('config', { keyPath: 'key' });
+            }
+            if (!d.objectStoreNames.contains('rows')) {
+                const rs = d.createObjectStore('rows', { keyPath: 'rowNum' });
+                rs.createIndex('date', 'date', { unique: false });
+            }
+            if (!d.objectStoreNames.contains('finance')) {
+                const fs = d.createObjectStore('finance', { keyPath: 'id' });
+                fs.createIndex('date', 'date', { unique: false });
+            }
+            if (!d.objectStoreNames.contains('invest')) {
+                const is = d.createObjectStore('invest', { keyPath: 'id' });
+                is.createIndex('date', 'date', { unique: false });
+            }
+        };
+        req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function dbGet(store, key) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readonly');
+        const req = tx.objectStore(store).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+let isImportingData = false;
+
+function dbPut(store, value) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readwrite');
+        const req = tx.objectStore(store).put(value);
+        req.onsuccess = () => {
+            resolve(req.result);
+            if (!isImportingData) {
+                onDatabaseWrite();
+            }
+        };
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbDelete(store, key) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readwrite');
+        const req = tx.objectStore(store).delete(key);
+        req.onsuccess = () => {
+            resolve();
+            if (!isImportingData) {
+                onDatabaseWrite();
+            }
+        };
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbGetAll(store) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readonly');
+        const req = tx.objectStore(store).getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+// ==========================================================================
+// STATE MANAGEMENT
 // ==========================================================================
 const state = {
     globalRate: 12.0,
+    investPercent: 20, // Porcentagem de investimento automático (editável)
     totalEarningsSinceJan: 0.0,
     pendingEarnings: 0.0,
     rows: [],
@@ -19,7 +105,7 @@ const state = {
     
     // Filtros e Configurações
     selectedMonth: new Date().getMonth(),
-    selectedYear: 2026,
+    selectedYear: new Date().getFullYear(),
     goalEarnings: 1500.0,
     activeTab: 'dashboard',
     viewMode: 'list',
@@ -39,48 +125,6 @@ const state = {
     financeChart: null,
     comparisonChart: null,
     yearlyChart: null
-};
-
-let resolvedApiHost = '';
-let isPromptingPin = false;
-
-// Interceptar todas as requisições fetch para injetar o PIN de segurança e bypass de túnel
-const originalFetch = window.fetch;
-window.fetch = async function(resource, options = {}) {
-    if (typeof resource === 'string' && resource.includes('/api/')) {
-        const pin = localStorage.getItem('access_pin');
-        options.headers = options.headers || {};
-        
-        // Injetar PIN de segurança se disponível
-        if (pin) {
-            if (options.headers instanceof Headers) {
-                options.headers.set('x-access-pin', pin);
-            } else if (Array.isArray(options.headers)) {
-                options.headers.push(['x-access-pin', pin]);
-            } else {
-                options.headers['x-access-pin'] = pin;
-            }
-        }
-
-        // Injetar bypass de aviso de túnel (localtunnel exige isso para pular a tela de confirmação)
-        if (options.headers instanceof Headers) {
-            options.headers.set('bypass-tunnel-reminder', 'true');
-        } else if (Array.isArray(options.headers)) {
-            options.headers.push(['bypass-tunnel-reminder', 'true']);
-        } else {
-            options.headers['bypass-tunnel-reminder'] = 'true';
-        }
-    }
-    
-    try {
-        const response = await originalFetch(resource, options);
-        if (response.status === 401) {
-            handleUnauthorizedAccess();
-        }
-        return response;
-    } catch (err) {
-        throw err;
-    }
 };
 
 function switchTab(tabName) {
@@ -103,78 +147,10 @@ function switchTab(tabName) {
     // Gatilhos específicos de abas
     if (tabName === 'dashboard') {
         setTimeout(renderCharts, 50);
-    } else if (tabName === 'settings') {
-        fetchNetworkInfo();
-        runConnectionDiagnostics();
     }
 }
 
-function handleUnauthorizedAccess() {
-    if (isPromptingPin) return;
-    isPromptingPin = true;
-    
-    localStorage.removeItem('access_pin');
-    const accessPinInput = document.getElementById('input-access-pin');
-    if (accessPinInput) accessPinInput.value = '';
-    
-    setTimeout(() => {
-        switchTab('settings');
-        const pinInput = document.getElementById('input-access-pin');
-        if (pinInput) {
-            pinInput.focus();
-            pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        showToast('PIN de acesso incorreto ou expirado! Digite o PIN de 6 dígitos abaixo.', 'error');
-        isPromptingPin = false;
-    }, 100);
-}
-
-// Obter a URL base da API (suporta servidor customizado para APK)
-function getApiHost() {
-    const currentHost = window.location.hostname;
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    // Se estiver rodando localmente no PC (não no celular), ignora túneis externos e fala direto com o IP local
-    if (!isMobile && (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.'))) {
-        const customHost = localStorage.getItem('custom_api_host');
-        if (customHost && (customHost.includes('lhr.life') || customHost.includes('serveo') || customHost.includes('loca.lt'))) {
-            localStorage.removeItem('custom_api_host');
-            const input = document.getElementById('input-custom-host');
-            if (input) input.value = '';
-        }
-        return '';
-    }
-
-    const serverId = localStorage.getItem('server_id');
-    if (serverId && serverId !== 'local_fallback') {
-        // Se estamos usando o pareamento por ID na nuvem, limpamos e ignoramos qualquer host customizado anterior
-        localStorage.removeItem('custom_api_host');
-        const input = document.getElementById('input-custom-host');
-        if (input) input.value = '';
-    }
-
-    const customHost = localStorage.getItem('custom_api_host');
-    if (customHost) {
-        try {
-            const customOrigin = new URL(customHost).origin;
-            // Se o host salvo for de um túnel dinâmico antigo (lhr.life, serveo, loca.lt) e for diferente do resolvido, limpa
-            if (resolvedApiHost) {
-                const resolvedOrigin = new URL(resolvedApiHost).origin;
-                if (customOrigin !== resolvedOrigin) {
-                    if (customOrigin.includes('lhr.life') || customOrigin.includes('serveo') || customOrigin.includes('loca.lt')) {
-                        console.log('[API] Limpando host de túnel expirado do localStorage:', customOrigin);
-                        localStorage.removeItem('custom_api_host');
-                        const input = document.getElementById('input-custom-host');
-                        if (input) input.value = '';
-                        return resolvedApiHost || '';
-                    }
-                }
-            }
-        } catch (e) {}
-        return customHost.replace(/\/$/, ''); // Remove barra no final
-    }
-    return resolvedApiHost || ''; // Padrão é a resolvida do ExtendsClass/GitHub, ou o host atual
-}
+// Sem servidor — funções de compatídade removidas
 
 // Categoria Financeira com seus respectivo ícones e cores Mobills
 const categoriesMeta = {
@@ -207,37 +183,37 @@ const ptMonths = [
 // INITIALIZATION
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    // Capturar parâmetros de sincronização na URL (se presentes)
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlSid = urlParams.get('sid');
-    const urlPin = urlParams.get('pin');
-    if (urlSid) {
-        localStorage.setItem('server_id', urlSid.trim());
-        console.log('[REGISTRO] ID do servidor configurado via URL:', urlSid);
-    }
-    if (urlPin) {
-        localStorage.setItem('access_pin', urlPin.trim());
-        const accessPinInput = document.getElementById('input-access-pin');
-        if (accessPinInput) accessPinInput.value = urlPin.trim();
-        console.log('[REGISTRO] PIN de acesso configurado via URL:', urlPin);
-    }
-    if (urlSid || urlPin) {
-        // Limpar a barra de endereços para remover as credenciais expostas
-        window.history.replaceState({}, document.title, window.location.pathname);
+    // 1. Inicializar IndexedDB
+    try {
+        await initDB();
+        console.log('[DB] IndexedDB inicializado com sucesso!');
+    } catch (e) {
+        console.error('[DB] Falha ao inicializar IndexedDB:', e);
     }
 
-    // Carregar configurações locais
+    // 2. Carregar configurações salvas
     const savedGoal = localStorage.getItem('goalEarnings');
     if (savedGoal) {
         state.goalEarnings = parseFloat(savedGoal);
-        document.getElementById('input-goal-earnings').value = state.goalEarnings;
+        const goalEl = document.getElementById('input-goal-earnings');
+        if (goalEl) goalEl.value = state.goalEarnings;
+    }
+
+    // Carregar porcentagem de investimento
+    const savedInvestPercent = localStorage.getItem('investPercent');
+    if (savedInvestPercent) {
+        state.investPercent = parseFloat(savedInvestPercent);
+        const investPctEl = document.getElementById('input-invest-percent');
+        if (investPctEl) investPctEl.value = state.investPercent;
     }
     
     const savedAlarms = localStorage.getItem('alarms');
     if (savedAlarms) {
         state.alarms = JSON.parse(savedAlarms);
-        document.getElementById('alarm-departure').value = state.alarms.departure;
-        document.getElementById('alarm-arrival').value = state.alarms.arrival;
+        const depEl = document.getElementById('alarm-departure');
+        const arrEl = document.getElementById('alarm-arrival');
+        if (depEl) depEl.value = state.alarms.departure;
+        if (arrEl) arrEl.value = state.alarms.arrival;
     }
     
     const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -247,218 +223,163 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateThemeIcon(true);
     }
     
-    document.getElementById('filter-month').value = state.selectedMonth;
-    
-    const customHostInput = document.getElementById('input-custom-host');
-    if (customHostInput) {
-        customHostInput.value = localStorage.getItem('custom_api_host') || '';
-    }
-    const accessPinInput = document.getElementById('input-access-pin');
-    if (accessPinInput) {
-        accessPinInput.value = localStorage.getItem('access_pin') || '';
-    }
+    const filterMonthEl = document.getElementById('filter-month');
+    if (filterMonthEl) filterMonthEl.value = state.selectedMonth;
 
-    // Tentar carregar dados em cache do localStorage para exibição imediata (Offline-first)
-    const cachedData = localStorage.getItem('app_state_data');
-    if (cachedData) {
-        try {
-            const parsed = JSON.parse(cachedData);
-            state.globalRate = parsed.globalRate || 12.0;
-            state.rows = parsed.rows || [];
-            state.financeEntries = parsed.financeEntries || [];
-            state.investEntries = parsed.investEntries || [];
-            state.totalEarningsSinceJan = parsed.totalEarningsSinceJan || 0;
-            state.pendingEarnings = parsed.pendingEarnings || 0;
-            state.totalInvested = parsed.totalInvested || 0.0;
-            applyFilters(); // Exibir imediatamente o que está no cache local!
-        } catch (e) {
-            console.error('Falha ao carregar cache local:', e);
-        }
-    }
+    // 3. Carregar dados do IndexedDB
+    await fetchData();
 
-    // Iniciar Relógio
+    // 4. Iniciar Relógio
     startClock();
-    
-    // Buscar dinamicamente a URL ativa do túnel no GitHub (se estiver acessando remotamente)
-    await resolveActiveTunnelUrl();
-    
-    // Carregar do Servidor
-    fetchData();
-    fetchNetworkInfo();
 
-    // Eventos
+    // 5. Eventos e helpers
     bindEvents();
-    
-    // Inicializar Novos Helpers Premium
     initNotifications();
     initInvestmentsCalc();
     initBackupHandlers();
     applyMathParserToInputs();
     
-    // Registrar PWA Service Worker
-    registerServiceWorker();
+    // 5b. Inicializar APIs públicas de internet e persistência
+    initStoragePersistence();
+    loadMotivationalQuote();
+    fetchCurrencyRates();
+    fetchHolidays();
+    checkTimeSync();
+    fetchWeather();
     
-    // Configurar atualizações em tempo real (SSE)
-    setupRealtimeUpdates();
+    // 5c. Inicializar Google Drive (Cloud Sync)
+    initGoogleDrive();
+    
+    // 6. Registrar PWA Service Worker
+    registerServiceWorker();
+
+    setSyncStatus('connected', 'Offline Mode ✔');
 });
 
 // ==========================================================================
-// API REST WRAPPERS
+// INDEXEDDB DATA LAYER (OFFLINE)
 // ==========================================================================
+
 async function fetchData() {
     try {
-        setSyncStatus('syncing', 'Sincronizando...');
-        const pin = localStorage.getItem('access_pin') || '';
-        const response = await fetch(`${getApiHost()}/api/data?_=${Date.now()}`, { 
-            cache: 'no-store',
-            headers: pin ? { 'x-access-pin': pin } : {}
+        setSyncStatus('syncing', 'Carregando...');
+
+        // Carregar configurações
+        const cfgRate = await dbGet('config', 'globalRate');
+        if (cfgRate) state.globalRate = cfgRate.value;
+        const cfgInvPct = await dbGet('config', 'investPercent');
+        if (cfgInvPct) state.investPercent = cfgInvPct.value;
+
+        // Carregar linhas de ponto
+        let rows = await dbGetAll('rows');
+
+        // Primeiro acesso: popular com dados da planilha pré-preenchida se não estiver no modo limpo
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || 'user';
+        if (rows.length === 0 && mode !== 'clean' && typeof PREFILLED_DATA !== 'undefined' && PREFILLED_DATA) {
+            console.log('[DB] Populando banco com dados pré-preenchidos (mode=user)...');
+            await seedFromPrefilledData();
+            rows = await dbGetAll('rows');
+        }
+
+        // Calcular campos derivados
+        rows.forEach(row => {
+            recalcRow(row, state.globalRate);
         });
-        if (!response.ok) throw new Error(`Servidor retornou ${response.status}`);
-        
-        const data = await response.json();
-        state.globalRate = data.globalRate;
-        state.totalEarningsSinceJan = data.totalEarningsSinceJan;
-        state.pendingEarnings = data.pendingEarnings;
-        state.rows = data.rows;
-        state.financeEntries = data.financeEntries || [];
-        state.investEntries = data.investEntries || [];
-        state.totalInvested = data.totalInvested || 0.0;
-        
-        // Salvar cópia local no localStorage (Offline-first)
-        saveStateToLocalStorage();
-        
-        // Injetar URLs de IP dinamicamente para o MacroDroid
-        updateMacroDroidLink();
-        
-        // Atualizar taxa horária nas configurações
+
+        state.rows = rows.sort((a, b) => a.date.localeCompare(b.date));
+
+        // Totais acumulados
+        let totalEarnings = 0, pendingEarnings = 0;
+        state.rows.forEach(row => {
+            totalEarnings += row.ganhos || 0;
+            if (row.statusPagamento !== 'Pago') pendingEarnings += row.ganhos || 0;
+        });
+        state.totalEarningsSinceJan = totalEarnings;
+        state.pendingEarnings = pendingEarnings;
+
+        // Carregar finanças e investimentos
+        state.financeEntries = await dbGetAll('finance');
+        state.investEntries = await dbGetAll('invest');
+        await autoSyncInvestments();
+        state.totalInvested = state.investEntries.reduce((s, e) => s + (e.amount || 0), 0);
+
+        // Atualizar UI
         const rateValEl = document.getElementById('kpi-rate-val');
-        if (rateValEl) {
-            rateValEl.innerText = `R$ ${state.globalRate.toFixed(2)}/h`;
-        }
+        if (rateValEl) rateValEl.innerText = `R$ ${state.globalRate.toFixed(2)}/h`;
         const rateInputEl = document.getElementById('input-global-rate');
-        if (rateInputEl) {
-            rateInputEl.value = state.globalRate;
-        }
-        
-        // Carregar categorias dinâmicas
+        if (rateInputEl) rateInputEl.value = state.globalRate;
+
+        // Atualizar porcentagem de investimento na UI
+        const investPctEl = document.getElementById('input-invest-percent');
+        if (investPctEl) investPctEl.value = state.investPercent;
+
         populateCategoriesDropdown();
-        
-        // Filtrar e Renderizar
         applyFilters();
-        setSyncStatus('connected', 'Online');
-        state._fetchRetryCount = 0; // Reset retry counter on success
+        setSyncStatus('connected', 'Salvo Localmente');
     } catch (err) {
-        console.error('[FETCH] Erro ao carregar dados:', err);
-        setSyncStatus('offline', 'Desconectado');
-        
-        // Retry logic: re-resolve tunnel URL and retry up to 3 times
-        state._fetchRetryCount = (state._fetchRetryCount || 0) + 1;
-        if (state._fetchRetryCount <= 3) {
-            console.log(`[FETCH] Tentativa ${state._fetchRetryCount}/3: Resolvendo URL do túnel novamente em 5 segundos...`);
-            setSyncStatus('syncing', `Reconectando (${state._fetchRetryCount}/3)...`);
-            setTimeout(async () => {
-                await resolveActiveTunnelUrl();
-                fetchData();
-            }, 5000 * state._fetchRetryCount);
-        } else {
-            showToast('Servidor offline. Verifique se o servidor está rodando no PC.', 'error');
-            state._fetchRetryCount = 0;
-            // After exhausting retries, try again silently every 30 seconds
-            setTimeout(async () => {
-                await resolveActiveTunnelUrl();
-                fetchData();
-            }, 30000);
-        }
+        console.error('[DB] Erro ao carregar dados:', err);
+        setSyncStatus('offline', 'Erro no Banco');
+        showToast('Erro ao carregar dados do dispositivo!', 'error');
     }
 }
 
-// Obter informações de rede do computador/servidor
-async function fetchNetworkInfo() {
+function recalcRow(row, globalRate) {
+    const wMin = calculateWorkedMinutes(row.entrada1, row.saida1, row.entrada2, row.saida2);
+    row.minutosTrabalhados = wMin;
+    row.horasMinutos = minutesToTimeStr(wMin);
+    row.horasFracionarias = wMin / 60;
+
+    let dayRate = globalRate;
+    if (row.valorHora !== null && row.valorHora !== '' && row.valorHora !== undefined) {
+        dayRate = parseFloat(row.valorHora);
+    }
+    if (row.ganhosManuais !== null && row.ganhosManuais !== undefined && row.ganhosManuais !== '') {
+        row.ganhos = parseFloat(row.ganhosManuais);
+    } else {
+        row.ganhos = (wMin / 60) * dayRate;
+    }
+
+    const commuteMinutes = calculateCommuteMinutes(row.saidaCasa, row.entrada1, row.saida1, row.entrada2, row.saida2, row.chegadaCasa);
+    const timeOutsideMinutes = calculateTimeOutsideMinutes(row.saidaCasa, row.chegadaCasa);
+    row.tempoTrajeto = minutesToTimeStr(commuteMinutes);
+    row.minutosTrajeto = commuteMinutes;
+    row.tempoForaCasa = minutesToTimeStr(timeOutsideMinutes);
+    row.minutosForaCasa = timeOutsideMinutes;
+}
+
+async function seedFromPrefilledData() {
     try {
-        const response = await fetch(`${getApiHost()}/api/network-info`);
-        if (!response.ok) throw new Error();
-        const data = await response.json();
-        
-        // Exibir o caminho da planilha ativa
-        const dbPathInput = document.getElementById('active-database-path');
-        if (dbPathInput && data.xlsxPath) {
-            dbPathInput.value = data.xlsxPath;
+        isImportingData = true; // Set flag
+        // PREFILLED_DATA é um array JSON de linhas definido em prefilled_data.js
+        const data = typeof PREFILLED_DATA === 'string' ? JSON.parse(PREFILLED_DATA) : PREFILLED_DATA;
+        if (!data || !data.rows) return;
+
+        // Salvar taxa global
+        if (data.globalRate) {
+            await dbPut('config', { key: 'globalRate', value: data.globalRate });
+            state.globalRate = data.globalRate;
         }
 
-        // Exibir PIN de segurança e ID do Servidor se fornecidos (apenas localmente no PC)
-        const pinDisplayWrapper = document.getElementById('pin-display-wrapper');
-        const desktopAccessPin = document.getElementById('desktop-access-pin');
-        const desktopServerId = document.getElementById('desktop-server-id');
-        if (data.accessPin) {
-            if (desktopAccessPin) desktopAccessPin.innerText = data.accessPin;
-            if (desktopServerId) desktopServerId.innerText = data.serverId || 'local_fallback';
-            if (pinDisplayWrapper) pinDisplayWrapper.style.display = 'flex';
-        } else {
-            if (pinDisplayWrapper) pinDisplayWrapper.style.display = 'none';
-        }
-        
-        const tunnelInput = document.getElementById('phone-tunnel-url');
-        const localInput = document.getElementById('phone-local-url');
-        const apkInput = document.getElementById('phone-apk-url');
-        
-        const tunnelQrImg = document.getElementById('tunnel-qr-img');
-        const localQrImg = document.getElementById('local-qr-img');
-        const apkQrImg = document.getElementById('apk-qr-img');
-        
-        const tunnelQrWrapper = document.getElementById('tunnel-qr-wrapper');
-        const localQrWrapper = document.getElementById('local-qr-wrapper');
-        const apkQrWrapper = document.getElementById('apk-qr-wrapper');
-        
-        if (data.tunnelUrl || data.apkUrl) {
-            if (tunnelInput) tunnelInput.value = data.tunnelUrl || 'Conectando túnel remoto...';
-            if (tunnelQrImg) {
-                if (data.tunnelUrl) {
-                    // QR Code aponta para o túnal diretamente com o PIN (sem depender do GitHub Pages)
-                    const pin = data.accessPin || localStorage.getItem('access_pin') || '';
-                    const qrData = pin
-                        ? `${data.tunnelUrl}/?pin=${pin}`
-                        : data.tunnelUrl;
-                    tunnelQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
-                    if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'block';
-                } else {
-                    if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'none';
-                }
-            }
-            
-            const apkUrl = data.apkUrl || (data.tunnelUrl ? `${data.tunnelUrl}/controle-horas.apk` : '');
-            if (apkUrl) {
-                if (apkInput) apkInput.value = apkUrl;
-                if (apkQrImg) {
-                    apkQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(apkUrl)}`;
-                    if (apkQrWrapper) apkQrWrapper.style.display = 'block';
-                }
-            } else {
-                if (apkInput) apkInput.value = 'Compilando APK em segundo plano...';
-                if (apkQrWrapper) apkQrWrapper.style.display = 'none';
-            }
-        } else {
-            if (tunnelInput) tunnelInput.value = 'Sem túnel remoto ativo (tente reiniciar o servidor)';
-            if (tunnelQrWrapper) tunnelQrWrapper.style.display = 'none';
-            if (apkInput) apkInput.value = 'Sem túnel ativo para download';
-            if (apkQrWrapper) apkQrWrapper.style.display = 'none';
-        }
-        
-        if (data.localIps && data.localIps.length > 0) {
-            const pin = data.accessPin || localStorage.getItem('access_pin') || '';
-            const localUrl = `http://${data.localIps[0]}:${data.port}${pin ? '/?pin=' + pin : ''}`;
-            if (localInput) localInput.value = localUrl;
-            if (localQrImg) {
-                localQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(localUrl)}`;
-                if (localQrWrapper) localQrWrapper.style.display = 'block';
-            }
-        } else {
-            if (localInput) localInput.value = 'IP local não detectado';
-            if (localQrWrapper) localQrWrapper.style.display = 'none';
-        }
-    } catch (err) {
-        console.warn('Erro ao carregar informações de rede do servidor:', err);
+        // Inserir linhas de ponto
+        const tx = db.transaction('rows', 'readwrite');
+        const store = tx.objectStore('rows');
+        data.rows.forEach(row => store.put(row));
+        await new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+
+        console.log(`[DB] ${data.rows.length} linhas pré-preenchidas importadas com sucesso!`);
+    } catch (e) {
+        console.warn('[DB] Falha ao importar dados pré-preenchidos:', e);
+    } finally {
+        isImportingData = false; // Reset flag
     }
 }
+
+// Função removida (era de rede)
+async function fetchNetworkInfo() { /* offline: sem servidor */ }
 
 // Copiar texto para a área de transferência
 window.copyText = function(elementId) {
@@ -472,51 +393,56 @@ window.copyText = function(elementId) {
     }
 };
 
-// Salvar linha específica com dados absolutos
+// Salvar linha específica no IndexedDB
 async function saveRow(rowData) {
     try {
-        setSyncStatus('syncing', 'Gravando...');
-        const response = await fetch(`${getApiHost()}/api/save`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(rowData)
-        });
-        if (!response.ok) {
-            const errRes = await response.json().catch(() => ({}));
-            throw new Error(errRes.error || 'Falha ao salvar dia');
-        }
-        const res = await response.json();
-        showToast(res.message, 'success');
-        await fetchData();
+        setSyncStatus('syncing', 'Salvando...');
+        recalcRow(rowData, state.globalRate);
+        await dbPut('rows', rowData);
+        
+        // Recalcular estado global
+        const idx = state.rows.findIndex(r => r.rowNum === rowData.rowNum);
+        if (idx !== -1) state.rows[idx] = rowData;
+        
+        state.totalEarningsSinceJan = state.rows.reduce((s, r) => s + (r.ganhos || 0), 0);
+        state.pendingEarnings = state.rows.filter(r => r.statusPagamento !== 'Pago').reduce((s, r) => s + (r.ganhos || 0), 0);
+        
+        await autoSyncInvestments();
+        
+        setSyncStatus('connected', 'Salvo Localmente');
+        showToast('Dia salvo com sucesso!', 'success');
+        applyFilters();
         return true;
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Erro ao gravar dados na planilha!', 'error');
-        setSyncStatus('connected', 'Online');
+        console.error('[DB] Erro ao salvar linha:', err);
+        showToast('Erro ao salvar o dia!', 'error');
+        setSyncStatus('connected', 'Salvo Localmente');
         return false;
     }
 }
 
-// Salvar taxa horária global
+// Salvar taxa horária global no IndexedDB
 async function saveGlobalRate(rate) {
     try {
-        setSyncStatus('syncing', 'Salvando taxa...');
-        const response = await fetch(`${getApiHost()}/api/rate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ globalRate: rate })
-        });
-        if (!response.ok) {
-            const errRes = await response.json().catch(() => ({}));
-            throw new Error(errRes.error || 'Falha ao salvar taxa');
-        }
-        const res = await response.json();
-        showToast(res.message, 'success');
-        await fetchData();
+        state.globalRate = rate;
+        await dbPut('config', { key: 'globalRate', value: rate });
+        
+        // Recalcular todos os ganhos
+        state.rows.forEach(row => recalcRow(row, rate));
+        state.totalEarningsSinceJan = state.rows.reduce((s, r) => s + (r.ganhos || 0), 0);
+        state.pendingEarnings = state.rows.filter(r => r.statusPagamento !== 'Pago').reduce((s, r) => s + (r.ganhos || 0), 0);
+        
+        await autoSyncInvestments();
+        
+        const rateValEl = document.getElementById('kpi-rate-val');
+        if (rateValEl) rateValEl.innerText = `R$ ${rate.toFixed(2)}/h`;
+        
+        applyFilters();
+        setSyncStatus('connected', 'Salvo');
+        showToast('Taxa horária salva com sucesso!', 'success');
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Falha ao gravar taxa global!', 'error');
-        setSyncStatus('connected', 'Online');
+        console.error('[DB] Erro ao salvar taxa:', err);
+        showToast('Falha ao salvar taxa horária!', 'error');
     }
 }
 
@@ -533,9 +459,6 @@ async function registerClockIn() {
     if (btnText) btnText.innerText = 'Registrando...';
     btn.style.opacity = '0.6';
     
-    // Salvar estado original para rollback em caso de falha de rede
-    const originalRows = JSON.parse(JSON.stringify(state.rows));
-    
     try {
         setSyncStatus('syncing', 'Batendo ponto...');
         const now = new Date();
@@ -545,163 +468,170 @@ async function registerClockIn() {
         const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
             String(now.getMinutes()).padStart(2, '0');
 
-        // Atualizar memória local imediatamente (Optimistic Update)
-        const todayRowIndex = state.rows.findIndex(r => r.date === dateStr);
-        if (todayRowIndex !== -1) {
-            const target = state.rows[todayRowIndex];
-            let slotName = '';
-            if (!target.entrada1) {
-                target.entrada1 = timeStr;
-                slotName = 'Entrada 1';
-            } else if (!target.saida1) {
-                target.saida1 = timeStr;
-                slotName = 'Saída 1';
-            } else if (!target.entrada2) {
-                target.entrada2 = timeStr;
-                slotName = 'Entrada 2';
-            } else if (!target.saida2) {
-                target.saida2 = timeStr;
-                slotName = 'Saída 2';
+        // Buscar ou criar linha de hoje
+        let todayRow = state.rows.find(r => r.date === dateStr);
+        if (!todayRow) {
+            // Criar nova linha para hoje
+            const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+            todayRow = {
+                rowNum: Date.now(),
+                date: dateStr,
+                weekday: weekdays[now.getDay()],
+                entrada1: '', saida1: '', entrada2: '', saida2: '',
+                saidaCasa: '', chegadaCasa: '',
+                observacoes: '',
+                valorHora: '',
+                ganhosManuais: null,
+                statusPagamento: 'Pendente',
+                ganhos: 0,
+                minutosTrabalhados: 0,
+                horasMinutos: '0:00',
+                horasFracionarias: 0,
+                tempoTrajeto: '0:00',
+                minutosTrajeto: 0,
+                tempoForaCasa: '0:00',
+                minutosForaCasa: 0
+            };
+            if (state.defaultWeatherText) {
+                todayRow.observacoes = state.defaultWeatherText;
             }
+            state.rows.push(todayRow);
+            state.rows.sort((a, b) => a.date.localeCompare(b.date));
+        }
+        
+        let slotName = '';
+        if (!todayRow.entrada1) {
+            todayRow.entrada1 = timeStr;
+            slotName = 'Entrada 1';
+        } else if (!todayRow.saida1) {
+            todayRow.saida1 = timeStr;
+            slotName = 'Saída 1';
+        } else if (!todayRow.entrada2) {
+            todayRow.entrada2 = timeStr;
+            slotName = 'Entrada 2';
+        } else if (!todayRow.saida2) {
+            todayRow.saida2 = timeStr;
+            slotName = 'Saída 2';
+        }
+        
+        if (slotName) {
+            // Recalcular campos derivados
+            recalcRow(todayRow, state.globalRate);
             
-            if (slotName) {
-                // Recalcular horas e trajetos locais para exibição instantânea
-                const wMin = calculateWorkedMinutes(target.entrada1, target.saida1, target.entrada2, target.saida2);
-                target.minutosTrabalhados = wMin;
-                target.horasMinutos = minutesToTimeStr(wMin);
-                target.horasFracionarias = wMin / 60;
-                
-                let dayRate = state.globalRate;
-                if (target.valorHora !== null && target.valorHora !== '') {
-                    dayRate = parseFloat(target.valorHora);
-                }
-                
-                if (target.ganhosManuais !== null && target.ganhosManuais !== undefined) {
-                    target.ganhos = parseFloat(target.ganhosManuais);
-                } else {
-                    target.ganhos = (wMin / 60) * dayRate;
-                }
-                
-                // Atualizar tempo de trajetos locais para exibição instantânea
-                const commuteMinutes = calculateCommuteMinutes(target.saidaCasa, target.entrada1, target.saida1, target.entrada2, target.saida2, target.chegadaCasa);
-                const timeOutsideMinutes = calculateTimeOutsideMinutes(target.saidaCasa, target.chegadaCasa);
-                target.tempoTrajeto = minutesToTimeStr(commuteMinutes);
-                target.minutosTrajeto = commuteMinutes;
-                target.tempoForaCasa = minutesToTimeStr(timeOutsideMinutes);
-                target.minutosForaCasa = timeOutsideMinutes;
-
-                // Salvar no localStorage e atualizar a tela imediatamente
-                saveStateToLocalStorage();
-                applyFilters();
-            }
+            // Salvar no IndexedDB
+            await dbPut('rows', todayRow);
+            
+            // Atualizar totais
+            state.totalEarningsSinceJan = state.rows.reduce((s, r) => s + (r.ganhos || 0), 0);
+            state.pendingEarnings = state.rows.filter(r => r.statusPagamento !== 'Pago').reduce((s, r) => s + (r.ganhos || 0), 0);
+            
+            applyFilters();
+            showToast(`✅ ${slotName} registrada: ${timeStr}`, 'success');
+            setSyncStatus('connected', 'Salvo Localmente');
+        } else {
+            showToast('Todos os 4 slots de ponto já foram preenchidos! Use o editor para corrigir.', 'warning');
         }
-
-        const response = await fetch(`${getApiHost()}/api/clock-in`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date: dateStr, time: timeStr })
-        });
-        
-        if (!response.ok) {
-            const errRes = await response.json();
-            throw new Error(errRes.error || 'Falha ao bater ponto');
-        }
-        
-        const res = await response.json();
-        showToast(res.message, 'success');
-        await fetchData();
     } catch (err) {
-        console.error(err);
-        // Realizar rollback do estado local em caso de erro na rede ou no servidor
-        state.rows = originalRows;
-        saveStateToLocalStorage();
-        applyFilters();
-        showToast(err.message || 'Erro de conexão ao bater ponto!', 'error');
-        setSyncStatus('offline', 'Desconectado');
+        console.error('[CLOCK-IN]', err);
+        showToast('Erro ao registrar ponto!', 'error');
     } finally {
-        // Reabilitar botão após 3 segundos
         setTimeout(() => {
             btn.disabled = false;
             if (btnText) btnText.innerText = originalText;
             btn.style.opacity = '';
-        }, 3000);
+        }, 1000);
     }
 }
 
-// Quitar lote de faturamento pendente
+
+// Quitar lote de faturamento pendente no IndexedDB
 async function payBatch(dateLimit) {
     try {
         setSyncStatus('syncing', 'Quitando lote...');
-        const response = await fetch(`${getApiHost()}/api/pay-batch`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dateLimit })
+        
+        const rowsToUpdate = state.rows.filter(r => r.date <= dateLimit && r.statusPagamento !== 'Pago');
+        
+        // Atualizar cada linha no IndexedDB
+        const tx = db.transaction('rows', 'readwrite');
+        const store = tx.objectStore('rows');
+        rowsToUpdate.forEach(row => {
+            row.statusPagamento = 'Pago';
+            store.put(row);
         });
-        if (!response.ok) {
-            const errRes = await response.json().catch(() => ({}));
-            throw new Error(errRes.error || 'Erro ao pagar lote');
-        }
-        const res = await response.json();
-        showToast(res.message, 'success');
-        await fetchData();
-        document.getElementById('pay-cutoff-date').value = '';
-        document.getElementById('btn-quit-batch').disabled = true;
-        document.getElementById('cutoff-pending-val').innerText = 'R$ 0,00';
+        await new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+        
+        // Recalcular ganhos pendentes
+        state.pendingEarnings = state.rows.filter(r => r.statusPagamento !== 'Pago').reduce((s, r) => s + (r.ganhos || 0), 0);
+        
+        showToast(`${rowsToUpdate.length} lançamentos marcados como Pagos!`, 'success');
+        applyFilters();
+        setSyncStatus('connected', 'Salvo Localmente');
+        
+        const cutoffEl = document.getElementById('pay-cutoff-date');
+        const btnQuit = document.getElementById('btn-quit-batch');
+        const pendingValEl = document.getElementById('cutoff-pending-val');
+        if (cutoffEl) cutoffEl.value = '';
+        if (btnQuit) btnQuit.disabled = true;
+        if (pendingValEl) pendingValEl.innerText = 'R$ 0,00';
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Erro ao quitar lançamentos na planilha!', 'error');
-        setSyncStatus('connected', 'Online');
+        console.error('[DB] Erro ao quitar lote:', err);
+        showToast('Erro ao quitar lançamentos!', 'error');
+        setSyncStatus('connected', 'Salvo Localmente');
     }
 }
 
-// Salvar transação de gestão financeira (Mobills)
+// Salvar transação financeira no IndexedDB
 async function saveFinanceEntry(entryData) {
     try {
         setSyncStatus('syncing', 'Salvando transação...');
-        const response = await fetch(`${getApiHost()}/api/finance/save`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(entryData)
-        });
-        if (!response.ok) {
-            const errRes = await response.json().catch(() => ({}));
-            throw new Error(errRes.error || 'Erro ao salvar transação');
+        
+        if (!entryData.id) entryData.id = generateId();
+        await dbPut('finance', entryData);
+        
+        // Atualizar estado local
+        const existIdx = state.financeEntries.findIndex(e => e.id === entryData.id);
+        if (existIdx !== -1) {
+            state.financeEntries[existIdx] = entryData;
+        } else {
+            state.financeEntries.push(entryData);
         }
-        const res = await response.json();
-        showToast(res.message, 'success');
+        
+        showToast('Transação financeira salva!', 'success');
         
         // Reset do formulário financeiro
-        document.getElementById('finance-entry-form').reset();
-        document.getElementById('fin-entry-id').value = '';
+        const form = document.getElementById('finance-entry-form');
+        const idEl = document.getElementById('fin-entry-id');
+        if (form) form.reset();
+        if (idEl) idEl.value = '';
         
-        await fetchData();
+        const cancelBtn = document.getElementById('btn-cancel-fin-edit');
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+        
+        applyFilters();
+        setSyncStatus('connected', 'Salvo Localmente');
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Erro ao salvar transação financeira!', 'error');
-        setSyncStatus('connected', 'Online');
+        console.error('[DB] Erro ao salvar transação financeira:', err);
+        showToast('Erro ao salvar transação financeira!', 'error');
+        setSyncStatus('connected', 'Salvo Localmente');
     }
 }
 
-// Deletar transação financeira
+// Deletar transação financeira do IndexedDB
 async function deleteFinanceEntry(id) {
     try {
         setSyncStatus('syncing', 'Excluindo transação...');
-        const response = await fetch(`${getApiHost()}/api/finance/delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id })
-        });
-        if (!response.ok) {
-            const errRes = await response.json().catch(() => ({}));
-            throw new Error(errRes.error || 'Erro ao excluir transação');
-        }
-        const res = await response.json();
-        showToast(res.message, 'success');
-        await fetchData();
+        await dbDelete('finance', id);
+        state.financeEntries = state.financeEntries.filter(e => e.id !== id);
+        showToast('Transação excluída!', 'success');
+        applyFilters();
+        setSyncStatus('connected', 'Salvo Localmente');
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Falha ao deletar transação!', 'error');
-        setSyncStatus('connected', 'Online');
+        console.error('[DB] Erro ao deletar transação:', err);
+        showToast('Falha ao excluir transação!', 'error');
+        setSyncStatus('connected', 'Salvo Localmente');
     }
 }
 
@@ -892,16 +822,20 @@ function renderDashboard() {
         subtitleEl.innerText = `Ref: ${startParts[2]}/${startParts[1]} a ${endParts[2]}/${endParts[1]}`;
     }
     
-    // Atualizar KPI Reserva 20% Recebida Geral
+    // Atualizar KPI Reserva de Investimento Recebida Geral
     const totalReceived = state.totalEarningsSinceJan - state.pendingEarnings;
-    const globalAutoInvest = totalReceived * 0.20;
+    const globalAutoInvest = totalReceived * (state.investPercent / 100);
     const kpiGlobalInvestAuto = document.getElementById('kpi-global-invest-auto');
     if (kpiGlobalInvestAuto) {
         kpiGlobalInvestAuto.innerText = formatCurrency(globalAutoInvest);
     }
+    const kpiGlobalInvestAutoTitle = document.getElementById('kpi-global-invest-auto-title');
+    if (kpiGlobalInvestAutoTitle) {
+        kpiGlobalInvestAutoTitle.innerText = `Reserva ${state.investPercent}% Recebida`;
+    }
     const kpiGlobalInvestAutoSub = document.getElementById('kpi-global-invest-auto-subtitle');
     if (kpiGlobalInvestAutoSub) {
-        kpiGlobalInvestAutoSub.innerText = `Ref: 20% de ${formatCurrency(totalReceived)} pagos`;
+        kpiGlobalInvestAutoSub.innerText = `Ref: ${state.investPercent}% de ${formatCurrency(totalReceived)} pagos`;
     }
     
     // Meta de progresso mensal
@@ -1062,17 +996,21 @@ function renderFinance() {
     document.getElementById('fin-month-expenses').innerText = formatCurrency(totalExpenses);
     document.getElementById('fin-month-expenses-subtitle').innerText = `Fixo (${formatCurrency(fixedExpenses)}) + Var. (${formatCurrency(variableExpenses)}) + Cartão (${formatCurrency(cardExpenses)})`;
 
-    // 20% de Investimento retido das horas pagas
+    // Investimento retido das horas pagas
     let paidHoursIncome = 0;
     state.filteredRows.forEach(row => {
         if (row.statusPagamento === 'Pago') {
             paidHoursIncome += row.ganhos;
         }
     });
-    const monthlyAutoInvested = paidHoursIncome * 0.20;
+    const monthlyAutoInvested = paidHoursIncome * (state.investPercent / 100);
     const finInvestedEl = document.getElementById('fin-month-invested');
     if (finInvestedEl) {
         finInvestedEl.innerText = formatCurrency(monthlyAutoInvested);
+    }
+    const finInvestedTitleEl = document.getElementById('fin-month-invested-title');
+    if (finInvestedTitleEl) {
+        finInvestedTitleEl.innerText = `Enviado p/ Investimentos (${state.investPercent}%)`;
     }
 
     const netEl = document.getElementById('fin-month-net');
@@ -1115,7 +1053,7 @@ function renderFinance() {
         extractList.appendChild(item);
     }
 
-    // Injetar virtualmente a transferência automática de 20% p/ Investimentos do faturamento Pago do mês
+    // Injetar virtualmente a transferência automática de Investimentos do faturamento Pago do mês
     if (monthlyAutoInvested > 0) {
         const item = document.createElement('div');
         item.className = 'extract-item';
@@ -1126,7 +1064,7 @@ function renderFinance() {
                     <i class="fa-solid fa-vault"></i>
                 </div>
                 <div class="extract-info">
-                    <span class="extract-desc">Reserva 20% p/ Investimentos</span>
+                    <span class="extract-desc">Reserva ${state.investPercent}% p/ Investimentos</span>
                     <span class="extract-subinfo">Transferido automaticamente do faturamento Pago</span>
                 </div>
             </div>
@@ -1681,33 +1619,20 @@ window.triggerRowEdit = function(rowNum) {
     }
 };
 
-// Dinamicamente obter IP e preencher URL do MacroDroid no Modal explicativo
-function updateMacroDroidLink() {
-    const linkEl = document.getElementById('macrodroid-api-url');
-    if (linkEl) {
-        const host = window.location.host;
-        linkEl.innerText = `http://${host}/api/auto-arrival`;
-    }
-}
+// Modo offline: MacroDroid não é necessário
 
 // ==========================================================================
 // EVENT BINDINGS
 // ==========================================================================
 function bindEvents() {
-    // 0. Botão de sincronização manual (Sync Badge)
-    document.getElementById('sync-status').addEventListener('click', async () => {
-        showToast('Buscando servidor e atualizando dados...', 'info');
-        try {
-            await resolveActiveTunnelUrl();
+    // 0. Botão de sincronização manual (Sync Badge) - modo offline
+    const syncBadgeEl = document.getElementById('sync-status');
+    if (syncBadgeEl) {
+        syncBadgeEl.addEventListener('click', async () => {
+            showToast('Atualizando dados do armazenamento local...', 'info');
             await fetchData();
-            await fetchNetworkInfo();
-            // Re-estabelecer o fluxo de atualizações em tempo real
-            setupRealtimeUpdates();
-        } catch (e) {
-            console.error('[SYNC] Falha ao reconectar:', e);
-            showToast('Não foi possível conectar ao servidor.', 'error');
-        }
-    });
+        });
+    }
 
     // 1. Navegação de Abas
     const navItems = document.querySelectorAll('.nav-item');
@@ -1732,7 +1657,7 @@ function bindEvents() {
             } else if (tab === 'commutes') {
                 setTimeout(renderCommutes, 50);
             } else if (tab === 'settings') {
-                fetchNetworkInfo();
+                // offline: sem servidor para buscar info de rede
             }
         });
     });
@@ -2150,56 +2075,31 @@ function bindEvents() {
         renderDashboard();
     });
 
-    // 10b. Servidor Customizado (API Host)
-    const btnSaveHost = document.getElementById('btn-save-custom-host');
-    if (btnSaveHost) {
-        btnSaveHost.addEventListener('click', () => {
-            let hostVal = document.getElementById('input-custom-host').value.trim();
-            let pinVal = document.getElementById('input-access-pin').value.trim();
-            
-            if (hostVal) {
-                // Adicionar http:// se não tiver protocolo
-                if (!/^https?:\/\//i.test(hostVal)) {
-                    hostVal = 'http://' + hostVal;
-                }
-                localStorage.setItem('custom_api_host', hostVal);
-                document.getElementById('input-custom-host').value = hostVal;
-            } else {
-                localStorage.removeItem('custom_api_host');
+    // 10b. Porcentagem de Investimento Automático
+    const btnSaveInvestPct = document.getElementById('btn-save-invest-percent');
+    if (btnSaveInvestPct) {
+        btnSaveInvestPct.addEventListener('click', async () => {
+            const pctEl = document.getElementById('input-invest-percent');
+            const pct = pctEl ? parseFloat(pctEl.value) : NaN;
+            if (isNaN(pct) || pct < 0 || pct > 100) {
+                showToast('Porcentagem inválida! Use um valor entre 0 e 100.', 'error');
+                return;
             }
-            
-            if (pinVal) {
-                localStorage.setItem('access_pin', pinVal);
-            } else {
-                localStorage.removeItem('access_pin');
-            }
-            
-            showToast('Configurações de conexão salvas!', 'success');
-            fetchData();
-            fetchNetworkInfo();
-            setupRealtimeUpdates();
+            state.investPercent = pct;
+            localStorage.setItem('investPercent', pct);
+            await dbPut('config', { key: 'investPercent', value: pct });
+            await autoSyncInvestments();
+            showToast(`Investimento automático definido para ${pct}%!`, 'success');
+            applyFilters();
         });
     }
 
-    const btnClearHost = document.getElementById('btn-clear-custom-host');
-    if (btnClearHost) {
-        btnClearHost.addEventListener('click', () => {
-            localStorage.removeItem('custom_api_host');
-            localStorage.removeItem('access_pin');
-            document.getElementById('input-custom-host').value = '';
-            document.getElementById('input-access-pin').value = '';
-            showToast('Configurações de conexão redefinidas!', 'success');
-            fetchData();
-            fetchNetworkInfo();
-            setupRealtimeUpdates();
-        });
-    }
-
-    // 10c. Diagnóstico de Conexão Manual
-    const btnDiag = document.getElementById('btn-run-diagnostics');
-    if (btnDiag) {
-        btnDiag.addEventListener('click', () => {
-            runConnectionDiagnostics();
+    // 10c. Botão de sincronização manual (recarrega do IndexedDB)
+    const syncBadge = document.getElementById('sync-status');
+    if (syncBadge) {
+        syncBadge.addEventListener('click', async () => {
+            showToast('Atualizando dados do armazenamento local...', 'info');
+            await fetchData();
         });
     }
 
@@ -2538,21 +2438,9 @@ function parseDateParts(dateStr) {
     };
 }
 
-function saveStateToLocalStorage() {
-    try {
-        localStorage.setItem('app_state_data', JSON.stringify({
-            globalRate: state.globalRate,
-            rows: state.rows,
-            financeEntries: state.financeEntries,
-            investEntries: state.investEntries,
-            totalEarningsSinceJan: state.totalEarningsSinceJan,
-            pendingEarnings: state.pendingEarnings,
-            totalInvested: state.totalInvested
-        }));
-    } catch (e) {
-        console.error('Falha ao salvar no localStorage:', e);
-    }
-}
+// saveStateToLocalStorage: no-op no modo offline (dados salvos no IndexedDB)
+function saveStateToLocalStorage() { /* dados gerenciados pelo IndexedDB */ }
+
 
 function calculateWorkedMinutes(e1, s1, e2, s2) {
     let minutes = 0;
@@ -2701,8 +2589,12 @@ function renderInvestments() {
         kpiAuto.innerText = formatCurrency(totalAutoVal);
         const subAuto = kpiAuto.nextElementSibling;
         if (subAuto) {
-            subAuto.innerText = `${autoCountTotal} aporte${autoCountTotal !== 1 ? 's' : ''} de 20% desde Jan`;
+            subAuto.innerText = `${autoCountTotal} aporte${autoCountTotal !== 1 ? 's' : ''} de ${state.investPercent}% desde Jan`;
         }
+    }
+    const kpiAutoTitle = document.getElementById('kpi-invest-auto-title');
+    if (kpiAutoTitle) {
+        kpiAutoTitle.innerText = `Aportes Automáticos (${state.investPercent}%)`;
     }
 
     const kpiManual = document.getElementById('kpi-invest-manual');
@@ -2765,51 +2657,53 @@ function renderInvestments() {
 async function saveInvestEntry(investData) {
     try {
         setSyncStatus('syncing', 'Salvando aporte...');
-        const response = await fetch(`${getApiHost()}/api/invest/save`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(investData)
-        });
-        if (!response.ok) {
-            const errRes = await response.json().catch(() => ({}));
-            throw new Error(errRes.error || 'Erro ao salvar investimento');
-        }
-        const res = await response.json();
-        showToast(res.message, 'success');
         
-        document.getElementById('invest-entry-form').reset();
-        document.getElementById('invest-entry-id').value = '';
+        if (!investData.id) investData.id = generateId();
+        if (!investData.type) investData.type = 'Manual';
+        await dbPut('invest', investData);
+        
+        // Atualizar estado local
+        const existIdx = state.investEntries.findIndex(e => e.id === investData.id);
+        if (existIdx !== -1) {
+            state.investEntries[existIdx] = investData;
+        } else {
+            state.investEntries.push(investData);
+        }
+        state.totalInvested = state.investEntries.reduce((s, e) => s + (e.amount || 0), 0);
+        
+        showToast('Aporte de investimento salvo!', 'success');
+        
+        const formEl = document.getElementById('invest-entry-form');
+        const idEl = document.getElementById('invest-entry-id');
+        if (formEl) formEl.reset();
+        if (idEl) idEl.value = '';
         const cancelBtn = document.getElementById('btn-cancel-invest-edit');
         if (cancelBtn) cancelBtn.classList.add('hidden');
-        document.getElementById('invest-form-title').innerHTML = '<i class="fa-solid fa-wallet color-green"></i> Registrar Aporte Manual';
+        const titleEl = document.getElementById('invest-form-title');
+        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-wallet color-green"></i> Registrar Aporte Manual';
         
-        await fetchData();
+        applyFilters();
+        setSyncStatus('connected', 'Salvo Localmente');
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Erro ao salvar transação de investimento!', 'error');
-        setSyncStatus('connected', 'Online');
+        console.error('[DB] Erro ao salvar aporte:', err);
+        showToast('Erro ao salvar aporte de investimento!', 'error');
+        setSyncStatus('connected', 'Salvo Localmente');
     }
 }
 
 async function deleteInvestEntry(id) {
     try {
         setSyncStatus('syncing', 'Excluindo aporte...');
-        const response = await fetch(`${getApiHost()}/api/invest/delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id })
-        });
-        if (!response.ok) {
-            const errRes = await response.json().catch(() => ({}));
-            throw new Error(errRes.error || 'Erro ao excluir investimento');
-        }
-        const res = await response.json();
-        showToast(res.message, 'success');
-        await fetchData();
+        await dbDelete('invest', id);
+        state.investEntries = state.investEntries.filter(e => e.id !== id);
+        state.totalInvested = state.investEntries.reduce((s, e) => s + (e.amount || 0), 0);
+        showToast('Aporte excluído!', 'success');
+        applyFilters();
+        setSyncStatus('connected', 'Salvo Localmente');
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Falha ao deletar aporte!', 'error');
-        setSyncStatus('connected', 'Online');
+        console.error('[DB] Erro ao deletar aporte:', err);
+        showToast('Falha ao excluir aporte!', 'error');
+        setSyncStatus('connected', 'Salvo Localmente');
     }
 }
 
@@ -3186,12 +3080,589 @@ function initBackupHandlers() {
     ['btn-backup-top', 'btn-download-backup'].forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
-            btn.addEventListener('click', () => {
-                showToast('Gerando backup seguro... Download iniciando em instantes!', 'success');
-                window.location.href = '/api/backup/download';
+            btn.addEventListener('click', async () => {
+                try {
+                    showToast('Gerando backup local... Download em instantes!', 'success');
+                    
+                    const rows = await dbGetAll('rows');
+                    const finance = await dbGetAll('finance');
+                    const invest = await dbGetAll('invest');
+                    const cfgRate = await dbGet('config', 'globalRate');
+                    const cfgInv = await dbGet('config', 'investPercent');
+                    
+                    const backupData = {
+                        exportedAt: new Date().toISOString(),
+                        version: 3,
+                        globalRate: cfgRate ? cfgRate.value : state.globalRate,
+                        investPercent: cfgInv ? cfgInv.value : state.investPercent,
+                        rows,
+                        financeEntries: finance,
+                        investEntries: invest
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `controle_horas_backup_${new Date().toISOString().substring(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showToast('Backup JSON baixado com sucesso!', 'success');
+                } catch (err) {
+                    console.error('[BACKUP]', err);
+                    showToast('Erro ao gerar backup!', 'error');
+                }
             });
         }
     });
+
+    // Restaurar backup JSON
+    const btnRestore = document.getElementById('btn-restore-backup');
+    if (btnRestore) {
+        btnRestore.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    
+                    if (!data.rows || !Array.isArray(data.rows)) {
+                        showToast('Arquivo de backup inválido!', 'error');
+                        return;
+                    }
+                    
+                    if (!confirm(`Restaurar backup de ${data.exportedAt}? Isso sobrescreverá todos os dados atuais!`)) return;
+                    
+                    isImportingData = true; // Set flag
+                    
+                    // Importar configurações
+                    if (data.globalRate) await dbPut('config', { key: 'globalRate', value: data.globalRate });
+                    if (data.investPercent) await dbPut('config', { key: 'investPercent', value: data.investPercent });
+                    
+                    // Importar linhas
+                    const txRows = db.transaction('rows', 'readwrite');
+                    txRows.objectStore('rows').clear();
+                    data.rows.forEach(r => txRows.objectStore('rows').put(r));
+                    await new Promise((res, rej) => { txRows.oncomplete = res; txRows.onerror = rej; });
+                    
+                    // Importar finanças
+                    if (data.financeEntries) {
+                        const txFin = db.transaction('finance', 'readwrite');
+                        txFin.objectStore('finance').clear();
+                        data.financeEntries.forEach(f => txFin.objectStore('finance').put(f));
+                        await new Promise((res, rej) => { txFin.oncomplete = res; txFin.onerror = rej; });
+                    }
+                    
+                    // Importar investimentos
+                    if (data.investEntries) {
+                        const txInv = db.transaction('invest', 'readwrite');
+                        txInv.objectStore('invest').clear();
+                        data.investEntries.forEach(i => txInv.objectStore('invest').put(i));
+                        await new Promise((res, rej) => { txInv.oncomplete = res; txInv.onerror = rej; });
+                    }
+                    
+                    isImportingData = false; // Reset flag
+                    localStorage.setItem('welcome_dismissed', 'true');
+                    
+                    // Disparar sincronização em background na nuvem se conectado
+                    localStorage.setItem('needs_sync', 'true');
+                    triggerAutoSync();
+                    
+                    showToast('Backup restaurado com sucesso! Recarregando...', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } catch (err) {
+                    isImportingData = false; // Ensure reset on error
+                    console.error('[RESTORE]', err);
+                    showToast('Erro ao restaurar backup!', 'error');
+                }
+            };
+            input.click();
+        });
+    }
+
+    // Exportar Planilha Excel (.xlsx)
+    const btnExportXlsx = document.getElementById('btn-export-xlsx');
+    if (btnExportXlsx) {
+        btnExportXlsx.addEventListener('click', exportExcel);
+    }
+    
+    // Importar Planilha Excel (.xlsx) (Trigger)
+    const btnTriggerImportXlsx = document.getElementById('btn-trigger-import-xlsx');
+    const inputImportXlsx = document.getElementById('input-import-xlsx');
+    if (btnTriggerImportXlsx && inputImportXlsx) {
+        btnTriggerImportXlsx.addEventListener('click', () => {
+            inputImportXlsx.click();
+        });
+        inputImportXlsx.addEventListener('change', importExcel);
+    }
+    
+    // Limpar Todo o Aplicativo (Wipe)
+    const btnWipeData = document.getElementById('btn-wipe-data');
+    if (btnWipeData) {
+        btnWipeData.addEventListener('click', wipeData);
+    }
+
+    // Guia do Google Drive
+    const btnGuideGDrive = document.getElementById('btn-guide-gdrive');
+    if (btnGuideGDrive) {
+        btnGuideGDrive.addEventListener('click', showGoogleDriveGuideModal);
+    }
+}
+
+// --------------------------------------------------------------------------
+// EXCEL CLIENT-SIDE IMPORT / EXPORT & DATA WIPE LOGIC
+// --------------------------------------------------------------------------
+
+async function exportExcel() {
+    try {
+        showToast('Gerando planilha Excel...', 'info');
+        
+        const workbook = new ExcelJS.Workbook();
+        
+        // 1. Controle de Horas Sheet
+        const sheet = workbook.addWorksheet('Controle de Horas');
+        
+        // Setup Headers
+        sheet.getRow(1).values = [
+            'Data', 'Dia da Semana', 'Entrada 1', 'Saída 1', 'Entrada 2', 'Saída 2',
+            'Horas do Dia', 'Valor do Dia (R$)', 'Valor Hora', 'Observações',
+            'Status Pagamento', 'Saída de Casa', 'Chegada em Casa', 'Tempo de Trajeto', 'Tempo Fora de Casa'
+        ];
+        
+        // Style Header
+        sheet.getRow(1).font = { bold: true };
+        
+        // Add Rows
+        state.rows.forEach((row, i) => {
+            const rNum = i + 2;
+            const excelRow = sheet.getRow(rNum);
+            
+            // Converter data para data do Excel (formato Date)
+            const dVal = row.date ? new Date(row.date + 'T00:00:00') : null;
+            
+            excelRow.getCell(1).value = dVal;
+            excelRow.getCell(1).numFmt = 'yyyy-mm-dd';
+            excelRow.getCell(2).value = row.weekday || '';
+            excelRow.getCell(3).value = row.entrada1 || null;
+            excelRow.getCell(4).value = row.saida1 || null;
+            excelRow.getCell(5).value = row.entrada2 || null;
+            excelRow.getCell(6).value = row.saida2 || null;
+            
+            // Fórmulas
+            excelRow.getCell(7).value = {
+                formula: `=IF(AND(C${rNum}<>"",D${rNum}<>""),(D${rNum}-C${rNum}),0)+IF(AND(E${rNum}<>"",F${rNum}<>""),(F${rNum}-E${rNum}),0)`
+            };
+            excelRow.getCell(7).numFmt = 'hh:mm';
+            
+            // Valor Hora
+            excelRow.getCell(9).value = row.valorHora !== undefined && row.valorHora !== null ? row.valorHora : state.globalRate;
+            
+            // Valor do Dia (R$) - se houver ganho manual diferente de 0, preenche o número, se não usa a fórmula
+            if (row.ganhosManual) {
+                excelRow.getCell(8).value = row.ganhos;
+            } else {
+                excelRow.getCell(8).value = {
+                    formula: `=(G${rNum}*24)*I${rNum}`
+                };
+            }
+            excelRow.getCell(8).numFmt = '"R$"#,##0.00';
+            
+            excelRow.getCell(10).value = row.observacoes || null;
+            excelRow.getCell(11).value = row.statusPagamento || 'Pendente';
+            excelRow.getCell(12).value = row.saidaCasa || null;
+            excelRow.getCell(13).value = row.chegadaCasa || null;
+            excelRow.getCell(14).value = row.tempoTrajeto || null;
+            excelRow.getCell(15).value = row.tempoForaCasa || null;
+        });
+        
+        // 2. Gestão Financeira Sheet
+        const finSheet = workbook.addWorksheet('Gestão Financeira');
+        finSheet.getRow(1).values = ['ID', 'Data', 'Descrição', 'Tipo', 'Valor', 'Categoria'];
+        finSheet.getRow(1).font = { bold: true };
+        
+        state.financeEntries.forEach((entry, i) => {
+            const rNum = i + 2;
+            const excelRow = finSheet.getRow(rNum);
+            excelRow.getCell(1).value = entry.id;
+            const dVal = entry.date ? new Date(entry.date + 'T00:00:00') : null;
+            excelRow.getCell(2).value = dVal;
+            excelRow.getCell(2).numFmt = 'yyyy-mm-dd';
+            excelRow.getCell(3).value = entry.description || '';
+            excelRow.getCell(4).value = entry.type || '';
+            excelRow.getCell(5).value = entry.amount || 0;
+            excelRow.getCell(5).numFmt = '"R$"#,##0.00';
+            excelRow.getCell(6).value = entry.category || '';
+        });
+        
+        // 3. Investimentos Sheet
+        const investSheet = workbook.addWorksheet('Investimentos');
+        investSheet.getRow(1).values = ['ID', 'Data', 'Origem', 'Valor', 'Tipo'];
+        investSheet.getRow(1).font = { bold: true };
+        
+        state.investEntries.forEach((entry, i) => {
+            const rNum = i + 2;
+            const excelRow = investSheet.getRow(rNum);
+            excelRow.getCell(1).value = entry.id;
+            const dVal = entry.date ? new Date(entry.date + 'T00:00:00') : null;
+            excelRow.getCell(2).value = dVal;
+            excelRow.getCell(2).numFmt = 'yyyy-mm-dd';
+            excelRow.getCell(3).value = entry.origin || '';
+            excelRow.getCell(4).value = entry.amount || 0;
+            excelRow.getCell(4).numFmt = '"R$"#,##0.00';
+            excelRow.getCell(5).value = entry.type || '';
+        });
+
+        // 4. Filtro Sheet
+        const filterSheet = workbook.addWorksheet('Filtro');
+        filterSheet.getRow(3).values = ['Data', 'Dia da Semana', 'Soma de Valor do Dia (R$)', null, 'Rótulos de Linha', 'Soma de Valor do Dia (R$)', 'Soma de Horas do Dia'];
+        filterSheet.getRow(3).font = { bold: true };
+        
+        const monthsAbbrev = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+        for (let m = 0; m < 12; m++) {
+            const rNum = m + 4;
+            filterSheet.getCell(`E${rNum}`).value = monthsAbbrev[m];
+            const mNum = m + 1;
+            filterSheet.getCell(`F${rNum}`).value = {
+                formula: `=SUMIFS('Controle de Horas'!H:H, 'Controle de Horas'!A:A, ">="&DATE(2026,${mNum},1), 'Controle de Horas'!A:A, "<="&DATE(2026,${mNum},EOMONTH(DATE(2026,${mNum},1),0)))`
+            };
+            filterSheet.getCell(`F${rNum}`).numFmt = '"R$"#,##0.00';
+            
+            filterSheet.getCell(`G${rNum}`).value = {
+                formula: `=SUMIFS('Controle de Horas'!G:G, 'Controle de Horas'!A:A, ">="&DATE(2026,${mNum},1), 'Controle de Horas'!A:A, "<="&DATE(2026,${mNum},EOMONTH(DATE(2026,${mNum},1),0)))`
+            };
+            filterSheet.getCell(`G${rNum}`).numFmt = '[hh]:mm';
+        }
+        
+        filterSheet.getCell('E16').value = 'Total Geral';
+        filterSheet.getCell('E16').font = { bold: true };
+        filterSheet.getCell('F16').value = { formula: '=SUM(F4:F15)' };
+        filterSheet.getCell('F16').font = { bold: true };
+        filterSheet.getCell('F16').numFmt = '"R$"#,##0.00';
+        filterSheet.getCell('G16').value = { formula: '=SUM(G4:G15)' };
+        filterSheet.getCell('G16').font = { bold: true };
+        filterSheet.getCell('G16').numFmt = '[hh]:mm';
+        
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Controle_de_Horas_Trabalho_${new Date().getFullYear()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast('Planilha Excel baixada com sucesso!', 'success');
+    } catch (err) {
+        console.error('[EXCEL-EXPORT]', err);
+        showToast('Erro ao exportar planilha Excel!', 'error');
+    }
+}
+
+async function importExcel(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+        showToast('Lendo planilha Excel...', 'info');
+        
+        const reader = new FileReader();
+        const dataPromise = new Promise((resolve, reject) => {
+            reader.onload = (evt) => resolve(evt.target.result);
+            reader.onerror = (err) => reject(err);
+        });
+        reader.readAsArrayBuffer(file);
+        const arrayBuffer = await dataPromise;
+        
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        
+        const sheet = workbook.getWorksheet('Controle de Horas');
+        if (!sheet) {
+            showToast('Planilha "Controle de Horas" não encontrada no arquivo!', 'error');
+            return;
+        }
+        
+        let importedGlobalRate = state.globalRate;
+        const i2Val = sheet.getRow(2).getCell(9).value;
+        if (i2Val !== null && i2Val !== undefined) {
+            if (typeof i2Val === 'number') {
+                importedGlobalRate = i2Val;
+            } else if (typeof i2Val === 'object' && i2Val.result !== undefined) {
+                importedGlobalRate = Number(i2Val.result);
+            }
+        }
+        
+        const importedRows = [];
+        const rowCount = sheet.rowCount;
+        for (let r = 2; r <= rowCount; r++) {
+            const excelRow = sheet.getRow(r);
+            const rawDate = excelRow.getCell(1).value;
+            if (!rawDate) continue;
+            
+            const dateStr = formatCellDate(rawDate);
+            if (!dateStr) continue;
+            
+            const rowData = {
+                rowNum: r - 1,
+                date: dateStr,
+                weekday: excelRow.getCell(2).value || '',
+                entrada1: formatCellTime(excelRow.getCell(3).value),
+                saida1: formatCellTime(excelRow.getCell(4).value),
+                entrada2: formatCellTime(excelRow.getCell(5).value),
+                saida2: formatCellTime(excelRow.getCell(6).value),
+                valorHora: excelRow.getCell(9).value !== null ? Number(excelRow.getCell(9).value) : importedGlobalRate,
+                observacoes: excelRow.getCell(10).value || '',
+                statusPagamento: excelRow.getCell(11).value || 'Pendente',
+                saidaCasa: formatCellTime(excelRow.getCell(12).value),
+                chegadaCasa: formatCellTime(excelRow.getCell(13).value)
+            };
+            
+            recalcRow(rowData, importedGlobalRate);
+            importedRows.push(rowData);
+        }
+        
+        if (importedRows.length === 0) {
+            showToast('Nenhum registro de ponto válido encontrado no Excel!', 'error');
+            return;
+        }
+        
+        const importedFinance = [];
+        const finSheet = workbook.getWorksheet('Gestão Financeira');
+        if (finSheet) {
+            const finRowCount = finSheet.rowCount;
+            for (let r = 2; r <= finRowCount; r++) {
+                const excelRow = finSheet.getRow(r);
+                const id = excelRow.getCell(1).value;
+                const dateVal = formatCellDate(excelRow.getCell(2).value);
+                if (!dateVal) continue;
+                
+                const entry = {
+                    id: id || generateId(),
+                    date: dateVal,
+                    description: excelRow.getCell(3).value || '',
+                    type: excelRow.getCell(4).value || 'Despesa Fixa',
+                    amount: Number(excelRow.getCell(5).value || 0),
+                    category: excelRow.getCell(6).value || 'Outros'
+                };
+                importedFinance.push(entry);
+            }
+        }
+        
+        const importedInvest = [];
+        const investSheet = workbook.getWorksheet('Investimentos');
+        if (investSheet) {
+            const invRowCount = investSheet.rowCount;
+            for (let r = 2; r <= invRowCount; r++) {
+                const excelRow = investSheet.getRow(r);
+                const id = excelRow.getCell(1).value;
+                const dateVal = formatCellDate(excelRow.getCell(2).value);
+                if (!dateVal) continue;
+                
+                const entry = {
+                    id: id || generateId(),
+                    date: dateVal,
+                    origin: excelRow.getCell(3).value || '',
+                    amount: Number(excelRow.getCell(4).value || 0),
+                    type: excelRow.getCell(5).value || 'Manual'
+                };
+                importedInvest.push(entry);
+            }
+        }
+        
+        if (!confirm(`Planilha lida com sucesso!\n- ${importedRows.length} dias de trabalho\n- ${importedFinance.length} lançamentos financeiros\n- ${importedInvest.length} aportes de investimento\n\nIsso substituirá TODOS os dados atuais do aplicativo! Deseja prosseguir?`)) {
+            return;
+        }
+        
+        setSyncStatus('syncing', 'Importando dados...');
+        
+        await dbPut('config', { key: 'globalRate', value: importedGlobalRate });
+        
+        const txRows = db.transaction('rows', 'readwrite');
+        await txRows.objectStore('rows').clear();
+        for (const row of importedRows) {
+            await txRows.objectStore('rows').put(row);
+        }
+        
+        const txFin = db.transaction('finance', 'readwrite');
+        await txFin.objectStore('finance').clear();
+        for (const f of importedFinance) {
+            await txFin.objectStore('finance').put(f);
+        }
+        
+        const txInv = db.transaction('invest', 'readwrite');
+        await txInv.objectStore('invest').clear();
+        for (const i of importedInvest) {
+            await txInv.objectStore('invest').put(i);
+        }
+        
+        showToast('Dados importados com sucesso! Recarregando...', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+        
+    } catch (err) {
+        console.error('[EXCEL-IMPORT]', err);
+        showToast('Erro ao ler ou processar o arquivo Excel!', 'error');
+    }
+}
+
+async function wipeData() {
+    if (!confirm('ATENÇÃO: Isso irá apagar PERMANENTEMENTE todos os seus dados locais (pontos, despesas, investimentos e configurações). Tem certeza que deseja continuar?')) {
+        return;
+    }
+    
+    try {
+        setSyncStatus('syncing', 'Limpando dados...');
+        
+        localStorage.clear();
+        
+        const txConfig = db.transaction('config', 'readwrite');
+        await txConfig.objectStore('config').clear();
+        
+        const txRows = db.transaction('rows', 'readwrite');
+        await txRows.objectStore('rows').clear();
+        
+        const txFin = db.transaction('finance', 'readwrite');
+        await txFin.objectStore('finance').clear();
+        
+        const txInv = db.transaction('invest', 'readwrite');
+        await txInv.objectStore('invest').clear();
+        
+        showToast('Todos os dados foram apagados com sucesso!', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+        console.error('[WIPE]', err);
+        showToast('Erro ao apagar os dados!', 'error');
+    }
+}
+
+function formatCellTime(cellValue) {
+    if (!cellValue) return null;
+    if (typeof cellValue === 'string') {
+        return cellValue.substring(0, 5);
+    }
+    if (cellValue instanceof Date) {
+        const hours = cellValue.getUTCHours().toString().padStart(2, '0');
+        const minutes = cellValue.getUTCMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+    if (typeof cellValue === 'object' && cellValue.result) {
+        return formatCellTime(cellValue.result);
+    }
+    return null;
+}
+
+function formatCellDate(cellValue) {
+    if (!cellValue) return null;
+    
+    if (cellValue instanceof Date) {
+        const y = cellValue.getUTCFullYear();
+        const m = String(cellValue.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(cellValue.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    
+    if (typeof cellValue === 'string') {
+        const clean = cellValue.trim();
+        const ymdMatch = clean.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+        if (ymdMatch) {
+            return `${ymdMatch[1]}-${ymdMatch[2]}-${ymdMatch[3]}`;
+        }
+        const dmyMatch = clean.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+        if (dmyMatch) {
+            return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+        }
+        const parsed = new Date(clean);
+        if (!isNaN(parsed.getTime())) {
+            const y = parsed.getUTCFullYear();
+            const m = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(parsed.getUTCDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        return clean.substring(0, 10);
+    }
+    
+    if (typeof cellValue === 'object' && cellValue.result) {
+        return formatCellDate(cellValue.result);
+    }
+    
+    return null;
+}
+
+async function autoSyncInvestments() {
+    try {
+        const investPercent = state.investPercent !== undefined ? state.investPercent : 20;
+        const autoMap = new Map(); // date -> row
+        state.rows.forEach(row => {
+            if (row.statusPagamento === 'Pago' && row.ganhos > 0) {
+                autoMap.set(row.date, row);
+            }
+        });
+
+        const currentAutoEntries = state.investEntries.filter(e => e.type === 'Automático');
+        const currentAutoMap = new Map(); // date -> entry
+        currentAutoEntries.forEach(entry => {
+            const match = entry.origin.match(/Ponto de (\d{4}-\d{2}-\d{2})/);
+            if (match) {
+                currentAutoMap.set(match[1], entry);
+            }
+        });
+
+        const tx = db.transaction('invest', 'readwrite');
+        const store = tx.objectStore('invest');
+        let changed = false;
+
+        for (const [date, row] of autoMap.entries()) {
+            const expectedAmount = Number((row.ganhos * (investPercent / 100)).toFixed(2));
+            const existingEntry = currentAutoMap.get(date);
+
+            if (existingEntry) {
+                if (existingEntry.amount !== expectedAmount || existingEntry.date !== date) {
+                    existingEntry.amount = expectedAmount;
+                    existingEntry.date = date;
+                    await store.put(existingEntry);
+                    // Update local state
+                    const localIdx = state.investEntries.findIndex(e => e.id === existingEntry.id);
+                    if (localIdx !== -1) {
+                        state.investEntries[localIdx] = existingEntry;
+                    }
+                    changed = true;
+                }
+            } else {
+                const newEntry = {
+                    id: 'auto_inv_' + row.rowNum + '_' + Date.now().toString(36),
+                    date: date,
+                    origin: `Ponto de ${date}`,
+                    amount: expectedAmount,
+                    type: 'Automático'
+                };
+                await store.put(newEntry);
+                state.investEntries.push(newEntry);
+                changed = true;
+            }
+        }
+
+        for (const [date, entry] of currentAutoMap.entries()) {
+            if (!autoMap.has(date)) {
+                await store.delete(entry.id);
+                state.investEntries = state.investEntries.filter(e => e.id !== entry.id);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            state.totalInvested = state.investEntries.reduce((s, e) => s + (e.amount || 0), 0);
+        }
+    } catch (err) {
+        console.error('[INVEST-SYNC] Erro ao sincronizar investimentos automáticos:', err);
+    }
 }
 
 function applyMathParserToInputs() {
@@ -3507,324 +3978,1039 @@ window.launchRecurring = function(desc, amount, type, category) {
     showToast(`Despesa recorrente '${desc}' lançada instantaneamente!`, 'success');
 };
 
-// Função para ouvir atualizações em tempo real enviadas pelo servidor
-async function setupRealtimeUpdates() {
-    // Buscar dinamicamente a URL ativa do túnel no GitHub antes de tentar conectar
-    await resolveActiveTunnelUrl();
+// ==========================================================================
+// OFFLINE STUBS (funções que dependiam do servidor, agora são no-ops)
+// ==========================================================================
+async function setupRealtimeUpdates() { /* offline: sem SSE */ }
+async function resolveActiveTunnelUrl() { /* offline: sem túnal */ }
+async function runConnectionDiagnostics() {
+    const diagStatus = document.getElementById('diag-conn-status');
+    if (diagStatus) {
+        diagStatus.innerHTML = '<i class="fa-solid fa-circle-check"></i> Modo Offline';
+        diagStatus.style.background = 'rgba(16, 185, 129, 0.15)';
+        diagStatus.style.color = '#10b981';
+    }
+    const diagLatency = document.getElementById('diag-latency');
+    if (diagLatency) {
+        diagLatency.innerText = 'IndexedDB Local';
+        diagLatency.style.color = '#10b981';
+    }
+}
+function showSetupOverlay() { /* offline: sem pareamento */ }
+function updateMacroDroidLink() { /* offline: sem MacroDroid URLs */ }
+function saveStateToLocalStorage() { /* offline: dados salvos no IndexedDB */ }
 
-    const apiHost = getApiHost();
-    const pin = localStorage.getItem('access_pin') || '';
-    const sseUrl = `${apiHost}/api/updates-stream?pin=${encodeURIComponent(pin)}`;
-    console.log('[SSE] Conectando ao canal de atualizações em tempo real:', sseUrl);
-    
-    let eventSource = new EventSource(sseUrl);
-    
-    eventSource.onopen = function() {
-        console.log('[SSE] Conexão com o servidor estabelecida com sucesso!');
-        setSyncStatus('connected', 'Online');
-        // Ao conectar/reconectar, sincroniza imediatamente os dados com o servidor
-        fetchData();
-        fetchNetworkInfo();
-    };
-    
-    eventSource.onmessage = function(event) {
-        try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'reload') {
-                console.log('[SSE] Sincronização em tempo real acionada! Atualizando dados...');
-                fetchData();
+// ==========================================================================
+// ADVANCED KEYLESS MOBILE WEB APIS & PERSISTENCE
+// ==========================================================================
+
+const MOTIVATIONAL_QUOTES = [
+    "O único modo de fazer um excelente trabalho é amar o que você faz. — Steve Jobs",
+    "Seja a mudança que você deseja ver no mundo. — Mahatma Gandhi",
+    "A persistência é o caminho do êxito. — Charles Chaplin",
+    "No meio da dificuldade encontra-se a oportunidade. — Albert Einstein",
+    "A melhor maneira de prever o futuro é criá-lo. — Peter Drucker",
+    "A pressa é a inimiga da perfeição, mas a consistência é a mãe da excelência.",
+    "O sucesso é a soma de pequenos esforços repetidos dia após dia. — Robert Collier",
+    "A disciplina é a ponte entre metas e conquistas. — Jim Rohn",
+    "Invista em si mesmo e no seu futuro: colha hoje o que plantará amanhã.",
+    "Grandes realizações são construídas bloco por bloco, hora por hora.",
+    "O faturamento do mês reflete a soma de todos os seus minutos focados.",
+    "Economizar é a arte de comprar sua liberdade no futuro.",
+    "A consistência supera o talento. Continue registrando, continue avançando!"
+];
+
+function initStoragePersistence() {
+    if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then(granted => {
+            if (granted) {
+                console.log('[STORAGE] Persistência concedida pelo sistema Android/Chrome.');
+            } else {
+                console.warn('[STORAGE] Persistência negada. O sistema pode limpar o cache em caso de pouco espaço.');
             }
-        } catch (e) {
-            console.error('[SSE] Erro ao analisar evento SSE:', e);
-        }
-    };
-    
-    eventSource.onerror = function(err) {
-        console.warn('[SSE] Canal desconectado. Tentando reconectar em 5 segundos...');
-        setSyncStatus('offline', 'Desconectado');
-        eventSource.close();
-        setTimeout(setupRealtimeUpdates, 5000);
-    };
+        }).catch(err => {
+            console.error('[STORAGE] Erro ao solicitar persistência:', err);
+        });
+    }
 }
 
-// Exibir painel de configuração inicial do celular
-function showSetupOverlay() {
-    const overlay = document.getElementById('setup-overlay');
-    if (overlay) {
-        overlay.style.display = 'flex';
+function loadMotivationalQuote() {
+    const quoteEl = document.getElementById('motivational-quote');
+    if (!quoteEl) return;
+    const dayOfYear = new Date().getDate();
+    const idx = dayOfYear % MOTIVATIONAL_QUOTES.length;
+    quoteEl.innerText = `"${MOTIVATIONAL_QUOTES[idx]}"`;
+}
+
+async function fetchCurrencyRates() {
+    try {
+        const res = await fetch('https://economia.awesomestapi.com.br/last/USD-BRL,EUR-BRL');
+        if (!res.ok) throw new Error('Falha na rede');
+        const data = await res.json();
         
-        const connectBtn = document.getElementById('setup-connect-btn');
-        const serverIdInput = document.getElementById('setup-server-id');
-        const accessPinInput = document.getElementById('setup-access-pin');
+        const usdBrl = parseFloat(data.USDBRL.bid);
+        const eurBrl = parseFloat(data.EURBRL.bid);
         
-        // Pré-preencher se já houver algo no localStorage
-        if (serverIdInput) serverIdInput.value = localStorage.getItem('server_id') || '';
-        if (accessPinInput) accessPinInput.value = localStorage.getItem('access_pin') || '';
+        const usdEl = document.getElementById('ticker-usd');
+        if (usdEl) {
+            usdEl.innerHTML = `<i class="fa-solid fa-dollar-sign color-green"></i> USD: R$ ${usdBrl.toFixed(2)} | <i class="fa-solid fa-euro-sign color-blue"></i> EUR: R$ ${eurBrl.toFixed(2)}`;
+        }
         
-        if (connectBtn) {
-            connectBtn.onclick = async () => {
-                const sid = serverIdInput ? serverIdInput.value.trim() : '';
-                const pin = accessPinInput ? accessPinInput.value.trim() : '';
-                
-                if (!pin) {
-                    showToast('Preencha o PIN de acesso!', 'error');
-                    return;
-                }
-                
-                connectBtn.disabled = true;
-                connectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
-                
-                try {
-                    // 1. Tentar parear via KV Store (método estável por PIN)
-                    const appKey = '2ifiuvz0';
-                    const res = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/${appKey}/${pin}?_=${Date.now()}`, { cache: 'no-store' });
-                    if (res.ok) {
-                        const hexData = await res.json();
-                        let data = null;
-                        if (hexData) {
-                            try {
-                                data = JSON.parse(decodeHex(hexData));
-                            } catch (e) {
-                                if (hexData.startsWith('http://') || hexData.startsWith('https://')) {
-                                    data = { url: hexData };
-                                }
-                            }
-                        }
-                        
-                        if (data && data.url) {
-                            localStorage.setItem('access_pin', pin);
-                            localStorage.setItem('server_id', 'kv_store');
-                            
-                            const mainAccessPinInput = document.getElementById('input-access-pin');
-                            if (mainAccessPinInput) mainAccessPinInput.value = pin;
-                            
-                            resolvedApiHost = data.url.replace(/\/$/, '');
-                            
-                            showToast('Servidor pareado com sucesso via PIN!', 'success');
-                            overlay.style.display = 'none';
-                            
-                            fetchData();
-                            fetchNetworkInfo();
-                            setupRealtimeUpdates();
-                            return;
-                        }
-                    }
-                    
-                    // 2. Fallback: Tentar parear via ID do servidor legado (ExtendsClass) se fornecido
-                    if (sid && sid !== 'kv_store' && sid !== 'local_fallback') {
-                        const legacyRes = await fetch(`https://extendsclass.com/api/json-storage/bin/${sid}?_=${Date.now()}`, { cache: 'no-store' });
-                        if (legacyRes.ok) {
-                            const data = await legacyRes.json();
-                            localStorage.setItem('server_id', sid);
-                            localStorage.setItem('access_pin', pin);
-                            
-                            const mainAccessPinInput = document.getElementById('input-access-pin');
-                            if (mainAccessPinInput) mainAccessPinInput.value = pin;
-                            
-                            if (data.url) {
-                                resolvedApiHost = data.url.replace(/\/$/, '');
-                            }
-                            
-                            showToast('Servidor pareado com sucesso (Legado)!', 'success');
-                            overlay.style.display = 'none';
-                            
-                            fetchData();
-                            fetchNetworkInfo();
-                            setupRealtimeUpdates();
-                            return;
-                        }
-                    }
-                    
-                    showToast('PIN inválido ou servidor offline!', 'error');
-                } catch (e) {
-                    console.error('[SETUP] Erro ao parear:', e);
-                    showToast('Erro ao parear. Verifique sua conexão.', 'error');
-                } finally {
-                    connectBtn.disabled = false;
-                    connectBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Conectar';
-                }
-            };
+        state.usdBrl = usdBrl;
+        state.eurBrl = eurBrl;
+        
+        updateCurrencyKPIs();
+    } catch (err) {
+        console.warn('[CURRENCY] Não foi possível carregar cotações:', err);
+    }
+}
+
+function updateCurrencyKPIs() {
+    if (state.usdBrl) {
+        let totalEarningsMonth = 0;
+        state.filteredRows.forEach(row => totalEarningsMonth += row.ganhos);
+        const usdEarnings = totalEarningsMonth / state.usdBrl;
+        const sub = document.getElementById('kpi-month-hours');
+        if (sub && state.activeTab === 'dashboard') {
+            const currentText = sub.innerText.split(' | ')[0];
+            sub.innerText = `${currentText} | $ ${usdEarnings.toFixed(2)} USD`;
         }
     }
 }
 
-// Resolver dinamicamente a URL ativa do túnel
-async function resolveActiveTunnelUrl() {
-    const currentHost = window.location.hostname;
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+async function fetchHolidays() {
+    try {
+        const year = state.selectedYear || new Date().getFullYear();
+        const res = await fetch(`https://brasilapi.com.br/api/feriados/v1/${year}`);
+        if (!res.ok) throw new Error('Falha na rede');
+        const list = await res.json();
+        
+        state.holidays = {};
+        list.forEach(h => {
+            state.holidays[h.date] = h.name;
+        });
+        
+        renderHistory();
+        renderCommutes();
+    } catch (err) {
+        console.warn('[HOLIDAYS] Não foi possível carregar feriados:', err);
+    }
+}
+
+async function fetchWeather() {
+    const weatherEl = document.getElementById('weather-info');
+    if (!weatherEl) return;
     
-    // Se estiver rodando localmente no PC (não no celular), não altera nada
-    const isLocal = currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.') || currentHost.startsWith('10.') || currentHost.startsWith('172.');
-    if (!isMobile && isLocal) {
+    if (!navigator.geolocation) {
+        weatherEl.innerHTML = `<i class="fa-solid fa-cloud-sun color-cyan"></i> Clima Indisponível`;
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+            if (!res.ok) throw new Error('Falha na rede');
+            const data = await res.json();
+            
+            const temp = data.current_weather.temperature;
+            const code = data.current_weather.weathercode;
+            
+            let icon = 'fa-sun';
+            let desc = 'Ensolarado';
+            if (code >= 1 && code <= 3) { icon = 'fa-cloud-sun'; desc = 'Parcialmente nublado'; }
+            else if (code >= 45 && code <= 48) { icon = 'fa-smog'; desc = 'Nevoeiro'; }
+            else if (code >= 51 && code <= 67) { icon = 'fa-cloud-showers-heavy'; desc = 'Chovendo'; }
+            else if (code >= 71 && code <= 86) { icon = 'fa-snowflake'; desc = 'Neve'; }
+            else if (code >= 95) { icon = 'fa-cloud-bolt'; desc = 'Tempestade'; }
+            
+            weatherEl.innerHTML = `<i class="fa-solid ${icon} color-cyan" title="${desc}"></i> ${temp}°C`;
+            state.defaultWeatherText = `Clima: ${temp}°C e ${desc.toLowerCase()}.`;
+        } catch (err) {
+            console.warn('[WEATHER]', err);
+            weatherEl.innerHTML = `<i class="fa-solid fa-cloud-sun color-cyan"></i> Clima Indisponível`;
+        }
+    }, () => {
+        weatherEl.innerHTML = `<i class="fa-solid fa-cloud-sun color-cyan"></i> Sem Permissão GPS`;
+    });
+}
+
+async function checkTimeSync() {
+    try {
+        const res = await fetch('https://worldtimeapi.org/api/timezone/America/Sao_Paulo');
+        if (!res.ok) throw new Error('Falha na rede');
+        const data = await res.json();
+        
+        const netTime = new Date(data.utc_datetime);
+        const localTime = new Date();
+        const diffMs = Math.abs(netTime.getTime() - localTime.getTime());
+        const diffMinutes = diffMs / 60000;
+        
+        const warningEl = document.getElementById('time-sync-warning');
+        if (warningEl) {
+            if (diffMinutes > 3) {
+                warningEl.classList.remove('hidden');
+            } else {
+                warningEl.classList.add('hidden');
+            }
+        }
+    } catch (err) {
+        console.warn('[TIME-SYNC] Não foi possível verificar sincronização de hora:', err);
+    }
+}
+
+function showGoogleDriveGuideModal() {
+    if (document.getElementById('modal-gdrive-guide')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-gdrive-guide';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.zIndex = '2000';
+    modal.style.backdropFilter = 'blur(10px)';
+
+    modal.innerHTML = `
+        <div class="glass-card" style="width: 90%; max-width: 500px; padding: 2rem; border-radius: var(--radius-lg); position: relative; border: 1px solid rgba(6, 182, 212, 0.3); background: rgba(11, 15, 25, 0.95); max-height: 90vh; overflow-y: auto;">
+            <button id="btn-close-gdrive-modal" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--text-secondary); font-size: 1.25rem; cursor: pointer;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; color: #06b6d4; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-brands fa-google-drive"></i> Como Vincular ao Google Drive
+            </h3>
+            
+            <div style="font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); display: flex; flex-direction: column; gap: 1rem;">
+                <p>Como o aplicativo roda <strong>100% offline e local no celular</strong>, o Android apagará todos os dados se o aplicativo for desinstalado ou o cache limpo. Siga estes passos simples para nunca perder nada:</p>
+                
+                <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                    <div style="background: rgba(6, 182, 212, 0.1); color: #06b6d4; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">1</div>
+                    <div>
+                        <strong style="color: #fff; display: block;">Baixe a Cópia de Segurança</strong>
+                        Clique no botão <strong>"Baixar Backup Atual"</strong> abaixo para gerar o arquivo <code>.json</code> com todos os seus dados.
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                    <div style="background: rgba(6, 182, 212, 0.1); color: #06b6d4; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">2</div>
+                    <div>
+                        <strong style="color: #fff; display: block;">Salve no Google Drive do Celular</strong>
+                        Ao baixar, selecione a opção de salvar o arquivo diretamente no aplicativo do <strong>Google Drive</strong> (crie uma pasta como "Backup Controle Horas").
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                    <div style="background: rgba(6, 182, 212, 0.1); color: #06b6d4; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">3</div>
+                    <div>
+                        <strong style="color: #fff; display: block;">Recupere a Qualquer Momento</strong>
+                        Caso reinstale o app ou troque de celular, basta clicar em <strong>"Escolher e Carregar do Drive"</strong> e selecionar o arquivo <code>.json</code> que você salvou no Google Drive.
+                    </div>
+                </div>
+                
+                <div style="background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.15); border-radius: var(--radius-md); padding: 0.75rem; font-size: 0.8rem; color: #06b6d4;">
+                    <i class="fa-solid fa-circle-check"></i> <strong>Persistência Local Ativada:</strong> Solicitamos ao Android para blindar o cache do aplicativo, reduzindo drasticamente o risco de limpeza automática do sistema.
+                </div>
+            </div>
+            
+            <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <button id="btn-gdrive-export" class="btn btn-primary" style="background: #06b6d4; width: 100%;">
+                    <i class="fa-solid fa-download"></i> Baixar Backup Atual (.json)
+                </button>
+                <button id="btn-gdrive-import" class="btn btn-secondary" style="width: 100%; border-color: rgba(255, 255, 255, 0.2);">
+                    <i class="fa-solid fa-upload"></i> Escolher e Carregar do Drive
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('btn-close-gdrive-modal').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    document.getElementById('btn-gdrive-export').addEventListener('click', () => {
+        const downloadBtn = document.getElementById('btn-download-backup');
+        if (downloadBtn) downloadBtn.click();
+    });
+
+    document.getElementById('btn-gdrive-import').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        const restoreBtn = document.getElementById('btn-restore-backup');
+        if (restoreBtn) restoreBtn.click();
+    });
+}
+
+// ==========================================================================
+// GOOGLE DRIVE CLOUD SYNC & AUTO-BACKUP SYSTEM
+// ==========================================================================
+
+const DEFAULT_CLIENT_ID = '1037628867375-e0g84df46f903epc5905g02u83s86tpg.apps.googleusercontent.com';
+let gdriveAccessToken = null;
+let tokenClient = null;
+let gdriveUser = null;
+let isSyncing = false;
+
+// Hook disparado a cada alteração do IndexedDB
+function onDatabaseWrite() {
+    localStorage.setItem('needs_sync', 'true');
+    triggerAutoSync();
+}
+
+// Obter o Client ID ativo (personalizado ou padrão)
+function getGoogleClientId() {
+    return localStorage.getItem('gdrive_custom_client_id') || DEFAULT_CLIENT_ID;
+}
+
+// Inicializar Google Drive
+function initGoogleDrive() {
+    // 1. Setup Accordion para configurações avançadas
+    const accordionHeader = document.getElementById('gdrive-accordion-header');
+    const accordionContent = document.getElementById('gdrive-accordion-content');
+    if (accordionHeader && accordionContent) {
+        accordionHeader.addEventListener('click', () => {
+            const isActive = accordionHeader.classList.toggle('active');
+            accordionContent.style.display = isActive ? 'flex' : 'none';
+            
+            const chevron = accordionHeader.querySelector('.fa-chevron-down');
+            if (chevron) {
+                chevron.style.transform = isActive ? 'rotate(180deg)' : 'rotate(0deg)';
+            }
+        });
+    }
+
+    // 2. Preencher Client ID personalizado se existir
+    const inputClientId = document.getElementById('input-gdrive-client-id');
+    if (inputClientId) {
+        inputClientId.value = localStorage.getItem('gdrive_custom_client_id') || '';
+    }
+
+    // Botão salvar Client ID
+    const btnSaveClientId = document.getElementById('btn-save-gdrive-client-id');
+    if (btnSaveClientId && inputClientId) {
+        btnSaveClientId.addEventListener('click', () => {
+            const val = inputClientId.value.trim();
+            if (val) {
+                localStorage.setItem('gdrive_custom_client_id', val);
+                showToast('Google Client ID personalizado salvo!', 'success');
+                setupGoogleTokenClient();
+            } else {
+                localStorage.removeItem('gdrive_custom_client_id');
+                showToast('Google Client ID removido.', 'info');
+            }
+        });
+    }
+
+    // Botão resetar Client ID
+    const btnResetClientId = document.getElementById('btn-reset-gdrive-client-id');
+    if (btnResetClientId && inputClientId) {
+        btnResetClientId.addEventListener('click', () => {
+            localStorage.removeItem('gdrive_custom_client_id');
+            inputClientId.value = '';
+            showToast('Google Client ID restaurado para o padrão!', 'success');
+            setupGoogleTokenClient();
+        });
+    }
+
+    // 3. Setup Token Client de Autenticação Google
+    setupGoogleTokenClient();
+
+    // 4. Configurar listeners dos botões de sincronização
+    const btnConnect = document.getElementById('btn-gdrive-connect');
+    if (btnConnect) {
+        btnConnect.addEventListener('click', connectGoogleDrive);
+    }
+
+    const btnDisconnect = document.getElementById('btn-gdrive-disconnect');
+    if (btnDisconnect) {
+        btnDisconnect.addEventListener('click', disconnectGoogleDrive);
+    }
+
+    const btnSyncNow = document.getElementById('btn-gdrive-sync-now');
+    if (btnSyncNow) {
+        btnSyncNow.addEventListener('click', async () => {
+            showToast('Iniciando sincronização na nuvem...', 'info');
+            localStorage.setItem('needs_sync', 'true');
+            await triggerAutoSync(true);
+        });
+    }
+
+    const btnRestoreCloud = document.getElementById('btn-gdrive-restore-cloud');
+    if (btnRestoreCloud) {
+        btnRestoreCloud.addEventListener('click', () => {
+            restoreFromGoogleDriveBackup();
+        });
+    }
+
+    // Carregar preferências de auto-sync
+    const chkAutosync = document.getElementById('chk-gdrive-autosync');
+    if (chkAutosync) {
+        const savedAutosync = localStorage.getItem('gdrive_autosync');
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || 'user';
+        
+        if (savedAutosync === null) {
+            // Se for Aline (mode=user), ativa por padrão. Se limpo, desativa ou ativa
+            chkAutosync.checked = (mode !== 'clean');
+            localStorage.setItem('gdrive_autosync', chkAutosync.checked.toString());
+        } else {
+            chkAutosync.checked = (savedAutosync === 'true');
+        }
+
+        chkAutosync.addEventListener('change', () => {
+            localStorage.setItem('gdrive_autosync', chkAutosync.checked.toString());
+            if (chkAutosync.checked) {
+                triggerAutoSync();
+            }
+        });
+    }
+
+    // Recarregar token de sessão se existir
+    const sToken = sessionStorage.getItem('gdrive_token');
+    if (sToken) {
+        gdriveAccessToken = sToken;
+        localStorage.setItem('gdrive_connected', 'true');
+        fetchUserProfile().then(updateGDriveUI);
+    } else if (localStorage.getItem('gdrive_connected') === 'true') {
+        // Tentar obter token de forma silenciosa se já logou antes
+        setTimeout(() => {
+            if (tokenClient) {
+                console.log('[GDRIVE] Tentando reconexão automática silenciosa...');
+                try {
+                    tokenClient.requestAccessToken({ prompt: 'none' });
+                } catch (e) {
+                    console.warn('[GDRIVE] Falha ao solicitar token silencioso:', e);
+                }
+            }
+        }, 1000);
+    }
+
+    // 6. Monitoramento de Rede
+    window.addEventListener('online', () => {
+        console.log('[REDE] Conexão reestabelecida!');
+        updateNetworkSyncStatus();
+        if (localStorage.getItem('needs_sync') === 'true') {
+            showToast('Conexão reestabelecida! Sincronizando dados pendentes...', 'info');
+            triggerAutoSync();
+        }
+    });
+
+    window.addEventListener('offline', () => {
+        console.log('[REDE] Conexão perdida.');
+        updateNetworkSyncStatus();
+    });
+
+    // Atualizar UI de rede inicial
+    updateNetworkSyncStatus();
+
+    // 7. Assistente de Boas-vindas (Welcome Wizard) se o banco estiver vazio
+    setTimeout(checkAndShowWelcomeWizard, 1200);
+}
+
+// Configurar o Token Client da Google
+function setupGoogleTokenClient() {
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+        console.warn('[GDRIVE] Biblioteca Google GIS não carregada. Aguardando conexão...');
+        if (navigator.onLine) {
+            setTimeout(setupGoogleTokenClient, 3000);
+        }
         return;
     }
 
-    const savedPin = localStorage.getItem('access_pin');
-    const appKey = '2ifiuvz0';
-
-    // 1. Tentar resolver o túnel dinâmico via KV Store com o PIN de acesso (Novo método estável)
-    if (savedPin) {
-        try {
-            console.log('[API] Buscando URL ativa no KV Store para o PIN:', savedPin);
-            const response = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/${appKey}/${savedPin.trim()}?_=${Date.now()}`, { cache: 'no-store' });
-            if (response.ok) {
-                const hexData = await response.json();
-                if (hexData) {
-                    try {
-                        const payload = JSON.parse(decodeHex(hexData));
-                        if (payload && payload.url) {
-                            resolvedApiHost = payload.url.replace(/\/$/, '');
-                            console.log('[API] Conectado via KV Store. URL resolvida:', resolvedApiHost);
-                            return;
-                        }
-                    } catch (e) {
-                        // Fallback em caso de falha no JSON (talvez seja texto plano legível antigo)
-                        if (hexData.startsWith('http://') || hexData.startsWith('https://')) {
-                            resolvedApiHost = hexData.replace(/\/$/, '');
-                            console.log('[API] Conectado via KV Store (legado). URL resolvida:', resolvedApiHost);
-                            return;
-                        }
-                    }
-                }
-            }
-        } catch (err) {
-            console.warn('[API] Falha ao consultar o KV Store. Tentando fallback...', err);
-        }
-    }
-
-    // 2. Tentar resolver o túnel dinâmico via ID do Servidor legado (ExtendsClass JSON bin)
-    const savedServerId = localStorage.getItem('server_id');
-    if (savedServerId && savedServerId !== 'local_fallback' && savedServerId !== 'kv_store') {
-        try {
-            console.log('[API] Buscando URL ativa na nuvem com o ID legado:', savedServerId);
-            const response = await fetch(`https://extendsclass.com/api/json-storage/bin/${savedServerId.trim()}?_=${Date.now()}`, { cache: 'no-store' });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.url) {
-                    resolvedApiHost = data.url.replace(/\/$/, '');
-                    console.log('[API] Conectado via nuvem legado. URL resolvida:', resolvedApiHost);
-                    
-                    if (data.pin) {
-                        localStorage.setItem('access_pin', data.pin);
-                        const accessPinInput = document.getElementById('input-access-pin');
-                        if (accessPinInput) accessPinInput.value = data.pin;
-                    }
-                    return;
-                }
-            }
-        } catch (err) {
-            console.warn('[API] Falha ao consultar o ID legado na nuvem. Tentando outros...', err);
-        }
-    }
-
-    // 3. Se não houver PIN salvo e estiver remoto, exibir a tela de pareamento inicial
-    if (!isLocal && !savedPin) {
-        showSetupOverlay();
-    }
-}
-
-// Painel de Diagnóstico de Conexão (Premium & Dinâmico)
-async function runConnectionDiagnostics() {
-    const diagStatus = document.getElementById('diag-conn-status');
-    const diagUrl = document.getElementById('diag-resolved-url');
-    const diagLatency = document.getElementById('diag-latency');
-    const diagServerId = document.getElementById('diag-server-id');
-
-    if (!diagStatus) return; // Se não estiver na tela (ou não carregado)
-
-    const savedServerId = localStorage.getItem('server_id') || '';
-    const pin = localStorage.getItem('access_pin') || '';
-    
-    diagStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testando...';
-    diagStatus.style.background = 'rgba(156, 163, 175, 0.15)';
-    diagStatus.style.color = '#9ca3af';
-    
-    diagServerId.innerText = savedServerId || 'Nenhum (Local)';
-    
-    let apiHost = getApiHost();
-    diagUrl.innerText = apiHost || window.location.origin;
-
-    const start = Date.now();
     try {
-        const res = await fetch(`${apiHost}/api/data?pin=${encodeURIComponent(pin)}&_=${Date.now()}`, {
-            method: 'GET',
-            cache: 'no-store',
-            headers: {
-                'x-access-pin': pin
-            }
-        });
-        
-        if (res.ok) {
-            const latency = Date.now() - start;
-            diagStatus.innerHTML = '<i class="fa-solid fa-circle-check"></i> Conectado';
-            diagStatus.style.background = 'rgba(16, 185, 129, 0.15)';
-            diagStatus.style.color = '#10b981';
-            diagLatency.innerText = `${latency} ms`;
-            diagLatency.style.color = '#10b981';
-            return;
-        } else if (res.status === 401) {
-            diagStatus.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> PIN Inválido';
-            diagStatus.style.background = 'rgba(245, 158, 11, 0.15)';
-            diagStatus.style.color = '#f59e0b';
-            diagLatency.innerText = '--';
-            diagLatency.style.color = '#f59e0b';
-            return;
-        }
-        throw new Error(`Status HTTP ${res.status}`);
-    } catch (err) {
-        console.warn('[DIAGNOSTICO] Falha no primeiro teste de ping. Tentando resolver URL atualizada...', err.message);
-    }
-
-    // Se falhou, vamos tentar resolver a URL ativa novamente na nuvem
-    if (savedServerId && savedServerId !== 'local_fallback') {
-        try {
-            diagStatus.innerHTML = '<i class="fa-solid fa-magnifying-glass fa-spin"></i> Buscando IP...';
-            const response = await fetch(`https://extendsclass.com/api/json-storage/bin/${savedServerId.trim()}?_=${Date.now()}`, { cache: 'no-store' });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.url) {
-                    resolvedApiHost = data.url.replace(/\/$/, '');
-                    apiHost = resolvedApiHost;
-                    diagUrl.innerText = apiHost;
-                    
-                    const retryPin = data.pin || pin;
-                    if (data.pin) {
-                        localStorage.setItem('access_pin', data.pin);
-                        const accessPinInput = document.getElementById('input-access-pin');
-                        if (accessPinInput) accessPinInput.value = data.pin;
-                    }
-                    
-                    // Segundo teste de ping com a URL recém-resolvida
-                    const retryStart = Date.now();
-                    const res2 = await fetch(`${apiHost}/api/data?pin=${encodeURIComponent(retryPin)}&_=${Date.now()}`, {
-                        method: 'GET',
-                        cache: 'no-store',
-                        headers: {
-                            'x-access-pin': retryPin
-                        }
-                    });
-                    if (res2.ok) {
-                        const latency = Date.now() - retryStart;
-                        diagStatus.innerHTML = '<i class="fa-solid fa-circle-check"></i> Sincronizado';
-                        diagStatus.style.background = 'rgba(16, 185, 129, 0.15)';
-                        diagStatus.style.color = '#10b981';
-                        diagLatency.innerText = `${latency} ms`;
-                        diagLatency.style.color = '#10b981';
-                        
-                        setupRealtimeUpdates();
+        const client_id = getGoogleClientId();
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: client_id,
+            scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+            callback: async (resp) => {
+                if (resp.error) {
+                    console.error('[GDRIVE] Erro de autenticação:', resp.error);
+                    // Se for silencioso e falhar por consentimento pendente, não incomoda
+                    if (resp.error === 'immediate_failed') {
+                        console.log('[GDRIVE] Reconexão silenciosa falhou (necessário interação).');
                         return;
                     }
+                    showToast('Falha na autenticação com o Google.', 'error');
+                    localStorage.setItem('gdrive_connected', 'false');
+                    updateGDriveUI();
+                    return;
+                }
+
+                if (resp.access_token) {
+                    gdriveAccessToken = resp.access_token;
+                    localStorage.setItem('gdrive_connected', 'true');
+                    sessionStorage.setItem('gdrive_token', gdriveAccessToken);
+                    
+                    await fetchUserProfile();
+                    updateGDriveUI();
+                    showToast('Google Drive conectado!', 'success');
+
+                    // Sincronizar se necessário
+                    if (localStorage.getItem('needs_sync') === 'true' || localStorage.getItem('gdrive_autosync') === 'true') {
+                        triggerAutoSync();
+                    }
                 }
             }
-        } catch (e) {
-            console.error('[DIAGNOSTICO] Falha ao resolver URL da nuvem no segundo estágio:', e);
+        });
+        console.log('[GDRIVE] Google Token Client configurado.');
+    } catch (e) {
+        console.error('[GDRIVE] Erro ao configurar Token Client:', e);
+    }
+}
+
+// Conectar ao Google Drive
+function connectGoogleDrive() {
+    if (!navigator.onLine) {
+        showToast('Sem conexão de internet para conectar ao Drive!', 'warning');
+        return;
+    }
+    if (!tokenClient) {
+        showToast('Biblioteca Google carregando. Aguarde um instante...', 'info');
+        setupGoogleTokenClient();
+        return;
+    }
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+// Desconectar Google Drive
+function disconnectGoogleDrive() {
+    if (gdriveAccessToken) {
+        try {
+            google.accounts.oauth2.revokeToken(gdriveAccessToken, () => {
+                console.log('[GDRIVE] Token revogado.');
+            });
+        } catch (e) {}
+    }
+    gdriveAccessToken = null;
+    gdriveUser = null;
+    sessionStorage.removeItem('gdrive_token');
+    localStorage.setItem('gdrive_connected', 'false');
+    updateGDriveUI();
+    showToast('Google Drive desconectado.', 'info');
+}
+
+// Buscar perfil do usuário
+async function fetchUserProfile() {
+    try {
+        const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': `Bearer ${gdriveAccessToken}` }
+        });
+        if (resp.ok) {
+            gdriveUser = await resp.json();
+            console.log('[GDRIVE] Usuário autenticado:', gdriveUser.email);
+        }
+    } catch (e) {
+        console.warn('[GDRIVE] Não foi possível ler perfil do usuário:', e);
+    }
+}
+
+// Atualizar interface de acordo com a conexão do Google Drive
+function updateGDriveUI() {
+    const loginPrompt = document.getElementById('gdrive-login-prompt');
+    const profileInfo = document.getElementById('gdrive-profile-info');
+    const syncOptions = document.getElementById('gdrive-sync-options');
+    const statusBadge = document.getElementById('gdrive-status-badge');
+
+    const connected = (gdriveAccessToken !== null);
+
+    if (connected) {
+        if (loginPrompt) loginPrompt.style.display = 'none';
+        if (profileInfo) profileInfo.style.display = 'flex';
+        if (syncOptions) syncOptions.style.display = 'flex';
+        
+        if (statusBadge) {
+            statusBadge.innerText = 'Conectado';
+            statusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
+            statusBadge.style.color = '#10b981';
+            statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+        }
+
+        if (gdriveUser) {
+            const avatarEl = document.getElementById('gdrive-user-avatar');
+            const nameEl = document.getElementById('gdrive-user-name');
+            const emailEl = document.getElementById('gdrive-user-email');
+            
+            if (avatarEl) avatarEl.src = gdriveUser.picture || '';
+            if (nameEl) nameEl.innerText = gdriveUser.name || 'Conectado';
+            if (emailEl) emailEl.innerText = gdriveUser.email || '';
+        }
+    } else {
+        if (loginPrompt) loginPrompt.style.display = 'flex';
+        if (profileInfo) profileInfo.style.display = 'none';
+        if (syncOptions) syncOptions.style.display = 'none';
+        
+        if (statusBadge) {
+            statusBadge.innerText = 'Desconectado';
+            statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+            statusBadge.style.color = '#ef4444';
+            statusBadge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+        }
+    }
+    
+    updateNetworkSyncStatus();
+}
+
+// Atualiza o status visual no footer da sincronização
+function updateNetworkSyncStatus() {
+    const statusFooter = document.getElementById('sync-status');
+    const connected = (gdriveAccessToken !== null);
+    const online = navigator.onLine;
+
+    if (!online) {
+        setSyncStatus('offline', 'Pendente (Sem Internet) ⚠️');
+        return;
+    }
+
+    if (connected) {
+        if (localStorage.getItem('needs_sync') === 'true') {
+            setSyncStatus('syncing', 'Alterações Pendentes ⚠️');
+        } else {
+            setSyncStatus('connected', 'Nuvem Sincronizada ✔');
+        }
+    } else {
+        setSyncStatus('connected', 'Salvo Localmente (Sem Nuvem)');
+    }
+}
+
+// Helper genérico para chamadas à API do Google Drive
+async function gdriveRequest(urlPath, method = 'GET', body = null, headers = {}) {
+    if (!gdriveAccessToken) {
+        gdriveAccessToken = sessionStorage.getItem('gdrive_token');
+        if (!gdriveAccessToken) {
+            throw new Error('Google Drive não autenticado.');
         }
     }
 
-    // Se tudo falhou
-    diagStatus.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Inacessível';
-    diagStatus.style.background = 'rgba(239, 68, 68, 0.15)';
-    diagStatus.style.color = '#ef4444';
-    diagLatency.innerText = 'Erro / Offline';
-    diagLatency.style.color = '#ef4444';
+    const options = {
+        method: method,
+        headers: {
+            'Authorization': `Bearer ${gdriveAccessToken}`,
+            ...headers
+        }
+    };
+
+    if (body) {
+        if (body instanceof ArrayBuffer || body instanceof Blob) {
+            options.body = body;
+        } else {
+            options.headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify(body);
+        }
+    }
+
+    const response = await fetch(`https://www.googleapis.com/${urlPath}`, options);
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro na API Google: ${response.status} - ${errorText}`);
+    }
+
+    return response.json();
 }
+
+// Obter ou criar a pasta no Google Drive
+async function getOrCreateFolder() {
+    const folderName = 'Controle de Horas Premium';
+    const query = encodeURIComponent(`name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
+    const searchResult = await gdriveRequest(`drive/v3/files?q=${query}&fields=files(id)`);
+    
+    if (searchResult.files && searchResult.files.length > 0) {
+        return searchResult.files[0].id;
+    }
+    
+    const folderMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder'
+    };
+    
+    const newFolder = await gdriveRequest('drive/v3/files', 'POST', folderMetadata);
+    return newFolder.id;
+}
+
+// Fazer upload ou atualização de um arquivo na pasta específica
+async function uploadFileToFolder(folderId, fileName, mimeType, content) {
+    const query = encodeURIComponent(`name = '${fileName}' and '${folderId}' in parents and trashed = false`);
+    const searchResult = await gdriveRequest(`drive/v3/files?q=${query}&fields=files(id)`);
+    
+    let fileId = null;
+    if (searchResult.files && searchResult.files.length > 0) {
+        fileId = searchResult.files[0].id;
+    }
+    
+    if (!fileId) {
+        const metadata = {
+            name: fileName,
+            parents: [folderId],
+            mimeType: mimeType
+        };
+        const newFile = await gdriveRequest('drive/v3/files', 'POST', metadata);
+        fileId = newFile.id;
+    }
+    
+    let bodyData = content;
+    if (typeof content === 'object' && !(content instanceof Blob) && !(content instanceof ArrayBuffer)) {
+        bodyData = JSON.stringify(content);
+    }
+    
+    await gdriveRequest(
+        `upload/drive/v3/files/${fileId}?uploadType=media`,
+        'PATCH',
+        bodyData,
+        { 'Content-Type': mimeType }
+    );
+    
+    return fileId;
+}
+
+// Sincronizar todos os dados locais na nuvem (JSON e Excel)
+async function triggerAutoSync(force = false) {
+    if (isSyncing) return;
+    if (!gdriveAccessToken) return; // Não conectado
+    
+    const autosync = localStorage.getItem('gdrive_autosync') === 'true';
+    if (!autosync && !force) return;
+    
+    if (!navigator.onLine) {
+        console.warn('[GDRIVE] Dispositivo offline. Marcado para sincronização posterior.');
+        localStorage.setItem('needs_sync', 'true');
+        updateNetworkSyncStatus();
+        return;
+    }
+    
+    isSyncing = true;
+    updateNetworkSyncStatus();
+    setSyncStatus('syncing', 'Sincronizando Nuvem... 🔄');
+    
+    try {
+        const folderId = await getOrCreateFolder();
+        
+        // 1. Exportar e Enviar JSON de Backup
+        const rows = await dbGetAll('rows');
+        const finance = await dbGetAll('finance');
+        const invest = await dbGetAll('invest');
+        const cfgRate = await dbGet('config', 'globalRate');
+        const cfgInv = await dbGet('config', 'investPercent');
+        
+        const backupData = {
+            exportedAt: new Date().toISOString(),
+            version: DB_VERSION,
+            globalRate: cfgRate ? cfgRate.value : state.globalRate,
+            investPercent: cfgInv ? cfgInv.value : state.investPercent,
+            rows,
+            financeEntries: finance,
+            investEntries: invest
+        };
+        
+        await uploadFileToFolder(folderId, 'controle_horas_backup.json', 'application/json', backupData);
+        
+        // 2. Exportar e Enviar Planilha Excel (.xlsx) formatada
+        const workbook = new ExcelJS.Workbook();
+        
+        // Controle de Horas
+        const sheet = workbook.addWorksheet('Controle de Horas');
+        sheet.getRow(1).values = [
+            'Data', 'Dia da Semana', 'Entrada 1', 'Saída 1', 'Entrada 2', 'Saída 2',
+            'Horas do Dia', 'Valor do Dia (R$)', 'Valor Hora', 'Observações',
+            'Status Pagamento', 'Saída de Casa', 'Chegada em Casa', 'Tempo de Trajeto', 'Tempo Fora de Casa'
+        ];
+        sheet.getRow(1).font = { bold: true };
+        
+        state.rows.forEach((row, i) => {
+            const rNum = i + 2;
+            const excelRow = sheet.getRow(rNum);
+            const dVal = row.date ? new Date(row.date + 'T00:00:00') : null;
+            
+            excelRow.getCell(1).value = dVal;
+            excelRow.getCell(1).numFmt = 'yyyy-mm-dd';
+            excelRow.getCell(2).value = row.weekday || '';
+            excelRow.getCell(3).value = row.entrada1 || null;
+            excelRow.getCell(4).value = row.saida1 || null;
+            excelRow.getCell(5).value = row.entrada2 || null;
+            excelRow.getCell(6).value = row.saida2 || null;
+            excelRow.getCell(8).value = row.ganhos || 0;
+            excelRow.getCell(8).numFmt = '"R$"#,##0.00';
+            excelRow.getCell(9).value = row.valorHora !== null && row.valorHora !== undefined && row.valorHora !== '' ? parseFloat(row.valorHora) : state.globalRate;
+            excelRow.getCell(9).numFmt = '"R$"#,##0.00';
+            excelRow.getCell(10).value = row.obs || '';
+            excelRow.getCell(11).value = row.statusPagamento || 'Pendente';
+            excelRow.getCell(12).value = row.commuteDeparture || null;
+            excelRow.getCell(13).value = row.commuteArrival || null;
+            excelRow.getCell(14).value = row.tempoTrajeto || null;
+            excelRow.getCell(15).value = row.tempoForaCasa || null;
+            
+            excelRow.getCell(7).value = {
+                formula: `IF(AND(C${rNum}<>"",D${rNum}<>""), D${rNum}-C${rNum}, 0) + IF(AND(E${rNum}<>"",F${rNum}<>""), F${rNum}-E${rNum}, 0)`,
+                result: row.horasFracionarias / 24
+            };
+            excelRow.getCell(7).numFmt = '[hh]:mm';
+        });
+        
+        // Filtro
+        const filterSheet = workbook.addWorksheet('Filtro');
+        filterSheet.getRow(1).values = [
+            'Total Horas Trabalhadas', 'Total a Receber (R$)', 'Total Recebido (R$)', 'Total Pendente (R$)'
+        ];
+        filterSheet.getRow(1).font = { bold: true };
+        
+        let totalWorkedSec = state.rows.reduce((s, r) => s + (r.minutosTrabalhados || 0) * 60, 0);
+        let totalVal = state.rows.reduce((s, r) => s + (r.ganhos || 0), 0);
+        let totalPaid = state.rows.reduce((s, r) => s + (r.statusPagamento === 'Pago' ? (r.ganhos || 0) : 0), 0);
+        let totalPend = state.rows.reduce((s, r) => s + (r.statusPagamento !== 'Pago' ? (r.ganhos || 0) : 0), 0);
+        
+        filterSheet.getRow(2).getCell(1).value = totalWorkedSec / 86400;
+        filterSheet.getRow(2).getCell(1).numFmt = '[hh]:mm';
+        filterSheet.getRow(2).getCell(2).value = totalVal;
+        filterSheet.getRow(2).getCell(2).numFmt = '"R$"#,##0.00';
+        filterSheet.getRow(2).getCell(3).value = totalPaid;
+        filterSheet.getRow(2).getCell(3).numFmt = '"R$"#,##0.00';
+        filterSheet.getRow(2).getCell(4).value = totalPend;
+        filterSheet.getRow(2).getCell(4).numFmt = '"R$"#,##0.00';
+        
+        // Gestão Financeira
+        const finSheet = workbook.addWorksheet('Gestão Financeira');
+        finSheet.getRow(1).values = ['ID', 'Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)', 'Conta'];
+        finSheet.getRow(1).font = { bold: true };
+        state.financeEntries.forEach((entry, idx) => {
+            const r = finSheet.getRow(idx + 2);
+            r.values = [
+                entry.id,
+                entry.date ? new Date(entry.date + 'T00:00:00') : null,
+                entry.type === 'income' ? 'Receita' : 'Despesa',
+                entry.category || '',
+                entry.description || '',
+                entry.amount || 0,
+                entry.account || 'Principal'
+            ];
+            r.getCell(2).numFmt = 'yyyy-mm-dd';
+            r.getCell(6).numFmt = '"R$"#,##0.00';
+        });
+
+        // Investimentos
+        const invSheet = workbook.addWorksheet('Investimentos');
+        invSheet.getRow(1).values = ['ID', 'Data', 'Ativo', 'Tipo', 'Quantidade', 'Valor Aporte (R$)', 'Instituição'];
+        invSheet.getRow(1).font = { bold: true };
+        state.investEntries.forEach((entry, idx) => {
+            const r = invSheet.getRow(idx + 2);
+            r.values = [
+                entry.id,
+                entry.date ? new Date(entry.date + 'T00:00:00') : null,
+                entry.assetName || 'Investimento Geral',
+                entry.assetType || 'Outros',
+                entry.shares || 1,
+                entry.amount || 0,
+                entry.broker || 'Corretora'
+            ];
+            r.getCell(2).numFmt = 'yyyy-mm-dd';
+            r.getCell(6).numFmt = '"R$"#,##0.00';
+        });
+
+        const excelBuffer = await workbook.xlsx.writeBuffer();
+        await uploadFileToFolder(folderId, 'Controle_de_Horas_Trabalho.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer);
+
+        localStorage.removeItem('needs_sync');
+        updateNetworkSyncStatus();
+        
+        if (force) {
+            showToast('Nuvem sincronizada!', 'success');
+        }
+    } catch (err) {
+        console.error('[GDRIVE-SYNC-ERRO]', err);
+        localStorage.setItem('needs_sync', 'true');
+        updateNetworkSyncStatus();
+        if (force) {
+            showToast('Erro ao sincronizar com Google Drive.', 'error');
+        }
+    } finally {
+        isSyncing = false;
+    }
+}
+
+// Procurar e carregar o arquivo de backup no Google Drive (Restaurar)
+async function restoreFromGoogleDriveBackup() {
+    if (!navigator.onLine) {
+        showToast('Sem conexão de internet para buscar backup!', 'warning');
+        return;
+    }
+    if (!gdriveAccessToken) {
+        showToast('Conecte ao Google Drive primeiro!', 'info');
+        connectGoogleDrive();
+        return;
+    }
+
+    showToast('Buscando backups no Google Drive...', 'info');
+
+    try {
+        const folderId = await getOrCreateFolder();
+        const query = encodeURIComponent(`name = 'controle_horas_backup.json' and '${folderId}' in parents and trashed = false`);
+        const searchResult = await gdriveRequest(`drive/v3/files?q=${query}&fields=files(id,name,modifiedTime)`);
+        
+        if (!searchResult.files || searchResult.files.length === 0) {
+            showToast('Nenhum backup encontrado no Google Drive!', 'warning');
+            return;
+        }
+
+        const file = searchResult.files[0];
+        const confirmRestore = confirm(`Backup encontrado!\nModificado em: ${new Date(file.modifiedTime).toLocaleString()}.\n\nDeseja restaurar? Isso substituirá todos os dados locais atuais.`);
+        if (!confirmRestore) return;
+
+        showToast('Baixando backup da nuvem...', 'info');
+
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${gdriveAccessToken}` }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro ao baixar arquivo: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.rows || !Array.isArray(data.rows)) {
+            showToast('Arquivo de backup inválido!', 'error');
+            return;
+        }
+
+        isImportingData = true;
+        
+        // Importar configurações
+        if (data.globalRate) await dbPut('config', { key: 'globalRate', value: data.globalRate });
+        if (data.investPercent) await dbPut('config', { key: 'investPercent', value: data.investPercent });
+        
+        // Importar linhas
+        const txRows = db.transaction('rows', 'readwrite');
+        txRows.objectStore('rows').clear();
+        data.rows.forEach(r => txRows.objectStore('rows').put(r));
+        await new Promise((res, rej) => { txRows.oncomplete = res; txRows.onerror = rej; });
+        
+        // Importar finanças
+        if (data.financeEntries) {
+            const txFin = db.transaction('finance', 'readwrite');
+            txFin.objectStore('finance').clear();
+            data.financeEntries.forEach(f => txFin.objectStore('finance').put(f));
+            await new Promise((res, rej) => { txFin.oncomplete = res; txFin.onerror = rej; });
+        }
+        
+        // Importar investimentos
+        if (data.investEntries) {
+            const txInv = db.transaction('invest', 'readwrite');
+            txInv.objectStore('invest').clear();
+            data.investEntries.forEach(i => txInv.objectStore('invest').put(i));
+            await new Promise((res, rej) => { txInv.oncomplete = res; txInv.onerror = rej; });
+        }
+
+        isImportingData = false;
+        localStorage.removeItem('needs_sync');
+        localStorage.setItem('welcome_dismissed', 'true');
+        
+        showToast('Dados restaurados com sucesso!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+
+    } catch (e) {
+        isImportingData = false;
+        console.error('[GDRIVE-RESTORE-ERRO]', e);
+        showToast('Erro ao restaurar backup da nuvem.', 'error');
+    }
+}
+
+// Verificar se o banco está vazio e exibir assistente de Boas-vindas (Welcome Wizard)
+function checkAndShowWelcomeWizard() {
+    if (localStorage.getItem('welcome_dismissed') === 'true') return;
+    if (state.rows.length > 0 || state.financeEntries.length > 0) return;
+    if (document.getElementById('modal-welcome-wizard')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-welcome-wizard';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.backgroundColor = 'rgba(11, 15, 25, 0.9)';
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.zIndex = '3000';
+    modal.style.backdropFilter = 'blur(15px)';
+
+    modal.innerHTML = `
+        <div class="glass-card" style="width: 90%; max-width: 520px; padding: 2rem; border-radius: var(--radius-lg); border: 1px solid rgba(6, 182, 212, 0.3); background: rgba(15, 23, 42, 0.95); text-align: center; max-height: 95vh; overflow-y: auto;">
+            <i class="fa-solid fa-hourglass-start" style="font-size: 2.75rem; color: #06b6d4; margin-bottom: 0.75rem;"></i>
+            
+            <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; color: #fff; margin-top: 0; margin-bottom: 0.5rem;">
+                Controle de Horas Premium 2026
+            </h2>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.4;">
+                Olá! Não encontramos registros locais no seu aparelho. Escolha uma opção para iniciar:
+            </p>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; text-align: left;">
+                <!-- Conectar Drive -->
+                <button id="btn-wizard-gdrive" class="btn ripple" style="background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); color: #fff; padding: 0.85rem; border-radius: var(--radius-md); text-align: left; display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer; width: 100%;">
+                    <i class="fa-brands fa-google-drive" style="font-size: 1.4rem; color: #06b6d4; margin-top: 2px;"></i>
+                    <div style="flex-grow: 1;">
+                        <strong style="display: block; font-size: 0.8rem; color: #06b6d4;">Restaurar do Google Drive (Recomendado)</strong>
+                        <span style="display: block; font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.1rem; line-height: 1.2;">
+                            Conecte sua conta Google para procurar e baixar seu backup anterior automaticamente em segundos.
+                        </span>
+                    </div>
+                </button>
+                
+                <!-- Planilha Limpa -->
+                <button id="btn-wizard-clean" class="btn ripple" style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.2); color: #fff; padding: 0.85rem; border-radius: var(--radius-md); text-align: left; display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer; width: 100%;">
+                    <i class="fa-solid fa-file-excel" style="font-size: 1.4rem; color: #10b981; margin-top: 2px;"></i>
+                    <div style="flex-grow: 1;">
+                        <strong style="display: block; font-size: 0.8rem; color: #10b981;">Começar do Zero (Planilha Limpa)</strong>
+                        <span style="display: block; font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.1rem; line-height: 1.2;">
+                            Cria um banco de dados em branco e limpo para novos lançamentos de ponto e finanças.
+                        </span>
+                    </div>
+                </button>
+                
+                <!-- Restaurar Local JSON -->
+                <button id="btn-wizard-json" class="btn ripple" style="background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.2); color: #fff; padding: 0.85rem; border-radius: var(--radius-md); text-align: left; display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer; width: 100%;">
+                    <i class="fa-solid fa-file-import" style="font-size: 1.4rem; color: #f59e0b; margin-top: 2px;"></i>
+                    <div style="flex-grow: 1;">
+                        <strong style="display: block; font-size: 0.8rem; color: #f59e0b;">Restaurar Backup Local (.json)</strong>
+                        <span style="display: block; font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.1rem; line-height: 1.2;">
+                            Selecione um arquivo de backup JSON salvo no seu aparelho para carregar os dados.
+                        </span>
+                    </div>
+                </button>
+            </div>
+            
+            <div style="margin-top: 1.5rem; font-size: 0.65rem; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 0.25rem;">
+                <i class="fa-solid fa-lock"></i> Seus dados ficam protegidos no seu aparelho e no seu próprio Drive privado.
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('btn-wizard-clean').addEventListener('click', () => {
+        localStorage.setItem('welcome_dismissed', 'true');
+        document.body.removeChild(modal);
+        showToast('Planilha vazia iniciada!', 'success');
+    });
+
+    document.getElementById('btn-wizard-gdrive').addEventListener('click', async () => {
+        document.body.removeChild(modal);
+        if (!gdriveAccessToken) {
+            connectGoogleDrive();
+            localStorage.setItem('needs_sync', 'true');
+        } else {
+            restoreFromGoogleDriveBackup();
+        }
+    });
+
+    document.getElementById('btn-wizard-json').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        const restoreBtn = document.getElementById('btn-restore-backup');
+        if (restoreBtn) restoreBtn.click();
+    });
+}
+

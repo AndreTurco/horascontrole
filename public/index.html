@@ -24,6 +24,12 @@
     <!-- Chart.js for Animated Graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- ExcelJS for Browser-side Spreadsheet Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    
+    <!-- Google Identity Services for Google Drive Cloud Backup -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
     <link rel="stylesheet" href="style.css">
     <style>
         .setup-overlay {
@@ -172,31 +178,32 @@
     </style>
 </head>
 <body class="dark-theme">
-    <!-- Setup Overlay (Exibido apenas em acessos remotos quando não há conexão ativa pareada) -->
+    <!-- Welcome Overlay (Exibido na primeira inicialização quando o IndexedDB local está zerado) -->
     <div id="setup-overlay" class="setup-overlay" style="display: none;">
-        <div class="setup-card glass-card">
-            <div class="setup-header">
-                <div class="brand-icon">
-                    <i class="fa-solid fa-link"></i>
+        <div class="setup-card glass-card" style="max-width: 450px;">
+            <div class="setup-header" style="text-align: center; margin-bottom: 1.5rem;">
+                <div class="brand-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 2.2rem; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                    <i class="fa-solid fa-clock"></i>
                 </div>
-                <h2>Conectar ao Servidor</h2>
-                <p>Insira as credenciais do seu PC para sincronizar o aplicativo.</p>
+                <h2 style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: #fff;">Controle de Horas Premium</h2>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">Tudo 100% offline, seguro e direto no seu celular.</p>
             </div>
-            <div class="setup-body">
-                <div class="input-group">
-                    <label for="setup-server-id"><i class="fa-solid fa-server"></i> ID de Registro</label>
-                    <input type="text" id="setup-server-id" placeholder="Ex: bffeabd" autocomplete="off">
-                </div>
-                <div class="input-group">
-                    <label for="setup-access-pin"><i class="fa-solid fa-key"></i> PIN de Acesso (6 dígitos)</label>
-                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" id="setup-access-pin" placeholder="Ex: 123456" autocomplete="off">
-                </div>
-                <button id="setup-connect-btn" class="btn btn-primary ripple">
-                    <i class="fa-solid fa-circle-check"></i> Conectar
+            <div class="setup-body" style="display: flex; flex-direction: column; gap: 1rem;">
+                <p style="font-size: 0.85rem; text-align: center; margin-bottom: 0.5rem;">Escolha como você deseja iniciar o seu controle de horas local:</p>
+                
+                <button id="btn-start-clean" class="btn btn-primary ripple" style="width: 100%; height: 48px; background: #10b981; display: flex; align-items: center; justify-content: center; gap: 0.75rem; font-weight: 600;">
+                    <i class="fa-solid fa-file-circle-plus" style="font-size: 1.1rem;"></i> Criar Nova Planilha Limpa
+                </button>
+                
+                <div style="text-align: center; font-size: 0.8rem; color: var(--text-secondary); margin: 0.25rem 0;">— ou —</div>
+                
+                <input type="file" id="input-welcome-import" accept=".xlsx" style="display: none;">
+                <button id="btn-trigger-welcome-import" class="btn btn-secondary ripple" style="width: 100%; height: 48px; display: flex; align-items: center; justify-content: center; gap: 0.75rem; font-weight: 600; border: 1px solid var(--border-card);">
+                    <i class="fa-solid fa-file-import" style="font-size: 1.1rem;"></i> Importar Planilha Existente (.xlsx)
                 </button>
             </div>
-            <div class="setup-footer">
-                <p><i class="fa-solid fa-qrcode"></i> Dica: Você também pode abrir a câmera do celular e escanear o QR Code de Acesso Remoto exibido na tela do seu computador.</p>
+            <div class="setup-footer" style="margin-top: 1.5rem; text-align: center; border-top: 1px solid var(--border-card); padding-top: 1rem;">
+                <p style="font-size: 0.75rem; color: var(--text-secondary);"><i class="fa-solid fa-shield-halved color-green"></i> Seus dados ficam salvos localmente e podem ser exportados como planilha Excel a qualquer momento.</p>
             </div>
         </div>
     </div>
@@ -265,6 +272,26 @@
                 
                 <!-- Tab: Dashboard -->
                 <section id="tab-dashboard" class="tab-content active">
+                    <!-- Greeting and Welcome Panel with Weather/Currency Ticker and Quote -->
+                    <div class="dashboard-greeting-wrapper" style="margin-bottom: 1.5rem; text-align: left; padding: 0 5px; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
+                            <div>
+                                <h2 id="dashboard-greeting-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0;">Olá, Aline</h2>
+                                <p id="dashboard-greeting-desc" style="font-size: 0.9rem; color: var(--text-secondary); margin: 0.25rem 0 0 0;">Pronto para gerenciar suas horas?</p>
+                            </div>
+                            <div id="weather-and-ticker" style="display: flex; gap: 0.75rem; align-items: center; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 0.5rem 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">
+                                <span id="ticker-usd"><i class="fa-solid fa-dollar-sign color-green"></i> USD: R$ --,--</span>
+                                <span style="color: rgba(255, 255, 255, 0.15)">|</span>
+                                <span id="weather-info"><i class="fa-solid fa-cloud-sun color-cyan"></i> --°C</span>
+                            </div>
+                        </div>
+                        <div id="motivational-quote" style="font-size: 0.75rem; font-style: italic; color: #a1a1aa; border-left: 2px solid var(--accent-blue); padding-left: 0.5rem; margin-top: 0.25rem;">
+                            "Carregando frase motivacional do dia..."
+                        </div>
+                        <div id="time-sync-warning" class="hidden" style="font-size: 0.75rem; color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 4px; padding: 0.25rem 0.5rem; margin-top: 0.25rem;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Hora do dispositivo desalinhada com a internet!
+                        </div>
+                    </div>
                     <!-- Quick Clock-In Widget -->
                     <div class="glass-card hero-widget">
                         <div class="hero-left">
@@ -340,7 +367,7 @@
                                 <i class="fa-solid fa-piggy-bank"></i>
                             </div>
                             <div class="metric-info">
-                                <span class="metric-title">Reserva 20% Recebida</span>
+                                <span class="metric-title" id="kpi-global-invest-auto-title">Reserva 20% Recebida</span>
                                 <h3 class="metric-value color-cyan" id="kpi-global-invest-auto">R$ 0,00</h3>
                                 <span class="metric-subtitle" id="kpi-global-invest-auto-subtitle">Total recebido desde Jan</span>
                             </div>
@@ -543,7 +570,7 @@
                                 <i class="fa-solid fa-piggy-bank"></i>
                             </div>
                             <div class="metric-info">
-                                <span class="metric-title">Enviado p/ Investimentos (20%)</span>
+                                <span class="metric-title" id="fin-month-invested-title">Enviado p/ Investimentos (20%)</span>
                                 <h3 class="metric-value color-yellow" id="fin-month-invested">R$ 0,00</h3>
                                 <span class="metric-subtitle">Retido de pontos pagos</span>
                             </div>
@@ -815,7 +842,7 @@
                                 <i class="fa-solid fa-robot"></i>
                             </div>
                             <div class="metric-info">
-                                <span class="metric-title">Aportes Automáticos (20%)</span>
+                                <span class="metric-title" id="kpi-invest-auto-title">Aportes Automáticos (20%)</span>
                                 <h3 class="metric-value" id="kpi-invest-auto">0 aportes</h3>
                                 <span class="metric-subtitle">Gerados de pontos pagos</span>
                             </div>
@@ -1088,142 +1115,183 @@
                                 <i class="fa-solid fa-floppy-disk"></i> Salvar Taxa
                             </button>
                         </div>
-                    </div>
-
-                    <!-- Active Excel Database Path Card -->
-                    <div class="glass-card settings-card">
-                        <h3 class="settings-title"><i class="fa-solid fa-file-excel color-green" style="color: #10b981;"></i> Banco de Dados Ativo (Excel)</h3>
-                        <p class="settings-desc">Caminho do arquivo de onde o sistema lê e grava suas horas e finanças:</p>
-                        <div class="form-group-flat" style="width: 100%; margin-top: 0.5rem;">
-                            <div class="input-icon-wrapper">
-                                <span class="input-addon"><i class="fa-solid fa-folder-open"></i></span>
-                                <input type="text" id="active-database-path" class="form-control-flat read-only" readonly value="Carregando caminho da planilha..." style="font-family: monospace; font-size: 0.8rem; width: 100%; color: #10b981;">
+                        <div class="form-row" style="margin-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1rem;">
+                            <div class="form-group-flat flex-grow">
+                                <label for="input-user-name"><i class="fa-solid fa-user color-cyan"></i> Nome do Usuário</label>
+                                <input type="text" id="input-user-name" class="form-control-flat" placeholder="Digite seu nome" value="Aline">
                             </div>
+                            <button id="btn-save-user-name" class="btn btn-primary btn-inline ripple" style="background: #06b6d4;">
+                                <i class="fa-solid fa-floppy-disk"></i> Salvar Nome
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Conectar Celular / Acesso Externo Card -->
+                    <!-- Configuração de Percentuais (Dízimo, Impostos, Investimento) -->
                     <div class="glass-card settings-card">
-                        <h3 class="settings-title"><i class="fa-solid fa-mobile-screen-button color-green"></i> Conectar Celular / Acesso Externo</h3>
-                        <p class="settings-desc">Use as opções abaixo para abrir este aplicativo no seu celular (4G/Rede Externa ou na mesma rede Wi-Fi).</p>
+                        <h3 class="settings-title"><i class="fa-solid fa-calculator color-blue"></i> Configuração de Percentuais Financeiros</h3>
+                        <p class="settings-desc">Ajuste os percentuais aplicados aos seus rendimentos brutos para dízimo, impostos e aportes automáticos de investimento.</p>
                         
-                        <div class="connection-links-box" style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1rem;">
-                            <!-- ID de Registro e PIN de Segurança (Apenas Visíveis Localmente no Computador) -->
-                            <div id="pin-display-wrapper" class="connection-option" style="background: rgba(59, 130, 246, 0.06); border: 1px dashed rgba(59, 130, 246, 0.4); border-radius: var(--radius-md); padding: 1rem; display: none; flex-direction: column; gap: 0.75rem;">
-                                <div>
-                                    <strong style="display: block; font-size: 0.9rem; color: var(--accent-blue); margin-bottom: 0.25rem;"><i class="fa-solid fa-server"></i> ID de Registro do Servidor</strong>
-                                    <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Identificador único na nuvem para seu amigo conectar o celular:</span>
-                                    <div style="font-family: monospace; font-size: 1.2rem; font-weight: bold; color: var(--accent-blue); text-align: center; background: rgba(0, 0, 0, 0.25); padding: 0.5rem; border-radius: var(--radius-sm); letter-spacing: 0.1rem;" id="desktop-server-id">------</div>
-                                </div>
-                                <div style="border-top: 1px dashed rgba(255, 255, 255, 0.08); padding-top: 0.75rem;">
-                                    <strong style="display: block; font-size: 0.9rem; color: #f59e0b; margin-bottom: 0.25rem;"><i class="fa-solid fa-shield-halved"></i> PIN de Segurança de Acesso Externo</strong>
-                                    <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Digite este código de 6 dígitos no seu celular quando solicitado:</span>
-                                    <div style="font-family: monospace; font-size: 1.5rem; font-weight: bold; color: #f59e0b; letter-spacing: 0.25rem; text-align: center; background: rgba(0, 0, 0, 0.25); padding: 0.5rem; border-radius: var(--radius-sm);" id="desktop-access-pin">------</div>
+                        <div class="form-row-grid mt-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div class="form-group-flat">
+                                <label for="input-percent-tithing"><i class="fa-solid fa-church color-yellow"></i> Dízimo (%)</label>
+                                <div class="input-icon-wrapper">
+                                    <input type="number" id="input-percent-tithing" class="form-control-flat" value="10" min="0" max="100">
+                                    <span class="input-addon-right">%</span>
                                 </div>
                             </div>
-
-                            <!-- Opção 1: Túnel Remoto -->
-                            <div class="connection-option" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: var(--radius-md); padding: 1rem;">
-                                <strong style="display: block; font-size: 0.9rem; color: var(--accent-blue); margin-bottom: 0.25rem;"><i class="fa-solid fa-globe"></i> Opção 1: Pela Internet (4G / Fora de Casa)</strong>
-                                <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Acesse de qualquer lugar usando o túnel seguro gerado automaticamente pelo servidor:</span>
-                                <div class="link-display" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
-                                    <input type="text" id="phone-tunnel-url" class="form-control-flat read-only" readonly value="Carregando túnel..." style="flex-grow: 1; font-family: monospace; font-size: 0.8rem;">
-                                    <button class="btn btn-secondary btn-xs ripple" onclick="copyText('phone-tunnel-url')" style="min-width: 70px; height: 38px;">Copiar</button>
-                                </div>
-                                <div id="tunnel-qr-wrapper" class="qr-code-wrapper" style="display: none; text-align: center; padding: 0.5rem 0;">
-                                    <img id="tunnel-qr-img" src="" alt="QR Code Acesso Remoto" style="max-width: 130px; border-radius: var(--radius-sm); border: 2px solid var(--border-card); background: white; padding: 4px;">
-                                    <span style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Escaneie para acessar fora de casa</span>
+                            <div class="form-group-flat">
+                                <label for="input-percent-taxes"><i class="fa-solid fa-receipt color-red"></i> Impostos (%)</label>
+                                <div class="input-icon-wrapper">
+                                    <input type="number" id="input-percent-taxes" class="form-control-flat" value="15" min="0" max="100">
+                                    <span class="input-addon-right">%</span>
                                 </div>
                             </div>
-                            
-                            <!-- Opção 2: IP Local Wi-Fi -->
-                            <div class="connection-option" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: var(--radius-md); padding: 1rem;">
-                                <strong style="display: block; font-size: 0.9rem; color: var(--accent-green); margin-bottom: 0.25rem;"><i class="fa-solid fa-wifi"></i> Opção 2: Pelo Wi-Fi Local (Mesma Rede)</strong>
-                                <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Se estiver conectado no mesmo Wi-Fi do computador, acesse via rede local:</span>
-                                <div class="link-display" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
-                                    <input type="text" id="phone-local-url" class="form-control-flat read-only" readonly value="Carregando IP local..." style="flex-grow: 1; font-family: monospace; font-size: 0.8rem;">
-                                    <button class="btn btn-secondary btn-xs ripple" onclick="copyText('phone-local-url')" style="min-width: 70px; height: 38px;">Copiar</button>
-                                </div>
-                                <div id="local-qr-wrapper" class="qr-code-wrapper" style="display: none; text-align: center; padding: 0.5rem 0;">
-                                    <img id="local-qr-img" src="" alt="QR Code Acesso Local" style="max-width: 130px; border-radius: var(--radius-sm); border: 2px solid var(--border-card); background: white; padding: 4px;">
-                                    <span style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Escaneie para acessar na rede local</span>
-                                </div>
-                            </div>
-
-                            <!-- Opção 3: Baixar APK -->
-                            <div class="connection-option" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: var(--radius-md); padding: 1rem;">
-                                <strong style="display: block; font-size: 0.9rem; color: var(--accent-purple); margin-bottom: 0.25rem;"><i class="fa-solid fa-download"></i> Opção 3: Baixar Aplicativo Nativo (.APK)</strong>
-                                <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Instale o app permanentemente no seu celular. Ele já virá pré-configurado com a URL do servidor atual!</span>
-                                <div class="link-display" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
-                                    <input type="text" id="phone-apk-url" class="form-control-flat read-only" readonly value="Carregando link do APK..." style="flex-grow: 1; font-family: monospace; font-size: 0.8rem;">
-                                    <button class="btn btn-primary btn-xs ripple" onclick="window.open(document.getElementById('phone-apk-url').value)" style="min-width: 90px; height: 38px; padding: 0 10px;">Baixar</button>
-                                </div>
-                                <div id="apk-qr-wrapper" class="qr-code-wrapper" style="display: none; text-align: center; padding: 0.5rem 0;">
-                                    <img id="apk-qr-img" src="" alt="QR Code Download APK" style="max-width: 130px; border-radius: var(--radius-sm); border: 2px solid var(--border-card); background: white; padding: 4px;">
-                                    <span style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Escaneie para BAIXAR o instalador APK no celular</span>
+                            <div class="form-group-flat">
+                                <label for="input-invest-percent"><i class="fa-solid fa-chart-line color-green"></i> Investimentos Automáticos (%)</label>
+                                <div class="input-icon-wrapper">
+                                    <input type="number" id="input-invest-percent" class="form-control-flat" value="20" min="0" max="100">
+                                    <span class="input-addon-right">%</span>
                                 </div>
                             </div>
                         </div>
+                        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                            <button id="btn-save-invest-percent" class="btn btn-primary ripple" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+                                <i class="fa-solid fa-floppy-disk"></i> Salvar Percentual de Investimento
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Endereço do Servidor Customizado Card -->
+                    <!-- Gerenciamento de Planilha e Banco de Dados (Local) -->
                     <div class="glass-card settings-card">
-                        <h3 class="settings-title"><i class="fa-solid fa-server color-blue"></i> Endereço do Servidor Customizado</h3>
-                        <p class="settings-desc">Se você está usando um aplicativo instalado (.apk) ou em outro domínio, insira a URL do seu servidor abaixo para sincronizar.</p>
+                        <h3 class="settings-title"><i class="fa-solid fa-file-shield color-green"></i> Gerenciar Planilha & Backup</h3>
+                        <p class="settings-desc">Como o aplicativo roda 100% no seu celular, os dados ficam salvos localmente. Use os botões abaixo para importar ou exportar seus dados físicos.</p>
                         
-                        <div class="form-row" style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
-                            <div class="form-group-flat" style="width: 100%;">
-                                <label for="input-custom-host">URL do Servidor (API Host)</label>
-                                <div class="input-icon-wrapper">
-                                    <span class="input-addon"><i class="fa-solid fa-link"></i></span>
-                                    <input type="url" id="input-custom-host" class="form-control-flat" placeholder="Deixe em branco para auto-detectar via GitHub" style="font-family: monospace; font-size: 0.85rem; width: 100%;">
-                                </div>
-                            </div>
-                            
-                            <div class="form-group-flat" style="width: 100%;">
-                                <label for="input-access-pin">PIN de Segurança (Acesso Externo)</label>
-                                <div class="input-icon-wrapper">
-                                    <span class="input-addon"><i class="fa-solid fa-lock"></i></span>
-                                    <input type="password" id="input-access-pin" class="form-control-flat" placeholder="Digite o PIN de 6 dígitos" style="font-family: monospace; font-size: 0.85rem; letter-spacing: 0.1rem; width: 100%;">
-                                </div>
-                            </div>
-
-                            <div style="display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; width: 100%; margin-top: 0.5rem;">
-                                <button id="btn-save-custom-host" class="btn btn-primary btn-inline ripple">
-                                    <i class="fa-solid fa-check"></i> Salvar Configurações
-                                </button>
-                                <button id="btn-clear-custom-host" class="btn btn-secondary btn-inline ripple">
-                                    <i class="fa-solid fa-trash"></i> Limpar
+                        <div class="settings-actions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                            <!-- Exportar Excel -->
+                            <div class="action-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); padding: 1rem; text-align: center;">
+                                <strong style="display: block; font-size: 0.9rem; color: #10b981; margin-bottom: 0.25rem;"><i class="fa-solid fa-file-excel"></i> Planilha Excel (.xlsx)</strong>
+                                <span class="desc" style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 1rem;">Gere e baixe a planilha Excel oficial atualizada com todas as abas e dados.</span>
+                                <button id="btn-export-xlsx" class="btn btn-primary ripple" style="width: 100%; background: #10b981;">
+                                    <i class="fa-solid fa-file-arrow-down"></i> Exportar Planilha
                                 </button>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Painel de Diagnóstico de Conexão (Premium & Dinâmico) -->
-                    <div class="glass-card settings-card">
-                        <h3 class="settings-title"><i class="fa-solid fa-circle-nodes color-green"></i> Diagnóstico de Conexão</h3>
-                        <p class="settings-desc">Verifique a saúde da conexão do seu dispositivo com o servidor local ou em nuvem.</p>
-                        
-                        <div class="diagnostics-box" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.25); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-card);">
-                                <span>Status da Conexão:</span>
-                                <span id="diag-conn-status" style="padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 0.35rem; background: rgba(156, 163, 175, 0.15); color: #9ca3af;"><i class="fa-solid fa-spinner fa-spin"></i> Testando...</span>
+                            <!-- Importar Excel -->
+                            <div class="action-card" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-md); padding: 1rem; text-align: center;">
+                                <strong style="display: block; font-size: 0.9rem; color: #3b82f6; margin-bottom: 0.25rem;"><i class="fa-solid fa-file-import"></i> Carregar Planilha (.xlsx)</strong>
+                                <span class="desc" style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 1rem;">Importe um arquivo de controle Excel de horas para carregar os dados no celular.</span>
+                                <input type="file" id="input-import-xlsx" accept=".xlsx" style="display: none;">
+                                <button id="btn-trigger-import-xlsx" class="btn btn-primary ripple" style="width: 100%; background: #3b82f6;">
+                                    <i class="fa-solid fa-file-arrow-up"></i> Importar Planilha
+                                </button>
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.25); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-card);">
-                                <span>URL Resolvida (API):</span>
-                                <span id="diag-resolved-url" style="font-family: monospace; font-size: 0.75rem; word-break: break-all; text-align: right; color: var(--text-secondary);">Nenhuma</span>
+
+                            <!-- Backup JSON -->
+                            <div class="action-card" style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: var(--radius-md); padding: 1rem; text-align: center;">
+                                <strong style="display: block; font-size: 0.9rem; color: #8b5cf6; margin-bottom: 0.25rem;"><i class="fa-solid fa-file-code"></i> Cópia de Segurança (JSON)</strong>
+                                <span class="desc" style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 1rem;">Baixe um arquivo leve de backup com todas as informações configuradas no app.</span>
+                                <button id="btn-download-backup" class="btn btn-secondary ripple" style="width: 100%;">
+                                    <i class="fa-solid fa-download"></i> Baixar Backup
+                                </button>
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.25); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-card);">
-                                <span>Latência (Ping):</span>
-                                <span id="diag-latency" style="font-weight: bold; color: var(--text-secondary);">-- ms</span>
+
+                            <!-- Restaurar Backup JSON -->
+                            <div class="action-card" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--radius-md); padding: 1rem; text-align: center;">
+                                <strong style="display: block; font-size: 0.9rem; color: #f59e0b; margin-bottom: 0.25rem;"><i class="fa-solid fa-upload"></i> Restaurar Backup (JSON)</strong>
+                                <span class="desc" style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 1rem;">Selecione um arquivo de backup JSON previamente exportado para restaurar tudo.</span>
+                                <button id="btn-restore-backup" class="btn btn-secondary ripple" style="width: 100%;">
+                                    <i class="fa-solid fa-upload"></i> Restaurar Backup
+                                </button>
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.25); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-card);">
-                                <span>ID do Servidor Pareado:</span>
-                                <span id="diag-server-id" style="font-family: monospace; font-weight: bold; color: var(--accent-blue);">--</span>
+
+                            <!-- Google Drive Cloud Sync Card -->
+                            <div class="action-card" id="gdrive-sync-card" style="background: rgba(6, 182, 212, 0.03); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: var(--radius-md); padding: 1.25rem; text-align: left; grid-column: span 2; display: flex; flex-direction: column; gap: 0.75rem;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                                    <strong style="font-size: 1rem; color: #06b6d4; display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="fa-brands fa-google-drive"></i> Sincronização Google Drive (Nuvem)
+                                    </strong>
+                                    <span id="gdrive-status-badge" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 20px; font-weight: bold; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">Desconectado</span>
+                                </div>
+                                <span class="desc" style="display: block; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;">
+                                    Salve seus pontos, finanças e planilha Excel de forma 100% segura no seu próprio Google Drive. Ao reinstalar o app, seus dados serão recuperados instantaneamente. Funciona offline (salva localmente e sincroniza quando a internet voltar!).
+                                </span>
+
+                                <!-- Profile Info (hidden by default) -->
+                                <div id="gdrive-profile-info" style="display: none; align-items: center; gap: 0.75rem; background: rgba(0, 0, 0, 0.2); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid rgba(255, 255, 255, 0.05); margin-top: 0.25rem;">
+                                    <img id="gdrive-user-avatar" src="" alt="Avatar" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid #06b6d4; background: rgba(255,255,255,0.05);">
+                                    <div style="flex-grow: 1; min-width: 0;">
+                                        <strong id="gdrive-user-name" style="display: block; font-size: 0.8rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Nome Usuário</strong>
+                                        <span id="gdrive-user-email" style="display: block; font-size: 0.7rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">email@gmail.com</span>
+                                    </div>
+                                    <button id="btn-gdrive-disconnect" class="btn btn-secondary ripple" style="padding: 0.35rem 0.65rem; font-size: 0.7rem; background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); border-radius: var(--radius-sm); cursor: pointer; min-width: 90px;">
+                                        Desconectar
+                                    </button>
+                                </div>
+
+                                <!-- Connection Prompt (shown by default) -->
+                                <div id="gdrive-login-prompt" style="text-align: center; padding: 1.25rem; border: 1px dashed rgba(6, 182, 212, 0.25); border-radius: var(--radius-sm); background: rgba(6, 182, 212, 0.01); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem;">
+                                    <span style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3;">
+                                        Faça login de forma rápida e segura. Apenas os arquivos criados por este aplicativo serão acessados no seu Drive.
+                                    </span>
+                                    <button id="btn-gdrive-connect" class="btn btn-primary ripple" style="background: #06b6d4; border-color: #06b6d4; font-size: 0.8rem; padding: 0.5rem 1rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 0.4rem;">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> Conectar com Google Drive
+                                    </button>
+                                </div>
+
+                                <!-- Sync controls (hidden by default) -->
+                                <div id="gdrive-sync-options" style="display: none; flex-direction: column; gap: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.75rem;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                                        <div>
+                                            <strong style="display: block; font-size: 0.8rem; color: #fff;">Backup Automático ao Salvar</strong>
+                                            <span style="font-size: 0.65rem; color: var(--text-secondary); display: block; line-height: 1.2;">Salva na nuvem silenciosamente quando houver internet.</span>
+                                        </div>
+                                        <label class="switch">
+                                            <input type="checkbox" id="chk-gdrive-autosync" checked>
+                                            <span class="slider round"></span>
+                                        </label>
+                                    </div>
+                                    
+                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem;">
+                                        <button id="btn-gdrive-sync-now" class="btn btn-primary ripple" style="background: linear-gradient(135deg, #06b6d4, #3b82f6); font-size: 0.75rem; padding: 0.45rem; flex: 1 1 140px; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: var(--radius-sm);">
+                                            <i class="fa-solid fa-rotate"></i> Sincronizar Agora
+                                        </button>
+                                        <button id="btn-gdrive-restore-cloud" class="btn btn-secondary ripple" style="font-size: 0.75rem; padding: 0.45rem; flex: 1 1 140px; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-color: rgba(255,255,255,0.15); border-radius: var(--radius-sm);">
+                                            <i class="fa-solid fa-cloud-arrow-down"></i> Restaurar da Nuvem
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Advanced Google API configuration (Accordion) -->
+                                <div class="accordion" style="margin-top: 0.25rem;">
+                                    <div class="accordion-header" id="gdrive-accordion-header" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-secondary); border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.5rem; cursor: pointer; user-select: none;">
+                                        <span><i class="fa-solid fa-gears"></i> Configurações Avançadas de API (Clientes Externos)</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </div>
+                                    <div class="accordion-content" id="gdrive-accordion-content" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                                        <span style="font-size: 0.65rem; color: var(--text-secondary); line-height: 1.3;">
+                                            Por padrão, o app usa uma credencial oficial para o domínio <code>andreturco.github.io</code>. Se você hospedar este app em outro servidor ou quiser sua própria chave:
+                                        </span>
+                                        <div class="form-group-flat">
+                                            <label for="input-gdrive-client-id" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Google Client ID Personalizado</label>
+                                            <input type="text" id="input-gdrive-client-id" class="form-control-flat" style="font-size: 0.7rem; padding: 0.4rem 0.5rem;" placeholder="Deixe em branco para usar o padrão">
+                                        </div>
+                                        <div style="display: flex; gap: 0.4rem;">
+                                            <button id="btn-save-gdrive-client-id" class="btn btn-primary ripple" style="font-size: 0.7rem; padding: 0.35rem 0.65rem; background: #06b6d4; border-color: #06b6d4; border-radius: var(--radius-sm);">
+                                                Salvar ID
+                                            </button>
+                                            <button id="btn-reset-gdrive-client-id" class="btn btn-secondary ripple" style="font-size: 0.7rem; padding: 0.35rem 0.65rem; border-color: rgba(255,255,255,0.15); border-radius: var(--radius-sm);">
+                                                Restaurar Padrão
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <button id="btn-run-diagnostics" class="btn btn-secondary ripple" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 0.5rem; height: 42px;">
-                                <i class="fa-solid fa-rotate"></i> Atualizar Diagnóstico
+                        </div>
+
+                        <div style="border-top: 1px solid var(--border-card); padding-top: 1rem; margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);"><i class="fa-solid fa-circle-info"></i> Recomenda-se exportar sua planilha ou JSON semanalmente para salvaguarda.</span>
+                            <button id="btn-wipe-data" class="btn btn-secondary ripple" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                <i class="fa-solid fa-trash-can"></i> Limpar Todo o Aplicativo (Wipe)
                             </button>
                         </div>
                     </div>
@@ -1248,18 +1316,7 @@
                     </div>
 
                     <!-- Backup and spreadsheet info -->
-                    <div class="glass-card settings-card">
-                        <h3 class="settings-title"><i class="fa-solid fa-shield-halved color-green"></i> Segurança e Planilha</h3>
-                        <div class="backup-info-box">
-                            <p><i class="fa-solid fa-circle-check color-green"></i> <strong>Backup Automático Ativo</strong>: Cópias completas salvas em `backups/` a cada novo ponto ou alteração.</p>
-                            <p><i class="fa-solid fa-file-excel color-blue"></i> <strong>Planilha Localizada em</strong>: <br><code class="file-path">c:\Users\aline\OneDrive\Documentos\Projetos\controle de Horas\Controle_de_Horas_Trabalho-1.xlsx</code></p>
-                        </div>
-                        <div class="mt-3">
-                            <button id="btn-download-backup" class="btn btn-secondary ripple" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
-                                <i class="fa-solid fa-file-arrow-down"></i> Baixar Planilha & Criar Backup Manual
-                            </button>
-                        </div>
-                    </div>
+
 
                     <!-- Export Section -->
                     <div class="glass-card settings-card">
@@ -1475,6 +1532,7 @@
     <!-- Toast Notifications -->
     <div id="toast-container" class="toast-container"></div>
 
+    <script src="prefilled_data.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
