@@ -17,6 +17,7 @@ async function compileApk(mode) {
     const isPrefilled = (mode === 'user');
     const label = isPrefilled ? 'PREENCHIDO (Premium)' : 'LIMPO (Distribuição)';
     const filename = isPrefilled ? 'Controle_de_Horas_Premium.apk' : 'Controle_de_Horas_Limpo.apk';
+    const packageId = isPrefilled ? "com.andreturco.horascontrole.premium" : "com.andreturco.horascontrole";
     const apkDestPath = path.join(__dirname, filename);
     const zipPath = path.join(__dirname, `temp_${mode}.zip`);
     const extractPath = path.join(__dirname, `temp_decompressed_${mode}`);
@@ -58,7 +59,7 @@ async function compileApk(mode) {
         navigationDividerColor: "#0b0f19",
         navigationDividerColorDark: "#0b0f19",
         orientation: "portrait",
-        packageId: isPrefilled ? "com.andreturco.horascontrole.premium" : "com.andreturco.horascontrole",
+        packageId: packageId,
         shortcuts: [],
         signing: {
             file: null,
@@ -120,20 +121,92 @@ async function compileApk(mode) {
                 // Certificar que a pasta .well-known existe
                 fs.mkdirSync(path.join(__dirname, 'public', '.well-known'), { recursive: true });
 
-                // Comando PowerShell para expandir o ZIP, extrair o .apk final e o assetlinks.json
-                const psCommand = `powershell -Command "Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${extractPath}'; Get-ChildItem -Path '${extractPath}' -Filter '*.apk' -Recurse | Select-Object -First 1 | Move-Item -Destination '${apkDestPath}' -Force; Get-ChildItem -Path '${extractPath}' -Filter 'assetlinks.json' -Recurse | Select-Object -First 1 | Copy-Item -Destination '${path.join(__dirname, 'public', '.well-known', 'assetlinks.json')}' -Force"`;
+                // Comando PowerShell para expandir o ZIP
+                const psCommand = `powershell -Command "Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${extractPath}'"`;
 
                 exec(psCommand, (error, stdout, stderr) => {
-                    // Limpeza de arquivos temporários
-                    try { fs.unlinkSync(zipPath); } catch (e) {}
-                    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
-
                     if (error) {
-                        return reject(new Error(`Erro ao extrair ou mover o arquivo APK: ${stderr || error.message}`));
+                        // Limpeza
+                        try { fs.unlinkSync(zipPath); } catch (e) {}
+                        try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+                        return reject(new Error(`Erro ao expandir o arquivo ZIP: ${stderr || error.message}`));
                     }
 
-                    console.log(`[APK] Concluído! APK salvo em: ${apkDestPath}`);
-                    resolve();
+                    console.log(`[APK] ZIP extraído. Procurando arquivos...`);
+
+                    // Função recursiva para encontrar arquivos
+                    function findFileRecursive(dir, filterFn) {
+                        const files = fs.readdirSync(dir);
+                        for (const file of files) {
+                            const filePath = path.join(dir, file);
+                            const stat = fs.statSync(filePath);
+                            if (stat.isDirectory()) {
+                                const found = findFileRecursive(filePath, filterFn);
+                                if (found) return found;
+                            } else if (filterFn(file)) {
+                                return filePath;
+                            }
+                        }
+                        return null;
+                    }
+
+                    try {
+                        // 1. Procurar o arquivo .apk
+                        const apkFile = findFileRecursive(extractPath, (name) => name.endsWith('.apk'));
+                        if (!apkFile) {
+                            throw new Error('Nenhum arquivo .apk encontrado no pacote ZIP compilado.');
+                        }
+                        console.log(`[APK] APK encontrado: ${apkFile}. Copiando para ${apkDestPath}...`);
+                        fs.copyFileSync(apkFile, apkDestPath);
+
+                        // 2. Procurar o arquivo assetlinks.json
+                        const assetlinksFile = findFileRecursive(extractPath, (name) => name === 'assetlinks.json');
+                        if (assetlinksFile) {
+                            const destAssetlinks = path.join(__dirname, 'public', '.well-known', 'assetlinks.json');
+                            console.log(`[APK] assetlinks.json encontrado: ${assetlinksFile}. Copiando para ${destAssetlinks}...`);
+                            fs.copyFileSync(assetlinksFile, destAssetlinks);
+                        } else {
+                            console.log('[APK] assetlinks.json não encontrado no ZIP. Gerando assetlinks.json a partir do signing-key-info.txt...');
+                            const keyInfoFile = findFileRecursive(extractPath, (name) => name === 'signing-key-info.txt');
+                            if (keyInfoFile) {
+                                const keyInfoContent = fs.readFileSync(keyInfoFile, 'utf8');
+                                // Tentar encontrar a linha SHA256
+                                const shaLine = keyInfoContent.split('\n').find(line => line.includes('SHA256') || line.includes('SHA-256'));
+                                if (shaLine) {
+                                    const shaMatch = shaLine.match(/([0-9A-Fa-f]{2}[:-]){31}[0-9A-Fa-f]{2}/) || shaLine.match(/([0-9A-Fa-f]{64})/);
+                                    if (shaMatch) {
+                                        const sha256 = shaMatch[0].toUpperCase().trim();
+                                        const assetlinksContent = JSON.stringify([
+                                            {
+                                                relation: ["delegate_permission/common.handle_all_urls"],
+                                                target: {
+                                                    namespace: "android_app",
+                                                    package_name: packageId,
+                                                    sha256_cert_fingerprints: [sha256]
+                                                }
+                                            }
+                                        ], null, 2);
+                                        const destAssetlinks = path.join(__dirname, 'public', '.well-known', 'assetlinks.json');
+                                        fs.writeFileSync(destAssetlinks, assetlinksContent);
+                                        console.log(`[APK] assetlinks.json gerado com sucesso! SHA256: ${sha256}`);
+                                    }
+                                }
+                            }
+                        }
+
+                        console.log(`[APK] Concluído com sucesso para: ${filename}`);
+                        
+                        // Limpeza
+                        try { fs.unlinkSync(zipPath); } catch (e) {}
+                        try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+                        resolve();
+
+                    } catch (err) {
+                        // Limpeza
+                        try { fs.unlinkSync(zipPath); } catch (e) {}
+                        try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+                        reject(err);
+                    }
                 });
             });
 
