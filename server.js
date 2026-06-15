@@ -1640,6 +1640,40 @@ function clearTunnelUrlJson() {
     publishTunnelUrlToCloud().catch(err => {});
 }
 
+// Função para encerrar processos SSH antigos na inicialização para evitar conflitos de porta/sessão
+function cleanupZombieTunnels() {
+    return new Promise((resolve) => {
+        if (process.platform !== 'win32') return resolve(); // Apenas Windows precisa disso
+        console.log('  [CLEANUP] Verificando e limpando conexões SSH anteriores...');
+        const cmd = 'powershell -Command "Get-CimInstance Win32_Process -Filter \\"Name = \'ssh.exe\'\\" | Where-Object { $_.CommandLine -like \'*localhost.run*\' -or $_.CommandLine -like \'*serveo.net*\' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"';
+        exec(cmd, (err) => {
+            if (err) {
+                // Se falhar o CimInstance (ex: Powershell antigo), tenta matar todos os ssh.exe do OpenSSH
+                exec('powershell -Command "Get-Process ssh -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"', () => {
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+function killSshProcess() {
+    if (sshProcess) {
+        try {
+            console.log('  [CLEANUP] Encerrando o túnel SSH ativo...');
+            sshProcess.kill('SIGTERM');
+        } catch (e) {}
+        sshProcess = null;
+    }
+}
+
+// Registrar eventos de finalização do processo para garantir encerramento do SSH
+process.on('exit', killSshProcess);
+process.on('SIGINT', () => { killSshProcess(); process.exit(2); });
+process.on('SIGTERM', () => { killSshProcess(); process.exit(15); });
+
 // Função para iniciar e reconectar o túnel remoto automaticamente (Tenta Localtunnel Estático primeiro, depois fallbacks SSH)
 async function startTunnel(retryCount = 0) {
     const urlFilePath = path.join(basePath, 'url_acesso.txt');
@@ -1649,6 +1683,9 @@ async function startTunnel(retryCount = 0) {
         try { sshProcess.kill(); } catch (e) {}
         sshProcess = null;
     }
+
+    // Limpar conexões SSH anteriores de execuções passadas
+    await cleanupZombieTunnels();
 
     console.log(`  [INFO] Estabelecendo conexão para acesso remoto (Tentativa ${retryCount + 1})...`);
 
