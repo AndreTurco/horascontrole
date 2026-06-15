@@ -1,0 +1,22 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.andreturco.horascontrole.premium",
+      "sha256_cert_fingerprints": [
+        "D7:10:97:EB:55:18:22:98:8C:7A:B4:EF:28:FE:84:8F:D6:C3:ED:EC:DF:8B:D4:F7:2F:A2:3E:04:1E:59:71:0D"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.andreturco.horascontrole",
+      "sha256_cert_fingerprints": [
+        "4C:97:CD:CC:7C:F8:8C:BE:F4:DF:5C:DE:28:9B:F4:8F:CC:97:ED:EC:4C:97:CC:7C:F8:8C:BE:F4:DF:5C:DE:28"
+      ]
+    }
+  }
+]
