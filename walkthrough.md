@@ -55,3 +55,24 @@ Você e seu amigo podem executar o aplicativo de três formas diferentes:
 2. **Uso nos dias seguintes**:
    * O celular salva as credenciais de forma definitiva no armazenamento interno. Você pode fechar o aplicativo no celular e reiniciar o computador quando quiser.
    * Assim que você abrir o programa no PC e iniciar o app no celular, a sincronização será restabelecida automaticamente em qualquer rede (Wi-Fi ou 4G)!
+
+---
+
+## 🔍 Painel de Diagnóstico & Redirecionamento Automático (Novo)
+
+Adicionamos uma ferramenta premium de diagnóstico de rede diretamente na aba de **Ajustes** e um sistema de segurança de rotas no servidor:
+* **Status Dinâmico**: Exibe badges vibrantes coloridas indicando o estado atual (`Testando...`, `Conectado`, `PIN Inválido` ou `Inacessível`).
+* **Latência (Ping)**: Mede o tempo de resposta em milissegundos entre o celular e o servidor ativo no PC.
+* **Redirecionamento Automático e Persistência de Dados (Crucial)**: Se o celular tentar acessar o sistema usando a URL do túnel dinâmico direta (como `https://xxxx.lhr.life/`), o servidor detecta o acesso móvel e o redireciona automaticamente para a PWA permanente hospedada em GitHub Pages (`https://andreturco.github.io/horascontrole/public/...`). Isso garante que o celular mantenha seu `localStorage` e PIN salvos sempre sob a mesma origem estável, evitando a perda de pareamento nas reinicializações do PC.
+* **Auto-Resolução e Cura**: Caso a conexão inicial falhe, o painel de diagnóstico automaticamente consulta o ExtendsClass, atualiza a nova URL de túnel dinâmico e o PIN salvos na nuvem, e restabelece a sincronização de forma silenciosa e instantânea!
+* **Informações Detalhadas**: Mostra claramente a URL ativa resolvida e o ID do Servidor pareado.
+
+---
+
+## 📦 Entrega e Atualização no Google Drive
+
+O ciclo completo de compilação e publicação foi executado com sucesso:
+1. **Recompilação**: Executamos a compilação oficial da aplicação desktop empacotada (`dist/controle-de-horas-win32-x64/`).
+2. **Compactação**: Geramos pacotes compactados limpos livres de logs, senhas locais e caminhos clonados (`controle-de-horas-limpo.zip` e `controle-de-horas-limpo.rar`).
+3. **Publicação**: Os pacotes atualizados e o arquivo do aplicativo móvel (`controle-horas.apk`) foram copiados para a pasta raiz do seu Google Drive (`G:\Meu Drive\`), prontos para compartilhamento e uso imediato do seu amigo!
+
