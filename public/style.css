@@ -1589,10 +1589,12 @@ body.light-theme::after {
 
 .toast.success { border-left: 4px solid var(--accent-green); }
 .toast.error { border-left: 4px solid var(--accent-red); }
+.toast.info { border-left: 4px solid var(--accent-purple); }
 
 .toast-icon { font-size: 1.1rem; }
 .toast.success .toast-icon { color: var(--accent-green); }
 .toast.error .toast-icon { color: var(--accent-red); }
+.toast.info .toast-icon { color: var(--accent-purple); }
 
 @keyframes toastIn {
     from { transform: translateY(20px) scale(0.9); opacity: 0; }

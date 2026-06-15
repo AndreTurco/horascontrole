@@ -1695,10 +1695,18 @@ function updateMacroDroidLink() {
 // ==========================================================================
 function bindEvents() {
     // 0. Botão de sincronização manual (Sync Badge)
-    document.getElementById('sync-status').addEventListener('click', () => {
-        fetchData();
-        fetchNetworkInfo();
-        showToast('Atualizando dados da planilha...', 'success');
+    document.getElementById('sync-status').addEventListener('click', async () => {
+        showToast('Buscando servidor e atualizando dados...', 'info');
+        try {
+            await resolveActiveTunnelUrl();
+            await fetchData();
+            await fetchNetworkInfo();
+            // Re-estabelecer o fluxo de atualizações em tempo real
+            setupRealtimeUpdates();
+        } catch (e) {
+            console.error('[SYNC] Falha ao reconectar:', e);
+            showToast('Não foi possível conectar ao servidor.', 'error');
+        }
     });
 
     // 1. Navegação de Abas
@@ -2420,7 +2428,14 @@ function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     
-    const icon = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
+    let icon = 'fa-circle-check';
+    if (type === 'error') {
+        icon = 'fa-circle-exclamation';
+    } else if (type === 'info') {
+        icon = 'fa-circle-info';
+    } else if (type === 'warning') {
+        icon = 'fa-triangle-exclamation';
+    }
     
     toast.innerHTML = `
         <i class="fa-solid ${icon} toast-icon"></i>

@@ -1,0 +1,79 @@
+================================================================================
+          COMO INSTALAR E CONFIGURAR O CONTROLE DE HORAS PREMIUM
+================================================================================
+
+Este guia ensina o passo a passo para instalar o aplicativo no seu computador
+e sincronizá-lo com o seu celular. O sistema é 100% independente e seguro.
+
+--------------------------------------------------------------------------------
+REQUISITO ÚNICO (APENAS UMA VEZ)
+--------------------------------------------------------------------------------
+
+O sistema necessita do Node.js instalado no seu computador para executar o 
+banco de dados e a sincronização local de rede.
+
+1. Acesse o site oficial do Node.js: https://nodejs.org
+2. Baixe e instale a versão "LTS" (Recomendada para a maioria dos usuários).
+3. Avance em todas as etapas da instalação padrão.
+4. Ao finalizar a instalação, REINICIE o seu computador para aplicar as alterações.
+
+--------------------------------------------------------------------------------
+PASSO 1: INSTALAR O APLICATIVO NO COMPUTADOR
+--------------------------------------------------------------------------------
+
+1. Baixe o instalador do Google Drive: "Controle de Horas Premium Setup.exe"
+2. Dê um duplo clique no arquivo baixado para iniciar o assistente.
+3. Clique em "Avançar" e selecione se deseja instalar para todos ou apenas 
+   para você.
+4. Conclua a instalação. O instalador criará um atalho chamado 
+   "Controle de Horas Premium" na sua Área de Trabalho (Desktop).
+
+--------------------------------------------------------------------------------
+PASSO 2: EXECUTAR E CONFIGURAR O APLICATIVO
+--------------------------------------------------------------------------------
+
+1. Abra o aplicativo pelo atalho da sua Área de Trabalho.
+2. Na primeira inicialização:
+   - O sistema detectará que você não possui dados ainda e criará automaticamente
+     uma planilha Excel novinha em branco configurada para o ano de 2026.
+   - O arquivo do banco de dados será salvo em:
+     C:\Usuários\<SeuNome>\Documentos\Controle de Horas\Controle_de_Horas_Trabalho-1.xlsx
+   - Você também receberá um PIN de segurança aleatório de 6 dígitos.
+
+--------------------------------------------------------------------------------
+PASSO 3: CONECTAR O SEU CELULAR (EM QUALQUER REDE / 4G / WI-FI)
+--------------------------------------------------------------------------------
+
+O celular e o computador podem estar em redes de internet completamente diferentes.
+A conexão é feita de forma automática na nuvem através do seu PIN.
+
+1. No aplicativo no computador, clique na aba "Conexão" (no menu lateral).
+2. Você verá o seu "PIN de Segurança de Acesso Externo" de 6 dígitos.
+3. Escolha uma das opções para abrir o sistema no celular:
+   
+   OPÇÃO A (Usando a Internet / Fora de casa):
+   - Escaneie o QR Code "Opção 1: Pela Internet (4G / Fora de Casa)" ou 
+     abra a URL do túnel indicada no seu celular.
+   - Ao carregar a página no celular, digite o seu PIN de 6 dígitos e clique
+     em "Conectar".
+   
+   OPÇÃO B (Instalar o Aplicativo no Celular):
+   - Escaneie o QR Code "Opção 3: Baixar Aplicativo Nativo (.APK)".
+   - Faça o download e instale o aplicativo no seu Android.
+   - Ao abrir o app no celular, informe o seu PIN de 6 dígitos.
+
+Pronto! O seu celular e o seu PC estarão sincronizados. Sempre que você bater 
+o ponto pelo celular, a planilha Excel no seu computador será atualizada!
+
+--------------------------------------------------------------------------------
+DICAS IMPORTANTES DE USO
+--------------------------------------------------------------------------------
+
+* INICIALIZAÇÃO AUTOMÁTICA: O aplicativo foi projetado para iniciar automaticamente junto com o Windows, rodando silenciosamente em segundo plano (minimizado na barra de tarefas, perto do relógio do PC). Dessa forma, você só precisa ligar o PC e o celular se conectará sozinho, sem precisar abrir nada manualmente!
+* USO DIÁRIO: Caso queira abrir a tela do painel no PC, basta dar um duplo clique no ícone "Controle de Horas Premium" na sua Área de Trabalho ou clicar no ícone do aplicativo perto do relógio do Windows.
+* ACESSO DO CELULAR: Para salvar dados pelo celular, o computador deve estar ligado com o programa rodando (seja na tela ou em segundo plano perto do relógio).
+* PLANILHA EXCEL: Você pode abrir a planilha para visualizar as horas, mas lembre-se de fechar o Excel após o uso para evitar conflito de escrita quando registrar novos pontos pelo celular.
+
+================================================================================
+Versão: Controle de Horas Premium 2026
+================================================================================

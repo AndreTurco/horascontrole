@@ -22,7 +22,8 @@ function configureAutoStart() {
         app.setLoginItemSettings({
             openAtLogin: true,
             openAsHidden: true,
-            path: process.execPath
+            path: process.execPath,
+            args: ['--hidden']
         });
     } catch (e) {
         console.warn('[WARNING] Não foi possível configurar inicialização automática:', e.message);
@@ -30,11 +31,14 @@ function configureAutoStart() {
 }
 
 function createWindow() {
+    const isHiddenLaunch = process.argv.includes('--hidden');
+    
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 800,
         title: "Controle de Horas Premium",
         icon: path.join(__dirname, 'public', 'icon.ico'),
+        show: !isHiddenLaunch,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true
