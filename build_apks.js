@@ -159,39 +159,66 @@ async function compileApk(mode) {
                         console.log(`[APK] APK encontrado: ${apkFile}. Copiando para ${apkDestPath}...`);
                         fs.copyFileSync(apkFile, apkDestPath);
 
-                        // 2. Procurar o arquivo assetlinks.json
+                        // 2. Extrair e mesclar assinatura SHA256 no assetlinks.json
                         const assetlinksFile = findFileRecursive(extractPath, (name) => name === 'assetlinks.json');
+                        let sha256 = null;
                         if (assetlinksFile) {
-                            const destAssetlinks = path.join(__dirname, 'public', '.well-known', 'assetlinks.json');
-                            console.log(`[APK] assetlinks.json encontrado: ${assetlinksFile}. Copiando para ${destAssetlinks}...`);
-                            fs.copyFileSync(assetlinksFile, destAssetlinks);
-                        } else {
-                            console.log('[APK] assetlinks.json não encontrado no ZIP. Gerando assetlinks.json a partir do signing-key-info.txt...');
+                            try {
+                                const content = fs.readFileSync(assetlinksFile, 'utf8');
+                                const parsed = JSON.parse(content);
+                                if (parsed && parsed[0] && parsed[0].target && parsed[0].target.sha256_cert_fingerprints) {
+                                    sha256 = parsed[0].target.sha256_cert_fingerprints[0];
+                                }
+                            } catch (e) {
+                                console.warn('[APK] Erro ao ler assetlinks.json extraído:', e.message);
+                            }
+                        }
+
+                        if (!sha256) {
                             const keyInfoFile = findFileRecursive(extractPath, (name) => name === 'signing-key-info.txt');
                             if (keyInfoFile) {
                                 const keyInfoContent = fs.readFileSync(keyInfoFile, 'utf8');
-                                // Tentar encontrar a linha SHA256
                                 const shaLine = keyInfoContent.split('\n').find(line => line.includes('SHA256') || line.includes('SHA-256'));
                                 if (shaLine) {
                                     const shaMatch = shaLine.match(/([0-9A-Fa-f]{2}[:-]){31}[0-9A-Fa-f]{2}/) || shaLine.match(/([0-9A-Fa-f]{64})/);
                                     if (shaMatch) {
-                                        const sha256 = shaMatch[0].toUpperCase().trim();
-                                        const assetlinksContent = JSON.stringify([
-                                            {
-                                                relation: ["delegate_permission/common.handle_all_urls"],
-                                                target: {
-                                                    namespace: "android_app",
-                                                    package_name: packageId,
-                                                    sha256_cert_fingerprints: [sha256]
-                                                }
-                                            }
-                                        ], null, 2);
-                                        const destAssetlinks = path.join(__dirname, 'public', '.well-known', 'assetlinks.json');
-                                        fs.writeFileSync(destAssetlinks, assetlinksContent);
-                                        console.log(`[APK] assetlinks.json gerado com sucesso! SHA256: ${sha256}`);
+                                        sha256 = shaMatch[0].toUpperCase().trim();
                                     }
                                 }
                             }
+                        }
+
+                        if (sha256) {
+                            const destAssetlinks = path.join(__dirname, 'public', '.well-known', 'assetlinks.json');
+                            let currentList = [];
+                            if (fs.existsSync(destAssetlinks)) {
+                                try {
+                                    currentList = JSON.parse(fs.readFileSync(destAssetlinks, 'utf8'));
+                                } catch (e) {
+                                    console.warn('[APK] Erro ao ler assetlinks.json existente, recriando:', e.message);
+                                }
+                            }
+                            if (!Array.isArray(currentList)) currentList = [];
+
+                            // Filtrar para remover entrada antiga com o mesmo packageId
+                            currentList = currentList.filter(item => {
+                                return !(item && item.target && item.target.package_name === packageId);
+                            });
+
+                            // Adicionar nova entrada
+                            currentList.push({
+                                relation: ["delegate_permission/common.handle_all_urls"],
+                                target: {
+                                    namespace: "android_app",
+                                    package_name: packageId,
+                                    sha256_cert_fingerprints: [sha256]
+                                }
+                            });
+
+                            fs.writeFileSync(destAssetlinks, JSON.stringify(currentList, null, 2));
+                            console.log(`[APK] assetlinks.json atualizado com sucesso para ${packageId}! SHA256: ${sha256}`);
+                        } else {
+                            console.warn('[APK] Não foi possível extrair a assinatura SHA256 para o assetlinks.json.');
                         }
 
                         console.log(`[APK] Concluído com sucesso para: ${filename}`);
