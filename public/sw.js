@@ -1,5 +1,5 @@
 // Service Worker - Cache-First para modo 100% offline
-const CACHE_NAME = 'controle-horas-v21-offline';
+const CACHE_NAME = 'controle-horas-v22-offline';
 const ASSETS = [
   './',
   'index.html',
@@ -7,7 +7,9 @@ const ASSETS = [
   'app.js',
   'manifest.json',
   'chart.js',
-  'exceljs.min.js'
+  'exceljs.min.js',
+  'tools_300.js',
+  'tools_300_generated.js'
 ];
 
 // Instalar: cachear todos os assets

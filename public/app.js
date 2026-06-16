@@ -4336,7 +4336,7 @@ function updateHideFinancialsUI() {
 
 async function fetchCurrencyRates() {
     try {
-        const res = await fetch('https://economia.awesomestapi.com.br/last/USD-BRL,EUR-BRL');
+        const res = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL');
         if (!res.ok) throw new Error('Falha na rede');
         const data = await res.json();
         
@@ -4393,15 +4393,8 @@ async function fetchWeather() {
     const weatherEl = document.getElementById('weather-info');
     if (!weatherEl) return;
     
-    if (!navigator.geolocation) {
-        weatherEl.innerHTML = `<i class="fa-solid fa-cloud-sun color-cyan"></i> Clima Indisponível`;
-        return;
-    }
-    
-    navigator.geolocation.getCurrentPosition(async (pos) => {
+    const fetchByCoords = async (lat, lon) => {
         try {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
             const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
             if (!res.ok) throw new Error('Falha na rede');
             const data = await res.json();
@@ -4423,9 +4416,29 @@ async function fetchWeather() {
             console.warn('[WEATHER]', err);
             weatherEl.innerHTML = `<i class="fa-solid fa-cloud-sun color-cyan"></i> Clima Indisponível`;
         }
-    }, () => {
-        weatherEl.innerHTML = `<i class="fa-solid fa-cloud-sun color-cyan"></i> Sem Permissão GPS`;
-    });
+    };
+
+    const fetchFallbackIP = async () => {
+        try {
+            const ipRes = await fetch('https://ipapi.co/json/');
+            if (!ipRes.ok) throw new Error('Falha IP');
+            const ipData = await ipRes.json();
+            await fetchByCoords(ipData.latitude, ipData.longitude);
+        } catch (e) {
+            weatherEl.innerHTML = `<i class="fa-solid fa-cloud-sun color-cyan"></i> Clima Indisponível`;
+        }
+    };
+
+    if (!navigator.geolocation) {
+        await fetchFallbackIP();
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        (pos) => fetchByCoords(pos.coords.latitude, pos.coords.longitude),
+        () => fetchFallbackIP(), // Fallback on permission denied or timeout
+        { timeout: 5000 }
+    );
 }
 
 async function checkTimeSync() {
