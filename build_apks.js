@@ -1,7 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
+
+console.log('===================================================');
+console.log('🔄 Sincronizando dados da planilha local para o PWA...');
+try {
+    execSync('python scratch/sync_excel_to_base64.py', { stdio: 'inherit' });
+} catch (e) {
+    console.warn('⚠️ Falha ao sincronizar Excel:', e.message);
+}
+console.log('===================================================');
 
 // Configurações do Git e PWA
 const gitInfo = {
@@ -40,7 +49,7 @@ async function compileApk(mode) {
         display: "standalone",
         enableNotifications: true,
         enableSiteSettingsShortcut: true,
-        fallbackType: "customtabs",
+        fallbackType: "webview",
         features: {
             locationDelegation: { enabled: true },
             playBilling: { enabled: false }
