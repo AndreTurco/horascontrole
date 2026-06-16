@@ -191,6 +191,11 @@
             <div class="setup-body" style="display: flex; flex-direction: column; gap: 1rem;">
                 <p style="font-size: 0.85rem; text-align: center; margin-bottom: 0.5rem;">Escolha como você deseja iniciar o seu controle de horas local:</p>
                 
+                <div class="form-group-flat" style="margin-bottom: 0.5rem; text-align: left;">
+                    <label for="setup-user-name" style="color: var(--text-secondary); font-size: 0.8rem; display: block; margin-bottom: 0.25rem;"><i class="fa-solid fa-user color-blue"></i> Como gostaria de ser chamado?</label>
+                    <input type="text" id="setup-user-name" class="form-control-flat" placeholder="Digite seu nome (Opcional)" style="width: 100%;">
+                </div>
+
                 <button id="btn-start-clean" class="btn btn-primary ripple" style="width: 100%; height: 48px; background: #10b981; display: flex; align-items: center; justify-content: center; gap: 0.75rem; font-weight: 600;">
                     <i class="fa-solid fa-file-circle-plus" style="font-size: 1.1rem;"></i> Criar Nova Planilha Limpa
                 </button>
@@ -1507,6 +1512,39 @@
                             <button id="btn-theme-dark" class="btn btn-primary ripple" style="flex:1;"><i class="fa-solid fa-moon"></i> Modo Escuro</button>
                             <button id="btn-theme-light" class="btn btn-secondary ripple" style="flex:1;"><i class="fa-solid fa-sun"></i> Modo Claro</button>
                         </div>
+                        
+                        <!-- NEW FEAT: Dynamic Color System -->
+                        <div style="margin-top:1.25rem; border-top:1px solid var(--border-card); padding-top:1rem;">
+                            <h4 style="font-size:0.85rem; color:var(--text-secondary); margin:0 0 0.5rem;"><i class="fa-solid fa-fill-drip color-cyan"></i> Cor de Destaque</h4>
+                            <div class="color-palette-grid">
+                                <div class="color-swatch active" style="background: hsl(210, 100%, 60%)" data-h="210" data-s="100%" data-l="60%" title="Azul Premium"></div>
+                                <div class="color-swatch" style="background: hsl(270, 80%, 65%)" data-h="270" data-s="80%" data-l="65%" title="Roxo Neon"></div>
+                                <div class="color-swatch" style="background: hsl(160, 100%, 45%)" data-h="160" data-s="100%" data-l="45%" title="Verde Esmeralda"></div>
+                                <div class="color-swatch" style="background: hsl(10, 100%, 65%)" data-h="10" data-s="100%" data-l="65%" title="Coral"></div>
+                                <div class="color-swatch" style="background: hsl(45, 100%, 50%)" data-h="45" data-s="100%" data-l="50%" title="Ouro"></div>
+                                <div class="color-swatch" style="background: hsl(330, 100%, 65%)" data-h="330" data-s="100%" data-l="65%" title="Rosa Choque"></div>
+                                <div class="color-swatch" style="background: hsl(190, 100%, 45%)" data-h="190" data-s="100%" data-l="45%" title="Ciano"></div>
+                                <div class="color-swatch" style="background: hsl(30, 100%, 55%)" data-h="30" data-s="100%" data-l="55%" title="Laranja"></div>
+                                <div class="color-swatch" style="background: hsl(350, 90%, 60%)" data-h="350" data-s="90%" data-l="60%" title="Vermelho Vibrante"></div>
+                                <div class="color-swatch" style="background: hsl(240, 90%, 70%)" data-h="240" data-s="90%" data-l="70%" title="Índigo"></div>
+                                <div class="color-swatch" style="background: hsl(175, 80%, 40%)" data-h="175" data-s="80%" data-l="40%" title="Teal"></div>
+                                <div class="color-swatch" style="background: hsl(75, 90%, 45%)" data-h="75" data-s="90%" data-l="45%" title="Lima"></div>
+                            </div>
+                            <div class="color-picker-custom">
+                                <span style="font-size:0.8rem; color:var(--text-secondary);">Cor Customizada:</span>
+                                <input type="color" id="custom-color-picker" value="#3b82f6" title="Escolha qualquer cor">
+                            </div>
+                        </div>
+
+                        <!-- NEW FEAT: Font Size Customization -->
+                        <div style="margin-top:1.25rem; border-top:1px solid var(--border-card); padding-top:1rem;">
+                            <h4 style="font-size:0.85rem; color:var(--text-secondary); margin:0 0 0.5rem;"><i class="fa-solid fa-text-height color-yellow"></i> Tamanho da Fonte</h4>
+                            <div class="font-size-btns">
+                                <button class="font-size-btn" data-size="sm">A- (Pequena)</button>
+                                <button class="font-size-btn active" data-size="md">A (Padrão)</button>
+                                <button class="font-size-btn" data-size="lg">A+ (Grande)</button>
+                            </div>
+                        </div>
                         <!-- FEAT #18: Hora semanal meta -->
                         <div style="margin-top:1rem; border-top:1px solid var(--border-card); padding-top:1rem;">
                             <h4 style="font-size:0.85rem; color:var(--text-secondary); margin:0 0 0.5rem;"><i class="fa-solid fa-clock color-cyan"></i> Meta de Horas Semanais</h4>
@@ -1523,481 +1561,36 @@
 
                 <!-- Tab: Tools -->
                 <section id="tab-tools" class="tab-content">
-                    <div class="glass-card settings-card" style="margin-bottom: 1.5rem;">
-                        <h3 class="settings-title"><i class="fa-solid fa-briefcase color-blue"></i> Ferramentas Premium</h3>
-                        <p class="settings-desc">Acesse calculadoras avançadas, conversores com dados em tempo real e seu bloco de notas integrado.</p>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
-                        
-                        <!-- Bloco de Notas Integrado -->
-                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; grid-row: span 2;">
-                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-note-sticky color-yellow"></i> Bloco de Notas</h3>
-                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Crie anotações e lembretes importantes sincronizados localmente e na nuvem.</p>
-                            
-                            <form id="note-form" style="display: flex; flex-direction: column; gap: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 1rem; border-radius: var(--radius-md);">
-                                <input type="hidden" id="note-id">
-                                <div class="form-group-flat">
-                                    <label for="note-title">Título da Nota</label>
-                                    <input type="text" id="note-title" class="form-control-flat" placeholder="Ex: Ideias de melhorias..." required>
-                                </div>
-                                <div class="form-row-grid">
-                                    <div class="form-group-flat">
-                                        <label for="note-tag">Categoria</label>
-                                        <select id="note-tag" class="form-control-flat">
-                                            <option value="Trabalho">Trabalho</option>
-                                            <option value="Pessoal">Pessoal</option>
-                                            <option value="Ideias">Ideias</option>
-                                            <option value="Lembrete">Lembrete</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-group-flat">
-                                    <label for="note-content">Conteúdo / Texto</label>
-                                    <textarea id="note-content" class="form-control-flat" style="height: 100px; resize: vertical;" placeholder="Escreva sua anotação aqui..." required></textarea>
-                                </div>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <button type="submit" id="btn-save-note" class="btn btn-primary ripple flex-grow" style="background: var(--accent-blue); border-color: var(--accent-blue);">
-                                        <i class="fa-solid fa-floppy-disk"></i> Salvar Nota
-                                    </button>
-                                    <button type="button" id="btn-clear-note" class="btn btn-secondary ripple hidden">
-                                        Cancelar
-                                    </button>
-                                </div>
-                            </form>
-
-                            <div style="border-top: 1px solid var(--border-card); padding-top: 1rem;">
-                                <div class="input-icon-wrapper" style="margin-bottom: 0.75rem;">
-                                    <span class="input-addon"><i class="fa-solid fa-magnifying-glass"></i></span>
-                                    <input type="text" id="search-notepad" class="form-control-flat" placeholder="Buscar notas...">
-                                </div>
-                                <div id="notes-list-container" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 300px; overflow-y: auto; padding-right: 5px;">
-                                    <p style="font-size: 0.75rem; text-align: center; color: var(--text-secondary); margin: 1rem 0;">Nenhuma nota criada ainda.</p>
-                                </div>
-                            </div>
+                    <div class="glass-card settings-card" style="margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <div>
+                            <h3 class="settings-title"><i class="fa-solid fa-briefcase color-blue"></i> Super Ferramentas (App Store)</h3>
+                            <p class="settings-desc">Acesse 300 calculadoras, utilitários, alertas de saúde e gamificação em um só lugar.</p>
                         </div>
-
-                        <!-- Calculadora de Juros Compostos -->
-                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
-                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-chart-line color-green"></i> Juros Compostos</h3>
-                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Projete a evolução de seus investimentos e reserva financeira.</p>
-                            
-                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <div class="form-row-grid">
-                                    <div class="form-group-flat">
-                                        <label for="calc-initial">Valor Inicial (R$)</label>
-                                        <input type="number" id="calc-initial" class="form-control-flat" placeholder="1000.00" value="1000" min="0">
-                                    </div>
-                                    <div class="form-group-flat">
-                                        <label for="calc-monthly">Aporte Mensal (R$)</label>
-                                        <input type="number" id="calc-monthly" class="form-control-flat" placeholder="200.00" value="200" min="0">
-                                    </div>
-                                </div>
-                                <div class="form-row-grid">
-                                    <div class="form-group-flat">
-                                        <label for="calc-interest">Juros Anuais (%)</label>
-                                        <input type="number" id="calc-interest" class="form-control-flat" placeholder="12.0" value="12" step="0.1" min="0">
-                                    </div>
-                                    <div class="form-group-flat">
-                                        <label for="calc-years">Período (Anos)</label>
-                                        <input type="number" id="calc-years" class="form-control-flat" placeholder="5" value="5" min="1">
-                                    </div>
-                                </div>
-                                <button id="btn-calc-interest" class="btn btn-primary ripple" style="background: #10b981; border-color: #10b981; font-weight: 600; height: 40px;">
-                                    <i class="fa-solid fa-calculator"></i> Calcular Projeção
-                                </button>
-
-                                <div id="calc-interest-results" class="hidden" style="margin-top: 0.5rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8rem;">
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Valor Total Final:</span>
-                                        <strong id="result-total" class="color-green">R$ 0,00</strong>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Total Investido:</span>
-                                        <strong id="result-invested" style="color: #fff;">R$ 0,00</strong>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Juros Ganhos:</span>
-                                        <strong id="result-interest" style="color: #3b82f6;">R$ 0,00</strong>
-                                    </div>
-                                </div>
+                        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                            <div class="input-icon-wrapper" style="flex: 1; min-width: 250px;">
+                                <span class="input-addon"><i class="fa-solid fa-magnifying-glass"></i></span>
+                                <input type="text" id="search-super-tools" class="form-control-flat" placeholder="Buscar ferramenta (ex: Férias, Pomodoro, Dólar...)">
                             </div>
-                        </div>
-
-                        <!-- Conversor de Moedas Dinâmico -->
-                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
-                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-money-bill-transfer color-cyan"></i> Conversor de Moedas</h3>
-                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Converta moedas estrangeiras usando as cotações em tempo real do Dashboard.</p>
-                            
-                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <div class="form-group-flat">
-                                    <label for="conv-amount">Valor a Converter</label>
-                                    <input type="number" id="conv-amount" class="form-control-flat" placeholder="100" value="100" min="1">
-                                </div>
-                                <div class="form-row-grid">
-                                    <div class="form-group-flat">
-                                        <label for="conv-from">De Moeda</label>
-                                        <select id="conv-from" class="form-control-flat">
-                                            <option value="BRL">BRL (Real)</option>
-                                            <option value="USD">USD (Dólar)</option>
-                                            <option value="EUR">EUR (Euro)</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group-flat">
-                                        <label for="conv-to">Para Moeda</label>
-                                        <select id="conv-to" class="form-control-flat">
-                                            <option value="USD">USD (Dólar)</option>
-                                            <option value="BRL" selected>BRL (Real)</option>
-                                            <option value="EUR">EUR (Euro)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <button id="btn-convert-currency" class="btn btn-primary ripple" style="background: #06b6d4; border-color: #06b6d4; font-weight: 600; height: 40px;">
-                                    <i class="fa-solid fa-rotate"></i> Converter Moeda
-                                </button>
-
-                                <div id="conv-results" style="margin-top: 0.5rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.15); text-align: center; font-size: 1.1rem; font-weight: 700; color: #fff;">
-                                    <span id="conv-result-text">Digite o valor e clique em Converter</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Calculadora de Tarifa Horária PJ -->
-                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; grid-column: span 1;">
-                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-clock-rotate-left color-purple"></i> Calculadora Valor/Hora PJ</h3>
-                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Estime qual deve ser seu valor hora cobrado com base nos custos e meta salarial.</p>
-                            
-                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <div class="form-row-grid">
-                                    <div class="form-group-flat">
-                                        <label for="rate-salary">Salário PJ Alvo (R$)</label>
-                                        <input type="number" id="rate-salary" class="form-control-flat" placeholder="5000.00" value="5000" min="0">
-                                    </div>
-                                    <div class="form-group-flat">
-                                        <label for="rate-expenses">Gastos Fixos (R$)</label>
-                                        <input type="number" id="rate-expenses" class="form-control-flat" placeholder="1000.00" value="1000" min="0">
-                                    </div>
-                                </div>
-                                <div class="form-row-grid">
-                                    <div class="form-group-flat">
-                                        <label for="rate-hours-day">Horas/Dia Útil</label>
-                                        <input type="number" id="rate-hours-day" class="form-control-flat" placeholder="8" value="8" min="1" max="24">
-                                    </div>
-                                    <div class="form-group-flat">
-                                        <label for="rate-days-month">Dias Úteis/Mês</label>
-                                        <input type="number" id="rate-days-month" class="form-control-flat" placeholder="22" value="22" min="1" max="31">
-                                    </div>
-                                </div>
-                                <button id="btn-calc-rate" class="btn btn-primary ripple" style="background: #8b5cf6; border-color: #8b5cf6; font-weight: 600; height: 40px;">
-                                    <i class="fa-solid fa-coins"></i> Calcular Valor/Hora Recomendado
-                                </button>
-
-                                <div id="rate-results" class="hidden" style="margin-top: 0.5rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.15); display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem; text-align: center;">
-                                    <span>Você precisa cobrar pelo menos:</span>
-                                    <strong id="rate-result-value" style="font-size: 1.3rem; color: #8b5cf6;">R$ 0,00/h</strong>
-                                    <span style="font-size: 0.7rem; color: var(--text-secondary);">Faturamento total necessário: R$ <span id="rate-total-needed">0,00</span>/mês</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Simulador CLT vs PJ -->
-                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; grid-column: span 1;">
-                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-scale-balanced color-orange"></i> Simulador CLT vs PJ</h3>
-                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Compare os ganhos líquidos anuais entre CLT e PJ de forma simplificada.</p>
-                            
-                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <div class="form-row-grid">
-                                    <div class="form-group-flat">
-                                        <label for="clt-salary">Salário CLT (R$/mês)</label>
-                                        <input type="number" id="clt-salary" class="form-control-flat" placeholder="5000.00" value="5000" min="0">
-                                    </div>
-                                    <div class="form-group-flat">
-                                        <label for="clt-benefits">Benefícios CLT (R$/mês)</label>
-                                        <input type="number" id="clt-benefits" class="form-control-flat" placeholder="800.00" value="800" min="0">
-                                    </div>
-                                </div>
-                                <div class="form-group-flat">
-                                    <label for="pj-billing">Faturamento PJ (R$/mês)</label>
-                                    <input type="number" id="pj-billing" class="form-control-flat" placeholder="8000.00" value="8000" min="0">
-                                </div>
-                                <button id="btn-calc-clt-pj" class="btn btn-primary ripple" style="background: #f97316; border-color: #f97316; font-weight: 600; height: 40px;">
-                                    <i class="fa-solid fa-calculator"></i> Simular Comparação
-                                </button>
-
-                                <div id="clt-pj-results" class="hidden" style="margin-top: 0.5rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(249, 115, 22, 0.05); border: 1px solid rgba(249, 115, 22, 0.15); display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8rem;">
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Rendimento Anual CLT Líquido:</span>
-                                        <strong id="result-clt-annual" style="color: #fff;">R$ 0,00</strong>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Rendimento Anual PJ Líquido:</span>
-                                        <strong id="result-pj-annual" class="color-green">R$ 0,00</strong>
-                                    </div>
-                                    <div style="text-align: center; margin-top: 0.25rem; font-weight: bold; font-size: 0.85rem; color: #fff;" id="clt-pj-comparison-text">
-                                        Carregando...
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <!-- FEAT #19: Pomodoro Timer -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem; grid-column:span 1;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-tomato color-red" style="color:#ef4444;"></i> Timer Pomodoro</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Técnica de foco de 25 minutos com pausas programadas.</p>
-                        <div style="text-align:center;">
-                            <div id="pomodoro-display" style="font-size:3rem; font-weight:800; color:#fff; font-family:'Space Grotesk',sans-serif; letter-spacing:2px;">25:00</div>
-                            <div id="pomodoro-phase" style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1rem;">🍅 Foco — Sessão 1</div>
-                            <div style="display:flex; gap:0.75rem; justify-content:center;">
-                                <button id="btn-pomodoro-start" class="btn btn-primary ripple" style="background:#ef4444; border-color:#ef4444;"><i class="fa-solid fa-play"></i> Iniciar</button>
-                                <button id="btn-pomodoro-reset" class="btn btn-secondary ripple"><i class="fa-solid fa-rotate-left"></i> Reset</button>
-                            </div>
-                        </div>
-                        <div style="background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.15); border-radius:var(--radius-md); padding:0.75rem;">
-                            <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
-                                <span>Sessões completadas:</span><strong id="pomodoro-sessions">0</strong>
-                            </div>
+                            <select id="filter-super-tools-category" class="form-control-flat" style="width: auto;">
+                                <option value="all">Todas as Categorias</option>
+                                <option value="financas">💰 Finanças Fáceis</option>
+                                <option value="rh">⚖️ Trabalhista</option>
+                                <option value="foco">⏱️ Foco e Tempo</option>
+                                <option value="games">🎮 Gamificação</option>
+                                <option value="saude">🧘‍♂️ Bem-Estar</option>
+                                <option value="org">🗂️ Organização</option>
+                                <option value="utils">🛠️ Utilitários Rápidos</option>
+                            </select>
                         </div>
                     </div>
 
-                    <!-- FEAT #20: Calculadora de INSS/IR -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-receipt color-red" style="color:#ef4444;"></i> Calculadora INSS / IR Autônomo</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Estime quanto você paga de INSS e Imposto de Renda como autônomo PJ.</p>
-                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
-                            <div class="form-group-flat">
-                                <label for="inss-income">Faturamento Mensal Bruto (R$)</label>
-                                <input type="number" id="inss-income" class="form-control-flat" placeholder="8000.00" value="8000" min="0">
-                            </div>
-                            <div class="form-group-flat">
-                                <label for="inss-type">Tipo de Enquadramento</label>
-                                <select id="inss-type" class="form-control-flat">
-                                    <option value="mei">MEI (Contribuição fixa ~R$ 76/mês)</option>
-                                    <option value="simples">Simples Nacional (6% a 33%)</option>
-                                    <option value="autônomo">Autônomo (20% INSS + IR tabela)</option>
-                                </select>
-                            </div>
-                            <button id="btn-calc-inss" class="btn btn-primary ripple" style="background:#ef4444; border-color:#ef4444; height:40px;"><i class="fa-solid fa-calculator"></i> Calcular</button>
-                            <div id="inss-results" class="hidden" style="padding:0.75rem; border-radius:var(--radius-md); background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.15); display:flex; flex-direction:column; gap:0.35rem; font-size:0.8rem;">
-                                <div style="display:flex; justify-content:space-between;"><span>INSS estimado:</span><strong id="res-inss" style="color:#ef4444;">R$ 0,00</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>IR estimado:</span><strong id="res-ir" style="color:#f97316;">R$ 0,00</strong></div>
-                                <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.08); padding-top:0.35rem;"><span>Líquido estimado:</span><strong id="res-inss-net" class="color-green">R$ 0,00</strong></div>
-                            </div>
+                    <!-- Container onde os 300 cards serão injetados via JS -->
+                    <div id="super-tools-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
+                        <!-- Placeholder loading -->
+                        <div style="text-align:center; color:var(--text-secondary); grid-column: 1 / -1; padding: 2rem;">
+                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--accent-blue); margin-bottom: 1rem;"></i>
+                            <p>Carregando 300 Mini-Apps...</p>
                         </div>
-                    </div>
-
-                    <!-- FEAT #21: Calculadora de Horas Extras -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-clock-rotate-left color-orange" style="color:#f97316;"></i> Calculadora de Horas Extras</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Calcule o valor de horas extras com adicional percentual.</p>
-                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
-                            <div class="form-row-grid">
-                                <div class="form-group-flat">
-                                    <label for="ot-base-rate">Valor da Hora Normal (R$)</label>
-                                    <input type="number" id="ot-base-rate" class="form-control-flat" placeholder="12.00" value="12" min="0">
-                                </div>
-                                <div class="form-group-flat">
-                                    <label for="ot-hours">Quantidade de Horas Extras</label>
-                                    <input type="number" id="ot-hours" class="form-control-flat" placeholder="10" value="10" min="0">
-                                </div>
-                            </div>
-                            <div class="form-group-flat">
-                                <label for="ot-percent">Adicional de Hora Extra (%)</label>
-                                <select id="ot-percent" class="form-control-flat">
-                                    <option value="50">50% (padrão dias úteis)</option>
-                                    <option value="100">100% (domingos e feriados)</option>
-                                    <option value="30">30% (acordo coletivo)</option>
-                                    <option value="75">75% (sábados)</option>
-                                </select>
-                            </div>
-                            <button id="btn-calc-ot" class="btn btn-primary ripple" style="background:#f97316; border-color:#f97316; height:40px;"><i class="fa-solid fa-calculator"></i> Calcular Horas Extras</button>
-                            <div id="ot-results" class="hidden" style="padding:0.75rem; border-radius:var(--radius-md); background:rgba(249,115,22,0.05); border:1px solid rgba(249,115,22,0.15); display:flex; flex-direction:column; gap:0.35rem; font-size:0.8rem; text-align:center;">
-                                <div>Valor da Hora Extra: <strong id="res-ot-rate" style="color:#f97316;">R$ 0,00/h</strong></div>
-                                <div>Total a Receber: <strong id="res-ot-total" class="color-green" style="font-size:1.1rem;">R$ 0,00</strong></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- FEAT #22: Calculadora de Rescisão CLT -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-file-signature color-cyan"></i> Calculadora de Rescisão CLT</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Estime os valores de rescisão contratual baseado no seu salário e tempo de empresa.</p>
-                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
-                            <div class="form-row-grid">
-                                <div class="form-group-flat">
-                                    <label for="res-salary">Último Salário (R$)</label>
-                                    <input type="number" id="res-salary" class="form-control-flat" placeholder="3000.00" value="3000" min="0">
-                                </div>
-                                <div class="form-group-flat">
-                                    <label for="res-months">Tempo de Empresa (meses)</label>
-                                    <input type="number" id="res-months" class="form-control-flat" placeholder="24" value="24" min="1">
-                                </div>
-                            </div>
-                            <div class="form-group-flat">
-                                <label for="res-type">Tipo de Demissão</label>
-                                <select id="res-type" class="form-control-flat">
-                                    <option value="sem-justa-causa">Sem Justa Causa (pelo empregador)</option>
-                                    <option value="pedido-demissao">Pedido de Demissão</option>
-                                    <option value="justa-causa">Demissão por Justa Causa</option>
-                                </select>
-                            </div>
-                            <button id="btn-calc-rescisao" class="btn btn-primary ripple" style="background:#06b6d4; border-color:#06b6d4; height:40px;"><i class="fa-solid fa-calculator"></i> Calcular Rescisão</button>
-                            <div id="rescisao-results" class="hidden" style="padding:0.75rem; border-radius:var(--radius-md); background:rgba(6,182,212,0.05); border:1px solid rgba(6,182,212,0.15); display:flex; flex-direction:column; gap:0.35rem; font-size:0.78rem;">
-                                <div style="display:flex; justify-content:space-between;"><span>Saldo de Salário:</span><strong id="res-saldo" class="color-green">R$ 0,00</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>13º Proporcional:</span><strong id="res-decimo" class="color-green">R$ 0,00</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>Férias Prop. + 1/3:</span><strong id="res-ferias" class="color-green">R$ 0,00</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>Aviso Prévio:</span><strong id="res-aviso" class="color-green">R$ 0,00</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>FGTS + Multa (40%):</span><strong id="res-fgts" class="color-cyan">R$ 0,00</strong></div>
-                                <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.1); padding-top:0.35rem; font-size:0.9rem;"><span><strong>TOTAL ESTIMADO:</strong></span><strong id="res-total" class="color-green" style="font-size:1rem;">R$ 0,00</strong></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- FEAT #23: Calculadora de Parcelamento -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-credit-card color-blue"></i> Calculadora de Parcelamento</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Calcule parcelas com ou sem juros e veja o custo real do parcelamento.</p>
-                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
-                            <div class="form-row-grid">
-                                <div class="form-group-flat">
-                                    <label for="parc-total">Valor Total (R$)</label>
-                                    <input type="number" id="parc-total" class="form-control-flat" placeholder="1200.00" value="1200" min="0">
-                                </div>
-                                <div class="form-group-flat">
-                                    <label for="parc-n">Número de Parcelas</label>
-                                    <input type="number" id="parc-n" class="form-control-flat" placeholder="12" value="12" min="1" max="60">
-                                </div>
-                            </div>
-                            <div class="form-group-flat">
-                                <label for="parc-rate">Taxa de Juros Mensal (% — 0 = sem juros)</label>
-                                <input type="number" id="parc-rate" class="form-control-flat" placeholder="1.99" step="0.01" value="0" min="0">
-                            </div>
-                            <button id="btn-calc-parc" class="btn btn-primary ripple" style="background:#3b82f6; border-color:#3b82f6; height:40px;"><i class="fa-solid fa-calculator"></i> Calcular Parcelas</button>
-                            <div id="parc-results" class="hidden" style="padding:0.75rem; border-radius:var(--radius-md); background:rgba(59,130,246,0.05); border:1px solid rgba(59,130,246,0.15); display:flex; flex-direction:column; gap:0.35rem; font-size:0.8rem;">
-                                <div style="display:flex; justify-content:space-between;"><span>Valor da Parcela:</span><strong id="res-parc-val" class="color-blue" style="font-size:1.1rem;">R$ 0,00/mês</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>Total a Pagar:</span><strong id="res-parc-total">R$ 0,00</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>Total de Juros:</span><strong id="res-parc-interest" style="color:#ef4444;">R$ 0,00</strong></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- FEAT #24: Compartilhar Resumo -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-share-nodes color-green"></i> Compartilhar Resumo Mensal</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Gere um texto formatado com seu resumo do mês para copiar e compartilhar via WhatsApp, e-mail, etc.</p>
-                        <button id="btn-gen-share" class="btn btn-primary ripple" style="background:#10b981; border-color:#10b981; height:40px;"><i class="fa-solid fa-clipboard"></i> Gerar Resumo para Compartilhar</button>
-                        <div id="share-summary-box" class="hidden">
-                            <textarea id="share-summary-text" class="form-control-flat" style="height:140px; font-size:0.75rem; resize:none;"></textarea>
-                            <button class="btn btn-secondary ripple w-100 mt-2" onclick="copyShareSummary()"><i class="fa-solid fa-copy"></i> Copiar Texto</button>
-                        </div>
-                    </div>
-
-                    <!-- FEAT #25: Modo Foco -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-eye-slash color-purple"></i> Modo Foco</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Oculta elementos não essenciais da interface para maximizar a concentração durante o trabalho.</p>
-                        <button id="btn-focus-mode" class="btn btn-secondary ripple" style="height:40px;"><i class="fa-solid fa-eye-slash"></i> Ativar Modo Foco</button>
-                        <div id="focus-mode-status" style="display:none; text-align:center; padding:0.5rem; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; font-size:0.8rem; color:#8b5cf6;">
-                            <i class="fa-solid fa-circle-check"></i> Modo Foco ativo — Interface simplificada
-                        </div>
-                    </div>
-
-                    <!-- FEAT #26: Calculadora de Taxa Diária vs Mensal -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-sliders color-yellow"></i> Conversor Taxa Diária ↔ Mensal</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Converta entre valor/hora, valor/dia e faturamento mensal esperado.</p>
-                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
-                            <div class="form-row-grid">
-                                <div class="form-group-flat">
-                                    <label for="rate-conv-input">Valor (R$)</label>
-                                    <input type="number" id="rate-conv-input" class="form-control-flat" placeholder="12.00" value="12" min="0">
-                                </div>
-                                <div class="form-group-flat">
-                                    <label for="rate-conv-from">De</label>
-                                    <select id="rate-conv-from" class="form-control-flat">
-                                        <option value="hora">Por Hora</option>
-                                        <option value="dia">Por Dia (8h)</option>
-                                        <option value="mes">Por Mês (176h)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <button id="btn-conv-rate" class="btn btn-primary ripple" style="background:#f59e0b; border-color:#f59e0b; height:40px;"><i class="fa-solid fa-arrows-left-right"></i> Converter</button>
-                            <div id="rate-conv-results" class="hidden" style="padding:0.75rem; border-radius:var(--radius-md); background:rgba(245,158,11,0.05); border:1px solid rgba(245,158,11,0.15); display:flex; flex-direction:column; gap:0.35rem; font-size:0.8rem;">
-                                <div style="display:flex; justify-content:space-between;"><span>Por Hora:</span><strong id="res-rate-hora" class="color-yellow">R$ 0,00/h</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>Por Dia (8h):</span><strong id="res-rate-dia">R$ 0,00/dia</strong></div>
-                                <div style="display:flex; justify-content:space-between;"><span>Por Mês (176h):</span><strong id="res-rate-mes" class="color-green">R$ 0,00/mês</strong></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- FEAT #27: Copiar hoje como ontem -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-copy color-cyan"></i> Replicar Horário de Ontem</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Copia os horários do último dia trabalhado para o dia de hoje automaticamente.</p>
-                        <button id="btn-copy-yesterday" class="btn btn-secondary ripple" style="height:40px; border-color:rgba(6,182,212,0.3); color:#06b6d4;"><i class="fa-solid fa-clone"></i> Replicar Último Dia para Hoje</button>
-                        <div id="copy-yesterday-preview" style="display:none; font-size:0.78rem; color:var(--text-secondary); background:rgba(255,255,255,0.03); padding:0.5rem; border-radius:8px;"></div>
-                    </div>
-
-                    <!-- FEAT #28: Histórico de eventos -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:0.75rem; grid-row:span 2;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-timeline color-blue"></i> Histórico de Atividades</h3>
-                        <p class="settings-desc" style="margin-bottom:0.25rem;">Log dos eventos e ações recentes realizadas no aplicativo.</p>
-                        <div id="activity-log" style="display:flex; flex-direction:column; gap:0.5rem; max-height:220px; overflow-y:auto; font-size:0.75rem; color:var(--text-secondary);">
-                            <div style="color:var(--text-secondary); text-align:center; padding:0.5rem;">Nenhuma atividade registrada ainda.</div>
-                        </div>
-                        <button class="btn btn-secondary btn-xs" onclick="clearActivityLog()"><i class="fa-solid fa-trash"></i> Limpar Log</button>
-                    </div>
-
-                    <!-- FEAT #29: Calculadora de Rendimento Diário -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-chart-simple color-green"></i> Análise Rápida de Produtividade</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Compare seu rendimento diário com médias e identifique os melhores e piores dias.</p>
-                        <div id="productivity-analysis" style="display:flex; flex-direction:column; gap:0.5rem;">
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
-                                <div style="text-align:center; padding:0.5rem; background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.15); border-radius:8px;">
-                                    <div style="font-size:0.65rem; color:var(--text-secondary);">Melhor dia</div>
-                                    <div style="font-weight:700; color:#10b981;" id="prod-best-day">—</div>
-                                </div>
-                                <div style="text-align:center; padding:0.5rem; background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.15); border-radius:8px;">
-                                    <div style="font-size:0.65rem; color:var(--text-secondary);">Dia mais leve</div>
-                                    <div style="font-weight:700; color:#ef4444;" id="prod-worst-day">—</div>
-                                </div>
-                                <div style="text-align:center; padding:0.5rem; background:rgba(59,130,246,0.05); border:1px solid rgba(59,130,246,0.15); border-radius:8px;">
-                                    <div style="font-size:0.65rem; color:var(--text-secondary);">Dia mais lucrativo</div>
-                                    <div style="font-weight:700; color:#3b82f6;" id="prod-best-earn">—</div>
-                                </div>
-                                <div style="text-align:center; padding:0.5rem; background:rgba(139,92,246,0.05); border:1px solid rgba(139,92,246,0.15); border-radius:8px;">
-                                    <div style="font-size:0.65rem; color:var(--text-secondary);">Dia da semana top</div>
-                                    <div style="font-weight:700; color:#8b5cf6;" id="prod-best-weekday">—</div>
-                                </div>
-                            </div>
-                        </div>
-                        <button id="btn-refresh-prod" class="btn btn-secondary btn-xs"><i class="fa-solid fa-rotate"></i> Atualizar Análise</button>
-                    </div>
-
-                    <!-- FEAT #30: Calculadora de Ponto de Equilíbrio -->
-                    <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                        <h3 class="settings-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-scale-balanced color-purple"></i> Ponto de Equilíbrio (Break-even)</h3>
-                        <p class="settings-desc" style="margin-bottom:0.5rem;">Descubra quantas horas você precisa trabalhar por mês para cobrir todos os seus custos fixos.</p>
-                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
-                            <div class="form-group-flat">
-                                <label for="be-fixed-costs">Total de Custos Fixos Mensais (R$)</label>
-                                <input type="number" id="be-fixed-costs" class="form-control-flat" placeholder="2500.00" value="2500" min="0">
-                            </div>
-                            <div class="form-group-flat">
-                                <label for="be-hourly-rate">Sua Taxa Horária (R$/h)</label>
-                                <input type="number" id="be-hourly-rate" class="form-control-flat" placeholder="12.00" min="0">
-                            </div>
-                            <button id="btn-calc-breakeven" class="btn btn-primary ripple" style="background:#8b5cf6; border-color:#8b5cf6; height:40px;"><i class="fa-solid fa-calculator"></i> Calcular Break-even</button>
-                            <div id="breakeven-results" class="hidden" style="padding:1rem; border-radius:var(--radius-md); background:rgba(139,92,246,0.05); border:1px solid rgba(139,92,246,0.15); text-align:center;">
-                                <div style="font-size:0.75rem; color:var(--text-secondary);">Para cobrir seus custos você precisa trabalhar:</div>
-                                <div style="font-size:1.8rem; font-weight:800; color:#8b5cf6; margin:0.25rem 0;" id="res-be-hours">0h/mês</div>
-                                <div style="font-size:0.7rem; color:var(--text-secondary);" id="res-be-days">Equivale a 0 dias úteis (8h/dia)</div>
-                            </div>
-                        </div>
-                    </div>
-
                     </div>
                 </section>
             </div>
@@ -2200,7 +1793,26 @@
     <!-- Toast Notifications -->
     <div id="toast-container" class="toast-container"></div>
 
+    <!-- Super Tools Dynamic Modal -->
+    <div id="super-tools-modal" class="modal-overlay hidden">
+        <div class="glass-card modal-container" style="max-width: 500px; width: 90%; margin: auto; transition: all 0.3s ease;">
+            <header class="modal-header">
+                <h3 class="modal-title" id="st-modal-title"><i class="fa-solid fa-wrench"></i> Ferramenta</h3>
+                <button class="modal-close-btn" id="btn-close-st-modal"><i class="fa-solid fa-xmark"></i></button>
+            </header>
+            
+            <div class="modal-body" id="st-modal-body" style="display: flex; flex-direction: column; gap: 1rem; max-height: 70vh; overflow-y: auto;">
+                <!-- O conteúdo da ferramenta será injetado aqui -->
+            </div>
+            
+            <footer class="modal-footer" id="st-modal-footer" style="display: none;">
+                <!-- Botões de ação, se necessário, serão injetados aqui -->
+            </footer>
+        </div>
+    </div>
+
     <script src="prefilled_data.js"></script>
     <script src="app.js"></script>
+    <script src="tools_300.js"></script>
 </body>
 </html>

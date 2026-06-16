@@ -249,6 +249,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filterMonthEl = document.getElementById('filter-month');
     if (filterMonthEl) filterMonthEl.value = state.selectedMonth;
 
+    // 2.5 Configuração Inicial (Setup)
+    const isSetupDone = localStorage.getItem('app-setup-done');
+    if (!isSetupDone) {
+        const overlay = document.getElementById('setup-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            
+            // Pausar o carregamento principal até o usuário interagir
+            await new Promise(resolve => {
+                document.getElementById('btn-start-clean').addEventListener('click', () => {
+                    const name = document.getElementById('setup-user-name').value.trim();
+                    if (name) {
+                        localStorage.setItem('app_user_name', name);
+                        const greetingEl = document.getElementById('dashboard-greeting-title');
+                        if (greetingEl) greetingEl.innerText = `Olá, ${name}`;
+                        const inputUserName = document.getElementById('input-user-name');
+                        if (inputUserName) inputUserName.value = name;
+                    }
+                    localStorage.setItem('app-setup-done', 'true');
+                    overlay.style.display = 'none';
+                    resolve();
+                });
+                
+                const importBtn = document.getElementById('btn-trigger-welcome-import');
+                const fileInput = document.getElementById('input-welcome-import');
+                if (importBtn && fileInput) {
+                    importBtn.addEventListener('click', () => fileInput.click());
+                    fileInput.addEventListener('change', async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        
+                        const name = document.getElementById('setup-user-name').value.trim();
+                        if (name) {
+                            localStorage.setItem('app_user_name', name);
+                            const greetingEl = document.getElementById('dashboard-greeting-title');
+                            if (greetingEl) greetingEl.innerText = `Olá, ${name}`;
+                            const inputUserName = document.getElementById('input-user-name');
+                            if (inputUserName) inputUserName.value = name;
+                        }
+                        
+                        try {
+                            overlay.innerHTML = '<div style="color:white; font-size:1.2rem; text-align:center;"><i class="fa-solid fa-spinner fa-spin" style="font-size:2rem; margin-bottom:1rem; color:#10b981;"></i><br>Importando dados...</div>';
+                            isImportingData = true;
+                            // The processExcelFile function will trigger the read and save
+                            await processExcelFile(file);
+                            isImportingData = false;
+                            
+                            localStorage.setItem('app-setup-done', 'true');
+                            setTimeout(() => {
+                                overlay.style.display = 'none';
+                                resolve();
+                            }, 500);
+                        } catch (err) {
+                            alert("Erro ao importar a planilha! Começando com banco vazio.");
+                            console.error(err);
+                            localStorage.setItem('app-setup-done', 'true');
+                            overlay.style.display = 'none';
+                            resolve();
+                        }
+                    });
+                }
+            });
+        }
+    }
+
     // 3. Carregar dados do IndexedDB
     await fetchData();
 
@@ -6468,8 +6533,122 @@ function renderFinance() {
     renderDueItems();
 }
 
+// ====== FEAT: Dynamic Color System ======
+function initColorSystem() {
+    const swatches = document.querySelectorAll('.color-swatch');
+    const customPicker = document.getElementById('custom-color-picker');
+    
+    // Load saved color
+    const savedColor = localStorage.getItem('app-color-h');
+    const savedCustom = localStorage.getItem('app-color-hex');
+    
+    function applyColor(h, s, l) {
+        document.documentElement.style.setProperty('--color-primary-h', h);
+        document.documentElement.style.setProperty('--color-primary-s', s);
+        document.documentElement.style.setProperty('--color-primary-l', l);
+        localStorage.setItem('app-color-h', h);
+        localStorage.setItem('app-color-s', s);
+        localStorage.setItem('app-color-l', l);
+        localStorage.removeItem('app-color-hex'); // Clear custom hex flag
+    }
+    
+    function applyCustomColor(hex) {
+        // Convert hex to HSL for our CSS variables
+        let r = 0, g = 0, b = 0;
+        if (hex.length == 4) {
+            r = "0x" + hex[1] + hex[1];
+            g = "0x" + hex[2] + hex[2];
+            b = "0x" + hex[3] + hex[3];
+        } else if (hex.length == 7) {
+            r = "0x" + hex[1] + hex[2];
+            g = "0x" + hex[3] + hex[4];
+            b = "0x" + hex[5] + hex[6];
+        }
+        r /= 255; g /= 255; b /= 255;
+        let cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin, h = 0, s = 0, l = 0;
+        if (delta == 0) h = 0;
+        else if (cmax == r) h = ((g - b) / delta) % 6;
+        else if (cmax == g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
+        l = (cmax + cmin) / 2;
+        s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+        s = +(s * 100).toFixed(1);
+        l = +(l * 100).toFixed(1);
+
+        applyColor(h, s + '%', l + '%');
+        localStorage.setItem('app-color-hex', hex);
+    }
+    
+    // Apply on load
+    if (savedCustom) {
+        applyCustomColor(savedCustom);
+        if (customPicker) customPicker.value = savedCustom;
+        swatches.forEach(s => s.classList.remove('active'));
+    } else if (savedColor) {
+        document.documentElement.style.setProperty('--color-primary-h', savedColor);
+        document.documentElement.style.setProperty('--color-primary-s', localStorage.getItem('app-color-s') || '100%');
+        document.documentElement.style.setProperty('--color-primary-l', localStorage.getItem('app-color-l') || '60%');
+        
+        swatches.forEach(s => {
+            s.classList.remove('active');
+            if (s.dataset.h === savedColor) s.classList.add('active');
+        });
+    }
+
+    swatches.forEach(swatch => {
+        swatch.addEventListener('click', (e) => {
+            swatches.forEach(s => s.classList.remove('active'));
+            e.target.classList.add('active');
+            applyColor(e.target.dataset.h, e.target.dataset.s, e.target.dataset.l);
+            showToast('Cor do tema atualizada', 'success');
+        });
+    });
+
+    if (customPicker) {
+        customPicker.addEventListener('input', (e) => {
+            swatches.forEach(s => s.classList.remove('active'));
+            applyCustomColor(e.target.value);
+        });
+        customPicker.addEventListener('change', (e) => {
+            showToast('Cor customizada aplicada', 'success');
+        });
+    }
+}
+
+// ====== FEAT: Font Size System ======
+function initFontSize() {
+    const btns = document.querySelectorAll('.font-size-btn');
+    const savedSize = localStorage.getItem('app-font-size') || 'md';
+    
+    function applySize(size) {
+        document.body.classList.remove('font-sm', 'font-md', 'font-lg');
+        document.body.classList.add(`font-${size}`);
+        localStorage.setItem('app-font-size', size);
+        
+        btns.forEach(b => {
+            b.classList.remove('active');
+            if (b.dataset.size === size) b.classList.add('active');
+        });
+    }
+    
+    applySize(savedSize);
+    
+    btns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            applySize(e.target.dataset.size);
+            showToast('Tamanho da fonte atualizado', 'success');
+        });
+    });
+}
+
 // Initialize on DOM ready - append to existing DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Apply theme and font size ASAP to avoid flicker
+    initColorSystem();
+    initFontSize();
+    
     // Run after main init (slight delay to let state load)
     setTimeout(initAllNewFeatures, 800);
     setTimeout(() => {
