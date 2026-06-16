@@ -1,21 +1,25 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.andreturco.horascontrole.premium",
       "sha256_cert_fingerprints": [
-        "0A:E4:BF:B0:54:47:1A:4C:BE:25:D9:08:9D:8C:84:EE:9D:73:2E:B6:53:07:C2:C5:FA:8C:66:DC:04:AB:F6:C6"
+        "C0:D3:D7:60:B7:9D:E6:E6:BE:82:56:09:AB:B7:8D:5A:E0:75:DA:AE:77:2D:CC:24:66:BF:7A:B3:BE:AE:9B:6E"
       ]
     }
   },
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.andreturco.horascontrole",
       "sha256_cert_fingerprints": [
-        "EF:69:71:C5:C9:E5:32:58:22:29:87:4A:24:E4:DC:48:2E:F5:96:A1:5F:A6:A3:5C:FA:26:3B:E1:7D:15:F5:C9"
+        "AF:53:80:29:AC:AD:D7:AD:F5:6E:6D:41:93:B3:21:30:A3:22:35:F8:B1:DC:D6:52:EB:CD:01:75:F4:58:FF:48"
       ]
     }
   }
