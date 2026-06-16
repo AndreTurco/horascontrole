@@ -23,7 +23,7 @@
     
     <!-- FORÇAR QUEBRA DE CACHE (Auto-Updater) -->
     <script>
-        const APP_VERSION = 'v24';
+        const APP_VERSION = 'v25';
         if (localStorage.getItem('app_version') !== APP_VERSION) {
             localStorage.setItem('app_version', APP_VERSION);
             if ('serviceWorker' in navigator) {
@@ -1841,8 +1841,9 @@
         <i class="fa-solid fa-briefcase"></i>
     </button>
 
-    <script src="prefilled_data.js?v=3"></script>
-    <script src="app.js?v=3"></script>
-    <script src="tools_300.js?v=3"></script>
+    <!-- Application Logic -->
+    <script src="prefilled_data.js?v=25"></script>
+    <script src="app.js?v=25"></script>
+    <script src="tools_30.js?v=25"></script>
 </body>
 </html>

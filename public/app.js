@@ -275,8 +275,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                             const res = await fetch(`data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${PREFILLED_EXCEL_BASE64}`);
                             const blob = await res.blob();
                             const file = new File([blob], "Controle_Premium.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-                            await processExcelFile(file);
+                            await processExcelFile(file, true); // skipConfirm = true
                             isImportingData = false;
+                            
+                            // Forçar fetch dos dados e atualização dos gráficos
+                            await fetchData();
+                            setTimeout(renderCharts, 100);
                         } catch (err) {
                             console.error("Erro ao carregar dados pre-existentes", err);
                         }
@@ -3643,7 +3647,10 @@ async function exportExcel() {
 async function importExcel(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
+    await processExcelFile(file, false);
+}
+
+async function processExcelFile(file, skipConfirm = false) {
     try {
         showToast('Lendo planilha Excel...', 'info');
         
@@ -3751,8 +3758,10 @@ async function importExcel(e) {
             }
         }
         
-        if (!confirm(`Planilha lida com sucesso!\n- ${importedRows.length} dias de trabalho\n- ${importedFinance.length} lançamentos financeiros\n- ${importedInvest.length} aportes de investimento\n\nIsso substituirá TODOS os dados atuais do aplicativo! Deseja prosseguir?`)) {
-            return;
+        if (!skipConfirm) {
+            if (!confirm(`Planilha lida com sucesso!\n- ${importedRows.length} dias de trabalho\n- ${importedFinance.length} lançamentos financeiros\n- ${importedInvest.length} aportes de investimento\n\nIsso substituirá TODOS os dados atuais do aplicativo! Deseja prosseguir?`)) {
+                return;
+            }
         }
         
         setSyncStatus('syncing', 'Importando dados...');
