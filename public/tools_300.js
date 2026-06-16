@@ -2297,7 +2297,7 @@ const SUPER_TOOLS_DB = [
         category: 'rh',
         icon: 'fa-solid fa-scale-balanced color-blue',
         title: 'Ferramenta #101',
-        desc: 'Som do Mário Bros quando clica em 'Bater Ponto'.',
+        desc: 'Som do Mário Bros quando clica em \'Bater Ponto\'.',
         render: (container) => {
             container.innerHTML = `
                 <div style="text-align:center; padding:2rem 1rem;">

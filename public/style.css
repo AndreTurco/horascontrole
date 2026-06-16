@@ -3209,3 +3209,44 @@ body.light-theme body::before {
     background: radial-gradient(circle, var(--color-primary-dim) 0%, transparent 80%);
 }
 
+/* ==========================================================================
+   FAB (Floating Action Button) & HIGHLIGHT CARD
+   ========================================================================== */
+.fab-tools {
+    position: fixed;
+    bottom: 85px; /* Acima do menu inferior em mobile */
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    color: #fff;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    z-index: 1000;
+    transition: var(--transition-bounce);
+}
+.fab-tools:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 12px 30px rgba(139, 92, 246, 0.6);
+}
+.fab-tools:active {
+    transform: translateY(2px) scale(0.95);
+}
+@media (min-width: 768px) {
+    .fab-tools {
+        bottom: 30px;
+        right: 30px;
+    }
+}
+
+.highlight-tools-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.5);
+}

@@ -30,7 +30,7 @@
     <!-- Google Identity Services for Google Drive Cloud Backup -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
     <style>
         .setup-overlay {
             position: fixed;
@@ -342,8 +342,17 @@
                         </div>
                     </div>
 
+                    <!-- HIGHLIGHT CARD: Promove as Super Ferramentas -->
+                    <div class="glass-card mt-3 highlight-tools-card" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: var(--radius-md); padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; cursor: pointer; transition: var(--transition-smooth);" onclick="document.getElementById('nav-tools').click()">
+                        <div>
+                            <h3 style="margin:0; font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent-purple);"></i> Descubra as Super Ferramentas</h3>
+                            <p style="margin:0.25rem 0 0 0; font-size:0.85rem; color:var(--text-secondary);">300 mini-apps para finanças, saúde e produtividade em um clique.</p>
+                        </div>
+                        <i class="fa-solid fa-chevron-right" style="color:var(--text-secondary);"></i>
+                    </div>
+
                     <!-- Metrics Grid (Ganhos Globais e Pendentes inclusos) -->
-                    <div class="metrics-grid">
+                    <div class="metrics-grid mt-3">
                         <div class="glass-card metric-card">
                             <div class="metric-icon color-blue">
                                 <i class="fa-solid fa-coins"></i>
@@ -1811,8 +1820,13 @@
         </div>
     </div>
 
-    <script src="prefilled_data.js?v=2"></script>
-    <script src="app.js?v=2"></script>
-    <script src="tools_300.js?v=2"></script>
+    <!-- Floating Action Button para Acesso Rápido às Ferramentas -->
+    <button class="fab-tools ripple" onclick="document.getElementById('nav-tools').click()" title="Acessar Ferramentas">
+        <i class="fa-solid fa-briefcase"></i>
+    </button>
+
+    <script src="prefilled_data.js?v=3"></script>
+    <script src="app.js?v=3"></script>
+    <script src="tools_300.js?v=3"></script>
 </body>
 </html>
