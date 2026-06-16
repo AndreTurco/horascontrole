@@ -258,6 +258,10 @@
                     <i class="fa-solid fa-route"></i>
                     <span>Trajetos e Alarmes</span>
                 </button>
+                <button class="nav-item" data-tab="tools" id="nav-tools">
+                    <i class="fa-solid fa-screwdriver-wrench"></i>
+                    <span>Ferramentas</span>
+                </button>
                 <button class="nav-item" data-tab="settings" id="nav-settings">
                     <i class="fa-solid fa-sliders"></i>
                     <span>Ajustes</span>
@@ -1347,6 +1351,188 @@
                                 <i class="fa-solid fa-file-csv text-success"></i> Exportar para CSV
                             </button>
                         </div>
+                    </div>
+                </section>
+
+                <!-- Tab: Tools -->
+                <section id="tab-tools" class="tab-content">
+                    <div class="glass-card settings-card" style="margin-bottom: 1.5rem;">
+                        <h3 class="settings-title"><i class="fa-solid fa-briefcase color-blue"></i> Ferramentas Premium</h3>
+                        <p class="settings-desc">Acesse calculadoras avançadas, conversores com dados em tempo real e seu bloco de notas integrado.</p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+                        
+                        <!-- Bloco de Notas Integrado -->
+                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; grid-row: span 2;">
+                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-note-sticky color-yellow"></i> Bloco de Notas</h3>
+                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Crie anotações e lembretes importantes sincronizados localmente e na nuvem.</p>
+                            
+                            <form id="note-form" style="display: flex; flex-direction: column; gap: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 1rem; border-radius: var(--radius-md);">
+                                <input type="hidden" id="note-id">
+                                <div class="form-group-flat">
+                                    <label for="note-title">Título da Nota</label>
+                                    <input type="text" id="note-title" class="form-control-flat" placeholder="Ex: Ideias de melhorias..." required>
+                                </div>
+                                <div class="form-row-grid">
+                                    <div class="form-group-flat">
+                                        <label for="note-tag">Categoria</label>
+                                        <select id="note-tag" class="form-control-flat">
+                                            <option value="Trabalho">Trabalho</option>
+                                            <option value="Pessoal">Pessoal</option>
+                                            <option value="Ideias">Ideias</option>
+                                            <option value="Lembrete">Lembrete</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group-flat">
+                                    <label for="note-content">Conteúdo / Texto</label>
+                                    <textarea id="note-content" class="form-control-flat" style="height: 100px; resize: vertical;" placeholder="Escreva sua anotação aqui..." required></textarea>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button type="submit" id="btn-save-note" class="btn btn-primary ripple flex-grow" style="background: var(--accent-blue); border-color: var(--accent-blue);">
+                                        <i class="fa-solid fa-floppy-disk"></i> Salvar Nota
+                                    </button>
+                                    <button type="button" id="btn-clear-note" class="btn btn-secondary ripple hidden">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div style="border-top: 1px solid var(--border-card); padding-top: 1rem;">
+                                <div class="input-icon-wrapper" style="margin-bottom: 0.75rem;">
+                                    <span class="input-addon"><i class="fa-solid fa-magnifying-glass"></i></span>
+                                    <input type="text" id="search-notes" class="form-control-flat" placeholder="Buscar notas...">
+                                </div>
+                                <div id="notes-list-container" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                                    <p style="font-size: 0.75rem; text-align: center; color: var(--text-secondary); margin: 1rem 0;">Nenhuma nota criada ainda.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Calculadora de Juros Compostos -->
+                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-chart-line color-green"></i> Juros Compostos</h3>
+                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Projete a evolução de seus investimentos e reserva financeira.</p>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <div class="form-row-grid">
+                                    <div class="form-group-flat">
+                                        <label for="calc-initial">Valor Inicial (R$)</label>
+                                        <input type="number" id="calc-initial" class="form-control-flat" placeholder="1000.00" value="1000" min="0">
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="calc-monthly">Aporte Mensal (R$)</label>
+                                        <input type="number" id="calc-monthly" class="form-control-flat" placeholder="200.00" value="200" min="0">
+                                    </div>
+                                </div>
+                                <div class="form-row-grid">
+                                    <div class="form-group-flat">
+                                        <label for="calc-interest">Juros Anuais (%)</label>
+                                        <input type="number" id="calc-interest" class="form-control-flat" placeholder="12.0" value="12" step="0.1" min="0">
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="calc-years">Período (Anos)</label>
+                                        <input type="number" id="calc-years" class="form-control-flat" placeholder="5" value="5" min="1">
+                                    </div>
+                                </div>
+                                <button id="btn-calc-interest" class="btn btn-primary ripple" style="background: #10b981; border-color: #10b981; font-weight: 600; height: 40px;">
+                                    <i class="fa-solid fa-calculator"></i> Calcular Projeção
+                                </button>
+
+                                <div id="calc-interest-results" class="hidden" style="margin-top: 0.5rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8rem;">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Valor Total Final:</span>
+                                        <strong id="result-total" class="color-green">R$ 0,00</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Total Investido:</span>
+                                        <strong id="result-invested" style="color: #fff;">R$ 0,00</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Juros Ganhos:</span>
+                                        <strong id="result-interest" style="color: #3b82f6;">R$ 0,00</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Conversor de Moedas Dinâmico -->
+                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-money-bill-transfer color-cyan"></i> Conversor de Moedas</h3>
+                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Converta moedas estrangeiras usando as cotações em tempo real do Dashboard.</p>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <div class="form-group-flat">
+                                    <label for="conv-amount">Valor a Converter</label>
+                                    <input type="number" id="conv-amount" class="form-control-flat" placeholder="100" value="100" min="1">
+                                </div>
+                                <div class="form-row-grid">
+                                    <div class="form-group-flat">
+                                        <label for="conv-from">De Moeda</label>
+                                        <select id="conv-from" class="form-control-flat">
+                                            <option value="BRL">BRL (Real)</option>
+                                            <option value="USD">USD (Dólar)</option>
+                                            <option value="EUR">EUR (Euro)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="conv-to">Para Moeda</label>
+                                        <select id="conv-to" class="form-control-flat">
+                                            <option value="USD">USD (Dólar)</option>
+                                            <option value="BRL" selected>BRL (Real)</option>
+                                            <option value="EUR">EUR (Euro)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button id="btn-convert-currency" class="btn btn-primary ripple" style="background: #06b6d4; border-color: #06b6d4; font-weight: 600; height: 40px;">
+                                    <i class="fa-solid fa-rotate"></i> Converter Moeda
+                                </button>
+
+                                <div id="conv-results" style="margin-top: 0.5rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.15); text-align: center; font-size: 1.1rem; font-weight: 700; color: #fff;">
+                                    <span id="conv-result-text">Digite o valor e clique em Converter</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Calculadora de Tarifa Horária PJ -->
+                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; grid-column: span 1;">
+                            <h3 class="settings-title" style="margin-bottom: 0.25rem;"><i class="fa-solid fa-clock-rotate-left color-purple"></i> Calculadora Valor/Hora PJ</h3>
+                            <p class="settings-desc" style="margin-bottom: 0.5rem;">Estime qual deve ser seu valor hora cobrado com base nos custos e meta salarial.</p>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <div class="form-row-grid">
+                                    <div class="form-group-flat">
+                                        <label for="rate-salary">Salário PJ Alvo (R$)</label>
+                                        <input type="number" id="rate-salary" class="form-control-flat" placeholder="5000.00" value="5000" min="0">
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="rate-expenses">Gastos Fixos (R$)</label>
+                                        <input type="number" id="rate-expenses" class="form-control-flat" placeholder="1000.00" value="1000" min="0">
+                                    </div>
+                                </div>
+                                <div class="form-row-grid">
+                                    <div class="form-group-flat">
+                                        <label for="rate-hours-day">Horas/Dia Útil</label>
+                                        <input type="number" id="rate-hours-day" class="form-control-flat" placeholder="8" value="8" min="1" max="24">
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="rate-days-month">Dias Úteis/Mês</label>
+                                        <input type="number" id="rate-days-month" class="form-control-flat" placeholder="22" value="22" min="1" max="31">
+                                    </div>
+                                </div>
+                                <button id="btn-calc-rate" class="btn btn-primary ripple" style="background: #8b5cf6; border-color: #8b5cf6; font-weight: 600; height: 40px;">
+                                    <i class="fa-solid fa-coins"></i> Calcular Valor/Hora Recomendado
+                                </button>
+
+                                <div id="rate-results" class="hidden" style="margin-top: 0.5rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.15); display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem; text-align: center;">
+                                    <span>Você precisa cobrar pelo menos:</span>
+                                    <strong id="rate-result-value" style="font-size: 1.3rem; color: #8b5cf6;">R$ 0,00/h</strong>
+                                    <span style="font-size: 0.7rem; color: var(--text-secondary);">Faturamento total necessário: R$ <span id="rate-total-needed">0,00</span>/mês</span>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </section>
             </div>

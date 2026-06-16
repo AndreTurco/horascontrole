@@ -2,7 +2,7 @@
 // MODO OFFLINE TOTAL — INDEXEDDB LOCAL (SEM SERVIDOR)
 // ==========================================================================
 const DB_NAME = 'controle_horas_db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 let db = null;
 
 async function initDB() {
@@ -24,6 +24,10 @@ async function initDB() {
             if (!d.objectStoreNames.contains('invest')) {
                 const is = d.createObjectStore('invest', { keyPath: 'id' });
                 is.createIndex('date', 'date', { unique: false });
+            }
+            if (!d.objectStoreNames.contains('notes')) {
+                const ns = d.createObjectStore('notes', { keyPath: 'id' });
+                ns.createIndex('updatedAt', 'updatedAt', { unique: false });
             }
         };
         req.onsuccess = (e) => { db = e.target.result; resolve(db); };
@@ -1775,6 +1779,8 @@ function bindEvents() {
                 setTimeout(renderCommutes, 50);
             } else if (tab === 'settings') {
                 // offline: sem servidor para buscar info de rede
+            } else if (tab === 'tools') {
+                setTimeout(renderToolsTab, 50);
             }
         });
     });
@@ -3195,17 +3201,19 @@ function initBackupHandlers() {
                     const rows = await dbGetAll('rows');
                     const finance = await dbGetAll('finance');
                     const invest = await dbGetAll('invest');
+                    const notes = await dbGetAll('notes');
                     const cfgRate = await dbGet('config', 'globalRate');
                     const cfgInv = await dbGet('config', 'investPercent');
                     
                     const backupData = {
                         exportedAt: new Date().toISOString(),
-                        version: 3,
+                        version: DB_VERSION,
                         globalRate: cfgRate ? cfgRate.value : state.globalRate,
                         investPercent: cfgInv ? cfgInv.value : state.investPercent,
                         rows,
                         financeEntries: finance,
-                        investEntries: invest
+                        investEntries: invest,
+                        notes
                     };
                     
                     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -3274,6 +3282,14 @@ function initBackupHandlers() {
                         txInv.objectStore('invest').clear();
                         data.investEntries.forEach(i => txInv.objectStore('invest').put(i));
                         await new Promise((res, rej) => { txInv.oncomplete = res; txInv.onerror = rej; });
+                    }
+                    
+                    // Importar notas
+                    if (data.notes) {
+                        const txNot = db.transaction('notes', 'readwrite');
+                        txNot.objectStore('notes').clear();
+                        data.notes.forEach(n => txNot.objectStore('notes').put(n));
+                        await new Promise((res, rej) => { txNot.oncomplete = res; txNot.onerror = rej; });
                     }
                     
                     isImportingData = false; // Reset flag
@@ -4152,19 +4168,37 @@ function saveStateToLocalStorage() { /* offline: dados salvos no IndexedDB */ }
 // ==========================================================================
 
 const MOTIVATIONAL_QUOTES = [
-    "O único modo de fazer um excelente trabalho é amar o que você faz. — Steve Jobs",
-    "Seja a mudança que você deseja ver no mundo. — Mahatma Gandhi",
-    "A persistência é o caminho do êxito. — Charles Chaplin",
-    "No meio da dificuldade encontra-se a oportunidade. — Albert Einstein",
+    "Quem quer mover o mundo, primeiro deve mover a si mesmo. — Sócrates",
+    "A pressa é inimiga da perfeição, mas a consistência é a mãe da excelência.",
     "A melhor maneira de prever o futuro é criá-lo. — Peter Drucker",
-    "A pressa é a inimiga da perfeição, mas a consistência é a mãe da excelência.",
+    "O homem sábio poupa para o futuro; o tolo gasta tudo o que ganha. — Provérbios 21:20",
+    "Não é a carga que o quebra, mas a maneira como você a carrega. — Lou Holtz",
+    "A paciência é amarga, mas seu fruto é doce. — Jean-Jacques Rousseau",
+    "A simplicidade é o último grau da sofisticação. — Leonardo da Vinci",
+    "Aquele que conquista a si mesmo é o guerreiro mais poderoso. — Lao Tzu",
+    "A riqueza não consiste em ter grandes posses, mas em ter poucas necessidades. — Epicteto",
+    "A disciplina é a ponte entre metas e realizações. — Jim Rohn",
+    "No meio da dificuldade encontra-se a oportunidade. — Albert Einstein",
+    "A sorte favorece a mente preparada. — Louis Pasteur",
     "O sucesso é a soma de pequenos esforços repetidos dia após dia. — Robert Collier",
-    "A disciplina é a ponte entre metas e conquistas. — Jim Rohn",
-    "Invista em si mesmo e no seu futuro: colha hoje o que plantará amanhã.",
-    "Grandes realizações são construídas bloco por bloco, hora por hora.",
-    "O faturamento do mês reflete a soma de todos os seus minutos focados.",
-    "Economizar é a arte de comprar sua liberdade no futuro.",
-    "A consistência supera o talento. Continue registrando, continue avançando!"
+    "A vida é o que acontece enquanto você está ocupado fazendo outros planos. — John Lennon",
+    "Foca no que está sob seu controle e ignore o que não está. — Epicteto",
+    "O único modo de fazer um excelente trabalho é amar o que você faz. — Steve Jobs",
+    "A melhor vingança é não ser como seu inimigo. — Marco Aurélio",
+    "A persistência realiza o impossível. — Provérbio Chinês",
+    "Trabalhe duro em silêncio, deixe que o seu sucesso faça o barulho.",
+    "Poupar hoje é comprar a sua liberdade amanhã.",
+    "Não conte os dias, faça os dias contarem. — Muhammad Ali",
+    "O tempo é o recurso mais escasso; se não for gerenciado, nada mais poderá ser. — Peter Drucker",
+    "A pressa sempre gera erro. — Heródoto",
+    "Conhecimento sem aplicação é o mesmo que ignorância.",
+    "O investimento em conhecimento sempre paga os melhores juros. — Benjamin Franklin",
+    "Quem poupa pouco a pouco, acumula muito. — Provérbio Alemão",
+    "Os juros compostos são a oitava maravilha do mundo. — Albert Einstein",
+    "Para colher o que poucos colhem, faça o que poucos fazem.",
+    "Não busque que os eventos aconteçam como você deseja, mas deseje que aconteçam como acontecem. — Epicteto",
+    "O dia de hoje é um presente, por isso é chamado de presente.",
+    "O que fazemos na vida ecoa na eternidade. — Máximo Décimo Merídio"
 ];
 
 function initStoragePersistence() {
@@ -4184,9 +4218,12 @@ function initStoragePersistence() {
 function loadMotivationalQuote() {
     const quoteEl = document.getElementById('motivational-quote');
     if (!quoteEl) return;
-    const dayOfYear = new Date().getDate();
-    const idx = dayOfYear % MOTIVATIONAL_QUOTES.length;
-    quoteEl.innerText = `"${MOTIVATIONAL_QUOTES[idx]}"`;
+    const now = new Date();
+    // Determinar índice do dia de forma segura baseada no fuso horário local do aparelho
+    const localTime = now.getTime() - (now.getTimezoneOffset() * 60 * 1000);
+    const dayIndex = Math.floor(localTime / (1000 * 60 * 60 * 24));
+    const idx = dayIndex % MOTIVATIONAL_QUOTES.length;
+    quoteEl.innerHTML = `<i class="fa-solid fa-quote-left" style="color: var(--accent-blue); opacity: 0.6; margin-right: 6px; font-size: 0.8rem;"></i> ${MOTIVATIONAL_QUOTES[idx]} <i class="fa-solid fa-quote-right" style="color: var(--accent-blue); opacity: 0.6; margin-left: 6px; font-size: 0.8rem;"></i>`;
 }
 
 async function fetchCurrencyRates() {
@@ -4840,6 +4877,7 @@ async function triggerAutoSync(force = false) {
         const rows = await dbGetAll('rows');
         const finance = await dbGetAll('finance');
         const invest = await dbGetAll('invest');
+        const notes = await dbGetAll('notes');
         const cfgRate = await dbGet('config', 'globalRate');
         const cfgInv = await dbGet('config', 'investPercent');
         
@@ -4850,7 +4888,8 @@ async function triggerAutoSync(force = false) {
             investPercent: cfgInv ? cfgInv.value : state.investPercent,
             rows,
             financeEntries: finance,
-            investEntries: invest
+            investEntries: invest,
+            notes
         };
         
         await uploadFileToFolder(folderId, 'controle_horas_backup.json', 'application/json', backupData);
@@ -5049,6 +5088,14 @@ async function restoreFromGoogleDriveBackup() {
             data.investEntries.forEach(i => txInv.objectStore('invest').put(i));
             await new Promise((res, rej) => { txInv.oncomplete = res; txInv.onerror = rej; });
         }
+        
+        // Importar notas
+        if (data.notes) {
+            const txNot = db.transaction('notes', 'readwrite');
+            txNot.objectStore('notes').clear();
+            data.notes.forEach(n => txNot.objectStore('notes').put(n));
+            await new Promise((res, rej) => { txNot.oncomplete = res; txNot.onerror = rej; });
+        }
 
         isImportingData = false;
         localStorage.removeItem('needs_sync');
@@ -5194,5 +5241,253 @@ function checkAndShowWelcomeWizard() {
         const restoreBtn = document.getElementById('btn-restore-backup');
         if (restoreBtn) restoreBtn.click();
     });
+}
+
+// ==========================================================================
+// PREMIUM TOOLS & INTEGRATED NOTEPAD LOGIC
+// ==========================================================================
+
+let isToolsInitialized = false;
+
+function renderToolsTab() {
+    initToolsEvents();
+    loadNotes();
+}
+
+function initToolsEvents() {
+    if (isToolsInitialized) return;
+    isToolsInitialized = true;
+
+    console.log('[TOOLS] Inicializando eventos das ferramentas...');
+
+    // 1. Bloco de Notas: Evento de Submit do Formulário
+    const noteForm = document.getElementById('note-form');
+    if (noteForm) {
+        noteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const idInput = document.getElementById('note-id');
+            const titleInput = document.getElementById('note-title');
+            const tagInput = document.getElementById('note-tag');
+            const contentInput = document.getElementById('note-content');
+
+            const id = idInput.value || 'note_' + Date.now();
+            const note = {
+                id,
+                title: titleInput.value,
+                tag: tagInput.value,
+                content: contentInput.value,
+                updatedAt: new Date().toISOString()
+            };
+
+            try {
+                await dbPut('notes', note);
+                showToast('Nota salva com sucesso!', 'success');
+                noteForm.reset();
+                idInput.value = '';
+                document.getElementById('btn-clear-note').classList.add('hidden');
+                loadNotes();
+                
+                // Disparar sincronização em background na nuvem se conectado
+                localStorage.setItem('needs_sync', 'true');
+                triggerAutoSync();
+            } catch (err) {
+                console.error('[NOTES]', err);
+                showToast('Erro ao salvar nota!', 'error');
+            }
+        });
+    }
+
+    // Bloco de Notas: Cancelar Edição
+    const btnClearNote = document.getElementById('btn-clear-note');
+    if (btnClearNote) {
+        btnClearNote.addEventListener('click', () => {
+            noteForm.reset();
+            document.getElementById('note-id').value = '';
+            btnClearNote.classList.add('hidden');
+        });
+    }
+
+    // Bloco de Notas: Busca Dinâmica
+    const searchNotesInput = document.getElementById('search-notes');
+    if (searchNotesInput) {
+        searchNotesInput.addEventListener('input', () => {
+            loadNotes(searchNotesInput.value);
+        });
+    }
+
+    // 2. Calculadora de Juros Compostos
+    const btnCalcInterest = document.getElementById('btn-calc-interest');
+    if (btnCalcInterest) {
+        btnCalcInterest.addEventListener('click', () => {
+            const initial = parseFloat(document.getElementById('calc-initial').value) || 0;
+            const monthly = parseFloat(document.getElementById('calc-monthly').value) || 0;
+            const rate = parseFloat(document.getElementById('calc-interest').value) || 0;
+            const years = parseFloat(document.getElementById('calc-years').value) || 0;
+
+            const months = years * 12;
+            const monthlyRate = Math.pow(1 + (rate / 100), 1 / 12) - 1; // Conversão taxa anual para mensal
+
+            let total = initial;
+            let totalInvested = initial;
+
+            for (let i = 0; i < months; i++) {
+                total = total * (1 + monthlyRate) + monthly;
+                totalInvested += monthly;
+            }
+
+            const interestGained = total - totalInvested;
+
+            document.getElementById('result-total').innerText = 'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('result-invested').innerText = 'R$ ' + totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('result-interest').innerText = 'R$ ' + interestGained.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            document.getElementById('calc-interest-results').classList.remove('hidden');
+            showToast('Projeção calculada!', 'success');
+        });
+    }
+
+    // 3. Conversor de Moedas Dinâmico
+    const btnConvertCurrency = document.getElementById('btn-convert-currency');
+    if (btnConvertCurrency) {
+        btnConvertCurrency.addEventListener('click', () => {
+            const amount = parseFloat(document.getElementById('conv-amount').value) || 0;
+            const from = document.getElementById('conv-from').value;
+            const to = document.getElementById('conv-to').value;
+
+            if (from === to) {
+                document.getElementById('conv-result-text').innerText = `${amount.toFixed(2)} ${from} = ${amount.toFixed(2)} ${to}`;
+                return;
+            }
+
+            // Usar taxas salvas no estado global
+            const usdToBrl = state.usdBrl || 5.40; // Fallback se offline
+            const eurToBrl = state.eurBrl || 5.80;
+
+            let amountInBrl = amount;
+            if (from === 'USD') amountInBrl = amount * usdToBrl;
+            else if (from === 'EUR') amountInBrl = amount * eurToBrl;
+
+            let finalAmount = amountInBrl;
+            if (to === 'USD') finalAmount = amountInBrl / usdToBrl;
+            else if (to === 'EUR') finalAmount = amountInBrl / eurToBrl;
+
+            document.getElementById('conv-result-text').innerText = `${amount.toLocaleString('pt-BR')} ${from} = ${finalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${to}`;
+            showToast('Moeda convertida com cotação atual!', 'success');
+        });
+    }
+
+    // 4. Calculadora de Tarifa Horária PJ
+    const btnCalcRate = document.getElementById('btn-calc-rate');
+    if (btnCalcRate) {
+        btnCalcRate.addEventListener('click', () => {
+            const salary = parseFloat(document.getElementById('rate-salary').value) || 0;
+            const expenses = parseFloat(document.getElementById('rate-expenses').value) || 0;
+            const hoursPerDay = parseFloat(document.getElementById('rate-hours-day').value) || 8;
+            const daysPerMonth = parseFloat(document.getElementById('rate-days-month').value) || 22;
+
+            const totalNeeded = salary + expenses;
+            const totalHours = hoursPerDay * daysPerMonth;
+            const recommendedRate = totalNeeded / totalHours;
+
+            document.getElementById('rate-result-value').innerText = 'R$ ' + recommendedRate.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '/h';
+            document.getElementById('rate-total-needed').innerText = totalNeeded.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            document.getElementById('rate-results').classList.remove('hidden');
+            showToast('Tarifa recomendada calculada!', 'success');
+        });
+    }
+}
+
+async function loadNotes(filterQuery = '') {
+    const listContainer = document.getElementById('notes-list-container');
+    if (!listContainer) return;
+
+    try {
+        const notes = await dbGetAll('notes');
+        listContainer.innerHTML = '';
+
+        const filteredNotes = notes.filter(n => {
+            if (!filterQuery) return true;
+            const q = filterQuery.toLowerCase();
+            return n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q) || n.tag.toLowerCase().includes(q);
+        });
+
+        if (filteredNotes.length === 0) {
+            listContainer.innerHTML = `<p style="font-size: 0.75rem; text-align: center; color: var(--text-secondary); margin: 1rem 0;">${filterQuery ? 'Nenhuma nota encontrada.' : 'Nenhuma nota criada ainda.'}</p>`;
+            return;
+        }
+
+        // Ordenar notas por data de atualização (mais recentes primeiro)
+        filteredNotes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+        filteredNotes.forEach(n => {
+            const card = document.createElement('div');
+            card.className = 'glass-card';
+            card.style.padding = '0.75rem';
+            card.style.display = 'flex';
+            card.style.flexDirection = 'column';
+            card.style.gap = '0.25rem';
+            card.style.border = '1px solid rgba(255,255,255,0.06)';
+            card.style.background = 'rgba(255,255,255,0.01)';
+            card.style.cursor = 'pointer';
+
+            let tagColor = '#06b6d4'; // Trabalho
+            if (n.tag === 'Pessoal') tagColor = '#10b981';
+            else if (n.tag === 'Ideias') tagColor = '#f59e0b';
+            else if (n.tag === 'Lembrete') tagColor = '#8b5cf6';
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="font-size: 0.8rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%;">${n.title}</strong>
+                    <span style="font-size: 0.6rem; padding: 0.1rem 0.35rem; border-radius: 10px; font-weight: bold; background: ${tagColor}22; color: ${tagColor}; border: 1px solid ${tagColor}44;">${n.tag}</span>
+                </div>
+                <p style="font-size: 0.7rem; color: var(--text-secondary); margin: 0.25rem 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;">${n.content}</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; font-size: 0.6rem; color: var(--text-secondary);">
+                    <span>${new Date(n.updatedAt).toLocaleDateString()}</span>
+                    <button class="btn-delete-note" data-id="${n.id}" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 2px 5px;" title="Excluir Nota">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `;
+
+            // Clique para carregar na edição
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.btn-delete-note')) return;
+
+                document.getElementById('note-id').value = n.id;
+                document.getElementById('note-title').value = n.title;
+                document.getElementById('note-tag').value = n.tag;
+                document.getElementById('note-content').value = n.content;
+
+                document.getElementById('btn-clear-note').classList.remove('hidden');
+                document.getElementById('note-title').focus();
+            });
+
+            // Clique para deletar
+            const delBtn = card.querySelector('.btn-delete-note');
+            delBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!confirm('Deseja realmente excluir esta nota?')) return;
+                try {
+                    const tx = db.transaction('notes', 'readwrite');
+                    tx.objectStore('notes').delete(n.id);
+                    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+                    showToast('Nota excluída!', 'success');
+                    loadNotes(document.getElementById('search-notes').value);
+                    
+                    // Disparar sincronização na nuvem
+                    localStorage.setItem('needs_sync', 'true');
+                    triggerAutoSync();
+                } catch (err) {
+                    console.error('[NOTES-DELETE]', err);
+                    showToast('Erro ao excluir nota!', 'error');
+                }
+            });
+
+            listContainer.appendChild(card);
+        });
+    } catch (err) {
+        console.error('[NOTES-LOAD]', err);
+    }
 }
 
