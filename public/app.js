@@ -5585,3 +5585,898 @@ async function loadNotes(filterQuery = '') {
     }
 }
 
+// ==========================================================================
+// 30 NOVAS FUNCIONALIDADES - IMPLEMENTAÇÃO COMPLETA
+// ==========================================================================
+
+// ====== FEAT #1: Live Work Timer (Timer ao vivo de horas trabalhadas hoje) ======
+let liveWorkTimerInterval = null;
+function startLiveWorkTimer() {
+    if (liveWorkTimerInterval) clearInterval(liveWorkTimerInterval);
+    liveWorkTimerInterval = setInterval(updateLiveWorkTimer, 10000);
+    updateLiveWorkTimer();
+}
+function updateLiveWorkTimer() {
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    const todayRow = state.rows.find(r => r.date === todayStr);
+    const timerDiv = document.getElementById('live-work-timer');
+    const timerVal = document.getElementById('live-work-timer-val');
+    if (!timerDiv || !timerVal) return;
+    if (!todayRow || !todayRow.entrada1) { timerDiv.style.display = 'none'; return; }
+
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    let worked = 0;
+    const toMin = (t) => { if (!t) return null; const p = t.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
+    const e1 = toMin(todayRow.entrada1), s1 = toMin(todayRow.saida1);
+    const e2 = toMin(todayRow.entrada2), s2 = toMin(todayRow.saida2);
+
+    if (e1 !== null) worked += (s1 !== null ? s1 : nowMin) - e1;
+    if (e2 !== null) worked += (s2 !== null ? s2 : nowMin) - e2;
+    worked = Math.max(0, worked);
+
+    timerDiv.style.display = 'block';
+    timerVal.innerText = formatMinutesToHoursStr(worked);
+}
+
+// ====== FEAT #2-#8: Extra KPI cards - Streak, Dias Trabalhados, Melhor Dia, Média Horas ======
+function renderExtraKPIs() {
+    const monthRows = state.filteredRows.filter(r => r.minutosTrabalhados > 0);
+    const daysWorked = monthRows.length;
+    const el_dw = document.getElementById('kpi-days-worked');
+    if (el_dw) el_dw.innerText = `${daysWorked} dia${daysWorked !== 1 ? 's' : ''}`;
+
+    // Best day of month
+    let bestDay = null;
+    monthRows.forEach(r => { if (!bestDay || r.ganhos > bestDay.ganhos) bestDay = r; });
+    const el_bd = document.getElementById('kpi-best-day');
+    const el_bdl = document.getElementById('kpi-best-day-label');
+    if (el_bd) el_bd.innerText = bestDay ? formatCurrency(bestDay.ganhos) : 'R$ 0,00';
+    if (el_bdl && bestDay) {
+        const dp = parseDateParts(bestDay.date);
+        el_bdl.innerText = `${String(dp.day).padStart(2,'0')}/${String(dp.month+1).padStart(2,'0')} - ${bestDay.horasMinutos}`;
+    }
+
+    // Average hours per day
+    const avgMin = daysWorked > 0 ? Math.round(monthRows.reduce((s,r) => s+r.minutosTrabalhados, 0)/daysWorked) : 0;
+    const el_ah = document.getElementById('kpi-avg-hours');
+    if (el_ah) el_ah.innerText = formatMinutesToHoursStr(avgMin);
+
+    // Streak of consecutive working days
+    const streak = calculateStreak();
+    const el_str = document.getElementById('kpi-streak');
+    const el_strs = document.getElementById('kpi-streak-subtitle');
+    if (el_str) el_str.innerText = `${streak} dia${streak !== 1 ? 's' : ''}`;
+    if (el_strs) el_strs.innerText = streak > 0 ? `🔥 Sequência ativa!` : 'Sem sequência ativa';
+}
+
+function calculateStreak() {
+    const sorted = [...state.rows].filter(r => r.minutosTrabalhados > 0).sort((a,b) => b.date.localeCompare(a.date));
+    if (!sorted.length) return 0;
+    let streak = 0;
+    let prev = null;
+    for (const row of sorted) {
+        const d = new Date(row.date + 'T00:00:00');
+        if (!prev) { streak = 1; prev = d; continue; }
+        const diff = (prev - d) / (1000 * 60 * 60 * 24);
+        if (diff === 1 || (diff === 2 && isSunday(d))) { streak++; prev = d; }
+        else if (diff === 0) continue;
+        else break;
+    }
+    return streak;
+}
+function isSunday(d) { return d.getDay() === 0; }
+
+// ====== FEAT #9: Daily Tips ======
+const dailyTips = [
+    "Registre seus horários logo ao entrar e sair do trabalho para manter a precisão.",
+    "Separe 20% de cada pagamento recebido para investimentos automáticos.",
+    "Revise seus gastos fixos mensalmente — pequenas economias acumulam muito.",
+    "Use o Pomodoro para aumentar sua produtividade: 25 min de foco + 5 min de pausa.",
+    "Mantenha um fundo de emergência de pelo menos 3 meses de despesas.",
+    "Diversifique seus investimentos: Tesouro Direto, CDB, FIIs e ações.",
+    "Negocie sua taxa horária pelo menos 1x por ano com base no mercado.",
+    "Como PJ, lembre-se de separar 15-27% para impostos antes de gastar.",
+    "Configure o backup automático no Google Drive para nunca perder dados.",
+    "Analise seu dia da semana mais produtivo e priorize reuniões nesse dia.",
+    "Horas extras não registradas são dinheiro perdido. Bata o ponto sempre!",
+    "A inadimplência corrói seu caixa. Controle os recebimentos pendentes.",
+    "Defina metas mensais claras para ter um norte no seu trabalho autônomo.",
+    "Invista em cursos e capacitação — isso aumenta sua taxa horária.",
+    "Mantenha contratos atualizados com todos os seus clientes.",
+    "Revise periodicamente o relatório de horas para identificar padrões.",
+    "Um controle financeiro rigoroso é a base de qualquer negócio saudável.",
+    "Registre despesas no mesmo dia para não esquecer pequenos gastos.",
+    "Considere abrir MEI para reduzir a carga tributária nas suas prestações.",
+    "Use a calculadora de break-even para saber qual o mínimo que precisa faturar.",
+    "Sempre peça recibo ou nota fiscal pelos serviços que você presta.",
+    "Dinheiro parado em conta corrente perde valor. Invista o excedente!",
+    "Crie templates de horário para os dias padronizados e economize tempo.",
+    "Compare sua situação mês a mês para identificar crescimento.",
+    "Seja pontual nos seus compromissos — reputação vale mais que taxa horária.",
+    "Configure alertas de vencimento para nunca pagar multa por atraso.",
+    "Documente todas as suas entregas e acordos com clientes por escrito.",
+    "A saúde financeira começa pelo controle do que entra e do que sai.",
+    "Revise sua meta mensal a cada trimestre baseado no seu ritmo real.",
+    "Horas de trajeto também têm valor. Considere isso ao negociar contratos."
+];
+
+function loadDailyTip() {
+    const el = document.getElementById('daily-tip');
+    if (!el) return;
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000*60*60*24));
+    el.innerText = dailyTips[dayOfYear % dailyTips.length];
+}
+
+// ====== FEAT #9b: Weekly Summary ======
+function renderWeeklySummary() {
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    const refDate = todayStr;
+    const weekDays = getDaysOfCurrentWeek(refDate);
+    const weekRows = state.rows.filter(r => weekDays.includes(r.date));
+    const wkMins = weekRows.reduce((s,r) => s+r.minutosTrabalhados, 0);
+    const wkEarnings = weekRows.reduce((s,r) => s+r.ganhos, 0);
+    const wkDays = weekRows.filter(r => r.minutosTrabalhados > 0).length;
+
+    const elH = document.getElementById('wk-hours');
+    const elE = document.getElementById('wk-earnings');
+    const elD = document.getElementById('wk-days');
+    if (elH) elH.innerText = formatMinutesToHoursStr(wkMins);
+    if (elE) elE.innerText = formatCurrency(wkEarnings);
+    if (elD) elD.innerText = `${wkDays} dia${wkDays !== 1 ? 's' : ''}`;
+}
+
+// ====== FEAT #10: Day Intensity Indicator ======
+function renderDayIntensity() {
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    const todayRow = state.rows.find(r => r.date === todayStr);
+    const mins = todayRow ? todayRow.minutosTrabalhados : 0;
+
+    const emoji = document.getElementById('intensity-emoji');
+    const label = document.getElementById('intensity-label');
+    const desc = document.getElementById('intensity-desc');
+    if (!emoji) return;
+
+    if (mins === 0) {
+        emoji.innerText = '😴'; label.innerText = 'Sem Registro'; desc.innerText = 'Nenhuma hora registrada hoje.';
+    } else if (mins < 240) {
+        emoji.innerText = '🌤️'; label.innerText = 'Dia Leve'; desc.innerText = `${formatMinutesToHoursStr(mins)} registradas — menos de 4h.`;
+    } else if (mins < 480) {
+        emoji.innerText = '💪'; label.innerText = 'Dia Normal'; desc.innerText = `${formatMinutesToHoursStr(mins)} registradas — ótimo ritmo!`;
+    } else {
+        emoji.innerText = '🔥'; label.innerText = 'Dia Intenso'; desc.innerText = `${formatMinutesToHoursStr(mins)} registradas — dia pesado! Descanse bem.`;
+    }
+
+    // Weekly goal alert
+    const weeklyGoal = parseFloat(localStorage.getItem('weeklyHoursGoal') || '40');
+    const now2 = new Date();
+    const weekDays = getDaysOfCurrentWeek(todayStr);
+    const wkMins = state.rows.filter(r => weekDays.includes(r.date)).reduce((s,r) => s+r.minutosTrabalhados, 0);
+    const dayOfWeek = now2.getDay(); // 0=Sun
+    const remainingDays = Math.max(0, 5 - (dayOfWeek === 0 ? 5 : dayOfWeek));
+    const needed = weeklyGoal * 60 - wkMins;
+    const alertEl = document.getElementById('weekly-goal-alert');
+    if (alertEl) {
+        if (needed > 0 && remainingDays <= 1 && needed > 120) {
+            alertEl.style.display = 'block';
+        } else {
+            alertEl.style.display = 'none';
+        }
+    }
+}
+
+// ====== FEAT #11: Achievement Badges ======
+function renderAchievements() {
+    const grid = document.getElementById('achievements-grid');
+    if (!grid) return;
+    const daysWorked = state.filteredRows.filter(r => r.minutosTrabalhados > 0).length;
+    const totalEarnings = state.totalEarningsSinceJan;
+    const streak = calculateStreak();
+    const totalDays = state.rows.filter(r => r.minutosTrabalhados > 0).length;
+
+    const badges = [
+        { icon: '🎯', label: 'Primeiro Ponto', desc: 'Primeiro registro de ponto', unlocked: totalDays >= 1 },
+        { icon: '📅', label: '7 Dias Seguidos', desc: 'Sequência de 7 dias', unlocked: streak >= 7 },
+        { icon: '💰', label: 'R$ 1.000 Ganhos', desc: 'Alcançou R$ 1.000 no ano', unlocked: totalEarnings >= 1000 },
+        { icon: '⭐', label: 'R$ 5.000 Ganhos', desc: 'Alcançou R$ 5.000 no ano', unlocked: totalEarnings >= 5000 },
+        { icon: '🏆', label: 'R$ 10.000 Ganhos', desc: 'Alcançou R$ 10.000 no ano', unlocked: totalEarnings >= 10000 },
+        { icon: '📆', label: '20 Dias no Mês', desc: '20+ dias trabalhados no mês', unlocked: daysWorked >= 20 },
+        { icon: '🔥', label: 'Streak 30 dias', desc: 'Sequência de 30 dias', unlocked: streak >= 30 },
+        { icon: '💎', label: 'R$ 50.000 Ganhos', desc: 'Faturamento anual de R$ 50k', unlocked: totalEarnings >= 50000 },
+    ];
+
+    grid.innerHTML = badges.map(b => `
+        <div title="${b.desc}" style="display:flex; flex-direction:column; align-items:center; gap:0.25rem; padding:0.75rem; border-radius:12px; background:${b.unlocked ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${b.unlocked ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.06)'}; min-width:70px; opacity:${b.unlocked ? 1 : 0.4};">
+            <span style="font-size:1.5rem;">${b.icon}</span>
+            <span style="font-size:0.62rem; text-align:center; color:${b.unlocked ? '#fff' : 'var(--text-secondary)'}; font-weight:${b.unlocked ? 600 : 400};">${b.label}</span>
+            ${b.unlocked ? '<span style="font-size:0.55rem; color:#10b981;">✓ Desbloqueada</span>' : '<span style="font-size:0.55rem; color:var(--text-secondary);">Bloqueada</span>'}
+        </div>
+    `).join('');
+}
+
+// ====== FEAT #12: National Holidays 2026 ======
+const HOLIDAYS_2026 = [
+    { date: '2026-01-01', name: 'Ano Novo' },
+    { date: '2026-02-16', name: 'Carnaval' },
+    { date: '2026-04-03', name: 'Sexta-feira Santa' },
+    { date: '2026-04-21', name: 'Tiradentes' },
+    { date: '2026-05-01', name: 'Dia do Trabalho' },
+    { date: '2026-06-04', name: 'Corpus Christi' },
+    { date: '2026-09-07', name: 'Independência' },
+    { date: '2026-10-12', name: 'N.S. Aparecida' },
+    { date: '2026-11-02', name: 'Finados' },
+    { date: '2026-11-15', name: 'Proclamação República' },
+    { date: '2026-12-25', name: 'Natal' },
+];
+
+function renderHolidaysList() {
+    const el = document.getElementById('holidays-list');
+    if (!el) return;
+    const today = new Date().toISOString().slice(0,10);
+    el.innerHTML = HOLIDAYS_2026.map(h => {
+        const isPast = h.date < today;
+        const dp = h.date.split('-');
+        return `<button onclick="markHolidayOnCalendar('${h.date}', '${h.name}')" style="padding:0.3rem 0.6rem; border-radius:20px; font-size:0.7rem; border:1px solid rgba(255,255,255,0.12); background:${isPast ? 'rgba(255,255,255,0.03)' : 'rgba(245,158,11,0.1)'}; color:${isPast ? 'var(--text-secondary)' : '#f59e0b'}; cursor:pointer; transition:all 0.2s;" title="Marcar ${h.name} no registro">
+            ${isPast ? '✓' : '📅'} ${dp[2]}/${dp[1]} — ${h.name}
+        </button>`;
+    }).join('');
+}
+
+window.markHolidayOnCalendar = async function(dateStr, name) {
+    const existing = state.rows.find(r => r.date === dateStr);
+    if (existing) {
+        showToast(`${name} já existe no histórico.`, 'info');
+        return;
+    }
+    const d = new Date(dateStr + 'T00:00:00');
+    const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const newRow = {
+        rowNum: Date.now(),
+        date: dateStr,
+        weekday: weekdays[d.getDay()],
+        entrada1: '', saida1: '', entrada2: '', saida2: '',
+        saidaCasa: '', chegadaCasa: '',
+        observacoes: `🎉 Feriado: ${name}`,
+        valorHora: '',
+        ganhosManuais: 0,
+        statusPagamento: 'Pago',
+        ganhos: 0, minutosTrabalhados: 0, horasMinutos: '0:00', horasFracionarias: 0,
+        tempoTrajeto: '0:00', minutosTrajeto: 0, tempoForaCasa: '0:00', minutosForaCasa: 0
+    };
+    await dbPut('rows', newRow);
+    state.rows.push(newRow);
+    state.rows.sort((a,b) => a.date.localeCompare(b.date));
+    applyFilters();
+    logActivity(`Feriado "${name}" marcado em ${dateStr}`);
+    showToast(`✅ Feriado "${name}" adicionado ao histórico!`, 'success');
+};
+
+// ====== FEAT #13: Schedule Templates ======
+window.applyScheduleTemplate = async function(e1, s1, e2, s2) {
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    let todayRow = state.rows.find(r => r.date === todayStr);
+    if (!todayRow) {
+        const weekdays = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+        todayRow = {
+            rowNum: Date.now(), date: todayStr, weekday: weekdays[now.getDay()],
+            entrada1: '', saida1: '', entrada2: '', saida2: '',
+            saidaCasa: '', chegadaCasa: '', observacoes: '', valorHora: '',
+            ganhosManuais: null, statusPagamento: 'Pendente',
+            ganhos: 0, minutosTrabalhados: 0, horasMinutos: '0:00', horasFracionarias: 0,
+            tempoTrajeto: '0:00', minutosTrajeto: 0, tempoForaCasa: '0:00', minutosForaCasa: 0
+        };
+        state.rows.push(todayRow);
+    }
+    todayRow.entrada1 = e1; todayRow.saida1 = s1; todayRow.entrada2 = e2; todayRow.saida2 = s2;
+    recalcRow(todayRow, state.globalRate);
+    await dbPut('rows', todayRow);
+    state.totalEarningsSinceJan = state.rows.reduce((s,r) => s+r.ganhos, 0);
+    state.pendingEarnings = state.rows.filter(r => r.statusPagamento !== 'Pago').reduce((s,r) => s+r.ganhos, 0);
+    applyFilters();
+    logActivity(`Template aplicado: ${e1}→${s1} / ${e2}→${s2}`);
+    showToast(`✅ Horário template ${e1}–${s1} / ${e2 || '--'}–${s2 || '--'} aplicado para hoje!`, 'success');
+};
+
+// ====== FEAT #14: Weekly Expenses Breakdown ======
+function renderWeeklyExpensesBreakdown() {
+    const el = document.getElementById('weekly-expenses-breakdown');
+    if (!el) return;
+    const year = state.selectedYear;
+    const month = state.selectedMonth;
+    const weeks = [[], [], [], [], []];
+    state.filteredFinanceEntries.filter(e => ['Despesa Fixa','Despesa Variável','Gastos Cartão'].includes(e.type)).forEach(e => {
+        const dp = parseDateParts(e.date);
+        const weekNum = Math.min(4, Math.floor((dp.day - 1) / 7));
+        weeks[weekNum].push(e);
+    });
+    el.innerHTML = weeks.map((w, i) => {
+        const total = w.reduce((s, e) => s + e.amount, 0);
+        if (total === 0) return '';
+        const barWidth = Math.min(100, (total / 2000) * 100);
+        return `<div style="display:flex; align-items:center; gap:0.75rem; font-size:0.78rem;">
+            <span style="width:55px; color:var(--text-secondary); flex-shrink:0;">Sem. ${i+1}</span>
+            <div style="flex-grow:1; height:8px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden;">
+                <div style="width:${barWidth}%; height:100%; background:linear-gradient(90deg,#3b82f6,#8b5cf6); border-radius:4px;"></div>
+            </div>
+            <span style="color:#ef4444; white-space:nowrap; width:75px; text-align:right;">${formatCurrency(total)}</span>
+        </div>`;
+    }).join('');
+    if (!el.innerHTML.trim()) el.innerHTML = '<div style="color:var(--text-secondary); font-size:0.78rem;">Nenhuma despesa registrada neste mês.</div>';
+}
+
+// ====== FEAT #15: Due Dates / Alertas de Vencimento ======
+function initDueDates() {
+    const btn = document.getElementById('btn-add-due');
+    if (!btn) return;
+    btn.addEventListener('click', addDueItem);
+    renderDueItems();
+}
+
+function addDueItem() {
+    const name = document.getElementById('due-item-name')?.value?.trim();
+    const date = document.getElementById('due-item-date')?.value;
+    if (!name || !date) { showToast('Preencha nome e data de vencimento.', 'warning'); return; }
+    const items = JSON.parse(localStorage.getItem('due_items') || '[]');
+    items.push({ id: generateId(), name, date });
+    localStorage.setItem('due_items', JSON.stringify(items));
+    document.getElementById('due-item-name').value = '';
+    document.getElementById('due-item-date').value = '';
+    renderDueItems();
+    logActivity(`Vencimento adicionado: ${name} em ${date}`);
+    showToast(`✅ Alerta de vencimento para "${name}" salvo!`, 'success');
+}
+
+function renderDueItems() {
+    const el = document.getElementById('due-items-list');
+    if (!el) return;
+    const items = JSON.parse(localStorage.getItem('due_items') || '[]');
+    const today = new Date().toISOString().slice(0,10);
+    if (!items.length) { el.innerHTML = '<div style="font-size:0.75rem; color:var(--text-secondary);">Nenhum vencimento cadastrado.</div>'; return; }
+    el.innerHTML = items.sort((a,b) => a.date.localeCompare(b.date)).map(item => {
+        const dp = item.date.split('-');
+        const daysLeft = Math.ceil((new Date(item.date+'T00:00:00') - new Date()) / (1000*60*60*24));
+        const isOverdue = daysLeft < 0;
+        const isUrgent = daysLeft >= 0 && daysLeft <= 3;
+        const color = isOverdue ? '#ef4444' : (isUrgent ? '#f59e0b' : '#10b981');
+        return `<div style="display:flex; align-items:center; gap:0.75rem; padding:0.5rem; background:rgba(255,255,255,0.03); border-radius:8px; border-left:3px solid ${color}; font-size:0.78rem;">
+            <i class="fa-solid fa-bell" style="color:${color};"></i>
+            <div style="flex-grow:1;"><strong style="color:#fff;">${item.name}</strong><br><span style="color:var(--text-secondary);">${dp[2]}/${dp[1]}/${dp[0]} — ${isOverdue ? 'VENCIDO' : (daysLeft === 0 ? 'HOJE!' : `em ${daysLeft} dia${daysLeft>1?'s':''}`)}</span></div>
+            <button onclick="removeDueItem('${item.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.8rem;"><i class="fa-solid fa-xmark"></i></button>
+        </div>`;
+    }).join('');
+}
+
+window.removeDueItem = function(id) {
+    let items = JSON.parse(localStorage.getItem('due_items') || '[]');
+    items = items.filter(i => i.id !== id);
+    localStorage.setItem('due_items', JSON.stringify(items));
+    renderDueItems();
+};
+
+// ====== FEAT #16: Month Comparison ======
+function renderMonthComparison() {
+    const curM = state.selectedMonth;
+    const curY = state.selectedYear;
+    const prevM = curM === 0 ? 11 : curM - 1;
+    const prevY = curM === 0 ? curY - 1 : curY;
+
+    const curRows = state.rows.filter(r => { const d = parseDateParts(r.date); return d.month === curM && d.year === curY; });
+    const prevRows = state.rows.filter(r => { const d = parseDateParts(r.date); return d.month === prevM && d.year === prevY; });
+    const curFin = state.financeEntries.filter(r => { const d = parseDateParts(r.date); return d.month === curM && d.year === curY; });
+    const prevFin = state.financeEntries.filter(r => { const d = parseDateParts(r.date); return d.month === prevM && d.year === prevY; });
+
+    const curIncome = curRows.reduce((s,r) => s+r.ganhos, 0);
+    const prevIncome = prevRows.reduce((s,r) => s+r.ganhos, 0);
+    const curExpense = curFin.filter(e => e.type !== 'Ganho Extra').reduce((s,e) => s+e.amount, 0);
+    const prevExpense = prevFin.filter(e => e.type !== 'Ganho Extra').reduce((s,e) => s+e.amount, 0);
+
+    const elCI = document.getElementById('compare-curr-income');
+    const elPI = document.getElementById('compare-prev-income');
+    const elCE = document.getElementById('compare-curr-expense');
+    const elPE = document.getElementById('compare-prev-expense');
+    const elDelta = document.getElementById('compare-delta-text');
+    if (elCI) elCI.innerText = formatCurrency(curIncome);
+    if (elPI) elPI.innerText = formatCurrency(prevIncome);
+    if (elCE) elCE.innerText = `Despesas: ${formatCurrency(curExpense)}`;
+    if (elPE) elPE.innerText = `Despesas: ${formatCurrency(prevExpense)}`;
+    if (elDelta) {
+        const delta = curIncome - prevIncome;
+        const sign = delta >= 0 ? '+' : '';
+        const color = delta >= 0 ? '#10b981' : '#ef4444';
+        elDelta.innerHTML = `<span style="color:${color};">${sign}${formatCurrency(delta)}</span> em relação ao mês anterior`;
+    }
+}
+
+// ====== FEAT #17: Theme Toggle ======
+function initThemeToggle() {
+    const btnDark = document.getElementById('btn-theme-dark');
+    const btnLight = document.getElementById('btn-theme-light');
+    if (btnDark) btnDark.addEventListener('click', () => {
+        document.body.classList.add('dark-theme');
+        document.body.classList.remove('light-theme');
+        localStorage.setItem('app_theme', 'dark');
+        showToast('Modo escuro ativado!', 'success');
+    });
+    if (btnLight) btnLight.addEventListener('click', () => {
+        document.body.classList.remove('dark-theme');
+        document.body.classList.add('light-theme');
+        localStorage.setItem('app_theme', 'light');
+        showToast('Modo claro ativado!', 'success');
+    });
+    const savedTheme = localStorage.getItem('app_theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.body.classList.remove('dark-theme');
+        document.body.classList.add('light-theme');
+    }
+}
+
+// ====== FEAT #18: Weekly Hours Goal ======
+function initWeeklyHoursGoal() {
+    const input = document.getElementById('input-weekly-hours-goal');
+    const btn = document.getElementById('btn-save-weekly-goal');
+    if (!input || !btn) return;
+    const saved = localStorage.getItem('weeklyHoursGoal') || '40';
+    input.value = saved;
+    btn.addEventListener('click', () => {
+        const val = parseFloat(input.value) || 40;
+        localStorage.setItem('weeklyHoursGoal', String(val));
+        showToast(`Meta semanal de ${val}h salva!`, 'success');
+        renderDayIntensity();
+        logActivity(`Meta semanal configurada: ${val}h/semana`);
+    });
+}
+
+// ====== FEAT #19: Pomodoro Timer ======
+let pomodoroInterval = null;
+let pomodoroSecondsLeft = 25 * 60;
+let pomodoroRunning = false;
+let pomodoroSessions = 0;
+let pomodoroPhase = 'focus'; // 'focus' | 'break'
+
+function initPomodoro() {
+    const btnStart = document.getElementById('btn-pomodoro-start');
+    const btnReset = document.getElementById('btn-pomodoro-reset');
+    if (!btnStart || !btnReset) return;
+    btnStart.addEventListener('click', togglePomodoro);
+    btnReset.addEventListener('click', resetPomodoro);
+}
+
+function togglePomodoro() {
+    if (pomodoroRunning) {
+        clearInterval(pomodoroInterval);
+        pomodoroRunning = false;
+        document.getElementById('btn-pomodoro-start').innerHTML = '<i class="fa-solid fa-play"></i> Retomar';
+    } else {
+        pomodoroRunning = true;
+        document.getElementById('btn-pomodoro-start').innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+        pomodoroInterval = setInterval(() => {
+            pomodoroSecondsLeft--;
+            updatePomodoroDisplay();
+            if (pomodoroSecondsLeft <= 0) {
+                clearInterval(pomodoroInterval);
+                pomodoroRunning = false;
+                if (pomodoroPhase === 'focus') {
+                    pomodoroSessions++;
+                    document.getElementById('pomodoro-sessions').innerText = pomodoroSessions;
+                    pomodoroPhase = 'break';
+                    pomodoroSecondsLeft = 5 * 60;
+                    document.getElementById('pomodoro-phase').innerText = '☕ Pausa — Descanse 5 min';
+                    showToast('🍅 Sessão Pomodoro concluída! Faça uma pausa de 5 min.', 'success');
+                } else {
+                    pomodoroPhase = 'focus';
+                    pomodoroSecondsLeft = 25 * 60;
+                    document.getElementById('pomodoro-phase').innerText = `🍅 Foco — Sessão ${pomodoroSessions + 1}`;
+                    showToast('☕ Pausa encerrada! Hora de focar novamente.', 'info');
+                }
+                document.getElementById('btn-pomodoro-start').innerHTML = '<i class="fa-solid fa-play"></i> Iniciar';
+                updatePomodoroDisplay();
+                logActivity(`Pomodoro: ${pomodoroPhase === 'break' ? 'sessão concluída' : 'pausa encerrada'}`);
+            }
+        }, 1000);
+    }
+}
+
+function resetPomodoro() {
+    clearInterval(pomodoroInterval);
+    pomodoroRunning = false;
+    pomodoroSecondsLeft = 25 * 60;
+    pomodoroPhase = 'focus';
+    document.getElementById('btn-pomodoro-start').innerHTML = '<i class="fa-solid fa-play"></i> Iniciar';
+    document.getElementById('pomodoro-phase').innerText = `🍅 Foco — Sessão ${pomodoroSessions + 1}`;
+    updatePomodoroDisplay();
+}
+
+function updatePomodoroDisplay() {
+    const m = Math.floor(pomodoroSecondsLeft / 60);
+    const s = pomodoroSecondsLeft % 60;
+    const el = document.getElementById('pomodoro-display');
+    if (el) el.innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ====== FEAT #20: INSS / IR Calculator ======
+function initINSSCalculator() {
+    const btn = document.getElementById('btn-calc-inss');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const income = parseFloat(document.getElementById('inss-income')?.value) || 0;
+        const type = document.getElementById('inss-type')?.value;
+        let inss = 0, ir = 0;
+        if (type === 'mei') {
+            inss = 75.90;
+        } else if (type === 'simples') {
+            // Simples Nacional faixa 1: 6% até R$ 180k/ano
+            inss = income * 0.06;
+        } else {
+            // Autônomo: 20% INSS teto máx R$ 908 (2026 aprox)
+            inss = Math.min(income * 0.20, 908);
+            // IR progressivo simplificado
+            const base = income - inss;
+            if (base <= 2824) ir = 0;
+            else if (base <= 3751) ir = base * 0.075 - 211.30;
+            else if (base <= 4664) ir = base * 0.15 - 422.60;
+            else if (base <= 5675) ir = base * 0.225 - 769.70;
+            else ir = base * 0.275 - 1053.55;
+            ir = Math.max(0, ir);
+        }
+        const net = income - inss - ir;
+        document.getElementById('res-inss').innerText = formatCurrency(inss);
+        document.getElementById('res-ir').innerText = formatCurrency(ir);
+        document.getElementById('res-inss-net').innerText = formatCurrency(net);
+        document.getElementById('inss-results').classList.remove('hidden');
+        logActivity(`INSS/IR calculado: bruto ${formatCurrency(income)}, líquido ${formatCurrency(net)}`);
+    });
+}
+
+// ====== FEAT #21: Overtime Calculator ======
+function initOvertimeCalculator() {
+    const btn = document.getElementById('btn-calc-ot');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const base = parseFloat(document.getElementById('ot-base-rate')?.value) || 0;
+        const hours = parseFloat(document.getElementById('ot-hours')?.value) || 0;
+        const pct = parseFloat(document.getElementById('ot-percent')?.value) || 50;
+        const otRate = base * (1 + pct/100);
+        const total = otRate * hours;
+        document.getElementById('res-ot-rate').innerText = `${formatCurrency(otRate)}/h`;
+        document.getElementById('res-ot-total').innerText = formatCurrency(total);
+        document.getElementById('ot-results').classList.remove('hidden');
+        logActivity(`Horas extras calculadas: ${hours}h × ${formatCurrency(otRate)}/h = ${formatCurrency(total)}`);
+    });
+}
+
+// ====== FEAT #22: CLT Resignation Calculator ======
+function initRescisaoCalculator() {
+    const btn = document.getElementById('btn-calc-rescisao');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const salary = parseFloat(document.getElementById('res-salary')?.value) || 0;
+        const months = parseFloat(document.getElementById('res-months')?.value) || 0;
+        const type = document.getElementById('res-type')?.value;
+        const years = months / 12;
+        const curMonth = new Date().getMonth() + 1;
+        const workDaysLeft = Math.max(0, 30 - new Date().getDate());
+
+        // Saldo de salário (dias restantes do mês)
+        const saldo = (salary / 30) * workDaysLeft;
+        // 13º proporcional
+        const decimo = (salary / 12) * (curMonth);
+        // Férias proporcionais + 1/3
+        const feriasMeses = Math.floor(months % 12);
+        const ferias = (salary / 12) * feriasMeses * (4/3);
+        // Aviso prévio (30 dias + 3 por ano, máx 90)
+        const avisoDias = Math.min(90, 30 + Math.floor(years) * 3);
+        const aviso = type === 'sem-justa-causa' ? (salary / 30) * avisoDias : 0;
+        // FGTS + multa 40%
+        const fgts = type === 'sem-justa-causa' ? salary * 0.08 * months * 1.40 : 0;
+
+        let total = 0;
+        if (type === 'justa-causa') {
+            total = saldo; // Apenas saldo de salário
+        } else if (type === 'pedido-demissao') {
+            total = saldo + decimo + ferias;
+        } else {
+            total = saldo + decimo + ferias + aviso + fgts;
+        }
+
+        document.getElementById('res-saldo').innerText = formatCurrency(saldo);
+        document.getElementById('res-decimo').innerText = formatCurrency(decimo);
+        document.getElementById('res-ferias').innerText = formatCurrency(ferias);
+        document.getElementById('res-aviso').innerText = formatCurrency(aviso);
+        document.getElementById('res-fgts').innerText = formatCurrency(fgts);
+        document.getElementById('res-total').innerText = formatCurrency(total);
+        document.getElementById('rescisao-results').classList.remove('hidden');
+        logActivity(`Rescisão calculada: ${months} meses, ${formatCurrency(total)}`);
+    });
+}
+
+// ====== FEAT #23: Installment Calculator ======
+function initInstallmentCalculator() {
+    const btn = document.getElementById('btn-calc-parc');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const total = parseFloat(document.getElementById('parc-total')?.value) || 0;
+        const n = parseInt(document.getElementById('parc-n')?.value) || 1;
+        const rate = parseFloat(document.getElementById('parc-rate')?.value) || 0;
+        let parcVal, totalPay, interest;
+        if (rate === 0) {
+            parcVal = total / n;
+            totalPay = total;
+            interest = 0;
+        } else {
+            const r = rate / 100;
+            parcVal = total * r * Math.pow(1+r, n) / (Math.pow(1+r, n) - 1);
+            totalPay = parcVal * n;
+            interest = totalPay - total;
+        }
+        document.getElementById('res-parc-val').innerText = `${formatCurrency(parcVal)}/mês`;
+        document.getElementById('res-parc-total').innerText = formatCurrency(totalPay);
+        document.getElementById('res-parc-interest').innerText = formatCurrency(interest);
+        document.getElementById('parc-results').classList.remove('hidden');
+        logActivity(`Parcelamento: ${n}x ${formatCurrency(parcVal)}, total ${formatCurrency(totalPay)}`);
+    });
+}
+
+// ====== FEAT #24: Share Monthly Summary ======
+function initShareSummary() {
+    const btn = document.getElementById('btn-gen-share');
+    if (!btn) return;
+    btn.addEventListener('click', generateShareSummary);
+}
+
+function generateShareSummary() {
+    const monthName = ptMonths[state.selectedMonth];
+    const daysWorked = state.filteredRows.filter(r => r.minutosTrabalhados > 0).length;
+    const totalMins = state.filteredRows.reduce((s,r) => s+r.minutosTrabalhados, 0);
+    const totalEarnings = state.filteredRows.reduce((s,r) => s+r.ganhos, 0);
+    const pendingRows = state.filteredRows.filter(r => r.statusPagamento === 'Pendente');
+    const pendingEarnings = pendingRows.reduce((s,r) => s+r.ganhos, 0);
+
+    const text = `📊 *Resumo de ${monthName}/${state.selectedYear}*
+
+⏰ Horas trabalhadas: ${formatMinutesToHoursStr(totalMins)}
+📅 Dias trabalhados: ${daysWorked} dias
+💰 Ganhos brutos: ${formatCurrency(totalEarnings)}
+⏳ Pendente: ${formatCurrency(pendingEarnings)}
+✅ Recebido: ${formatCurrency(totalEarnings - pendingEarnings)}
+
+📈 Taxa média/h: ${formatCurrency(totalMins > 0 ? totalEarnings / (totalMins/60) : 0)}/h
+
+_Gerado pelo Controle Premium_ 🚀`;
+
+    const textarea = document.getElementById('share-summary-text');
+    const box = document.getElementById('share-summary-box');
+    if (textarea) textarea.value = text;
+    if (box) box.classList.remove('hidden');
+    logActivity(`Resumo mensal gerado para ${monthName}/${state.selectedYear}`);
+}
+
+window.copyShareSummary = function() {
+    const textarea = document.getElementById('share-summary-text');
+    if (!textarea) return;
+    navigator.clipboard.writeText(textarea.value)
+        .then(() => showToast('✅ Resumo copiado! Cole no WhatsApp ou e-mail.', 'success'))
+        .catch(() => {
+            textarea.select();
+            document.execCommand('copy');
+            showToast('✅ Resumo copiado!', 'success');
+        });
+};
+
+// ====== FEAT #25: Focus Mode ======
+let focusModeActive = false;
+function initFocusMode() {
+    const btn = document.getElementById('btn-focus-mode');
+    if (!btn) return;
+    btn.addEventListener('click', toggleFocusMode);
+}
+function toggleFocusMode() {
+    focusModeActive = !focusModeActive;
+    const btn = document.getElementById('btn-focus-mode');
+    const status = document.getElementById('focus-mode-status');
+    const elementsToHide = document.querySelectorAll('.chart-container-card, .productivity-heatmap-card, .productivity-projection-card');
+    if (focusModeActive) {
+        elementsToHide.forEach(el => el.style.display = 'none');
+        if (btn) { btn.innerHTML = '<i class="fa-solid fa-eye"></i> Desativar Modo Foco'; btn.style.background = 'rgba(139,92,246,0.2)'; btn.style.borderColor = 'rgba(139,92,246,0.4)'; btn.style.color = '#8b5cf6'; }
+        if (status) status.style.display = 'block';
+        showToast('Modo Foco ativado — gráficos ocultados.', 'info');
+    } else {
+        elementsToHide.forEach(el => el.style.display = '');
+        if (btn) { btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Ativar Modo Foco'; btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = ''; }
+        if (status) status.style.display = 'none';
+        showToast('Modo Foco desativado.', 'success');
+    }
+    logActivity(`Modo Foco ${focusModeActive ? 'ativado' : 'desativado'}`);
+}
+
+// ====== FEAT #26: Rate Converter (Hora/Dia/Mês) ======
+function initRateConverter() {
+    const btn = document.getElementById('btn-conv-rate');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const val = parseFloat(document.getElementById('rate-conv-input')?.value) || 0;
+        const from = document.getElementById('rate-conv-from')?.value;
+        let perHour = val;
+        if (from === 'dia') perHour = val / 8;
+        else if (from === 'mes') perHour = val / 176;
+        const perDay = perHour * 8;
+        const perMonth = perHour * 176;
+        document.getElementById('res-rate-hora').innerText = `${formatCurrency(perHour)}/h`;
+        document.getElementById('res-rate-dia').innerText = `${formatCurrency(perDay)}/dia`;
+        document.getElementById('res-rate-mes').innerText = `${formatCurrency(perMonth)}/mês`;
+        document.getElementById('rate-conv-results').classList.remove('hidden');
+    });
+}
+
+// ====== FEAT #27: Copy Yesterday's Schedule ======
+function initCopyYesterday() {
+    const btn = document.getElementById('btn-copy-yesterday');
+    if (!btn) return;
+    btn.addEventListener('click', copyYesterdaySchedule);
+}
+
+async function copyYesterdaySchedule() {
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    // Find last worked day before today
+    const lastWorked = [...state.rows].filter(r => r.date < todayStr && r.minutosTrabalhados > 0)
+        .sort((a,b) => b.date.localeCompare(a.date))[0];
+    if (!lastWorked) { showToast('Nenhum dia anterior com registros encontrado!', 'warning'); return; }
+
+    const preview = document.getElementById('copy-yesterday-preview');
+    if (preview) {
+        preview.style.display = 'block';
+        preview.innerText = `Copiando de ${lastWorked.date}: ${lastWorked.entrada1 || '--'}→${lastWorked.saida1 || '--'} / ${lastWorked.entrada2 || '--'}→${lastWorked.saida2 || '--'}`;
+    }
+
+    await applyScheduleTemplate(lastWorked.entrada1 || '', lastWorked.saida1 || '', lastWorked.entrada2 || '', lastWorked.saida2 || '');
+    logActivity(`Horário de ${lastWorked.date} replicado para hoje`);
+}
+
+// ====== FEAT #28: Activity Log ======
+function logActivity(msg) {
+    const logs = JSON.parse(localStorage.getItem('activity_log') || '[]');
+    const now = new Date();
+    logs.unshift({ time: now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), date: now.toLocaleDateString('pt-BR'), msg });
+    if (logs.length > 50) logs.pop();
+    localStorage.setItem('activity_log', JSON.stringify(logs));
+    renderActivityLog();
+}
+
+function renderActivityLog() {
+    const el = document.getElementById('activity-log');
+    if (!el) return;
+    const logs = JSON.parse(localStorage.getItem('activity_log') || '[]');
+    if (!logs.length) {
+        el.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:0.5rem;">Nenhuma atividade registrada ainda.</div>';
+        return;
+    }
+    el.innerHTML = logs.map(l => `
+        <div style="display:flex; gap:0.5rem; align-items:flex-start; padding:0.25rem 0; border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="color:var(--accent-blue); flex-shrink:0; font-size:0.68rem; margin-top:1px;">${l.time}</span>
+            <span>${l.msg}</span>
+        </div>
+    `).join('');
+}
+
+window.clearActivityLog = function() {
+    localStorage.removeItem('activity_log');
+    renderActivityLog();
+    showToast('Log de atividades limpo!', 'success');
+};
+
+// ====== FEAT #29: Productivity Analysis ======
+function renderProductivityAnalysis() {
+    const rows = state.rows.filter(r => r.minutosTrabalhados > 0);
+    if (!rows.length) return;
+
+    const bestHours = rows.reduce((b,r) => r.minutosTrabalhados > b.minutosTrabalhados ? r : b, rows[0]);
+    const worstHours = rows.reduce((b,r) => r.minutosTrabalhados < b.minutosTrabalhados ? r : b, rows[0]);
+    const bestEarnings = rows.reduce((b,r) => r.ganhos > b.ganhos ? r : b, rows[0]);
+
+    // Best weekday
+    const weekdayTotals = {};
+    rows.forEach(r => {
+        if (!weekdayTotals[r.weekday]) weekdayTotals[r.weekday] = { mins: 0, count: 0 };
+        weekdayTotals[r.weekday].mins += r.minutosTrabalhados;
+        weekdayTotals[r.weekday].count++;
+    });
+    const bestWeekday = Object.entries(weekdayTotals).sort((a,b) => (b[1].mins/b[1].count) - (a[1].mins/a[1].count))[0];
+
+    const fmt = (dateStr) => { const dp = parseDateParts(dateStr); return `${String(dp.day).padStart(2,'0')}/${String(dp.month+1).padStart(2,'0')}`; };
+    const el_bd = document.getElementById('prod-best-day');
+    const el_wd = document.getElementById('prod-worst-day');
+    const el_be = document.getElementById('prod-best-earn');
+    const el_bw = document.getElementById('prod-best-weekday');
+    if (el_bd) el_bd.innerText = `${fmt(bestHours.date)} (${bestHours.horasMinutos})`;
+    if (el_wd) el_wd.innerText = `${fmt(worstHours.date)} (${worstHours.horasMinutos})`;
+    if (el_be) el_be.innerText = `${fmt(bestEarnings.date)} (${formatCurrency(bestEarnings.ganhos)})`;
+    if (el_bw && bestWeekday) el_bw.innerText = bestWeekday[0].split('-')[0];
+
+    document.getElementById('btn-refresh-prod')?.addEventListener('click', renderProductivityAnalysis);
+}
+
+// ====== FEAT #30: Break-even Calculator ======
+function initBreakevenCalculator() {
+    const btn = document.getElementById('btn-calc-breakeven');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const fixed = parseFloat(document.getElementById('be-fixed-costs')?.value) || 0;
+        const rateEl = document.getElementById('be-hourly-rate');
+        const rate = parseFloat(rateEl?.value) || state.globalRate || 1;
+        const hours = fixed / rate;
+        const days = hours / 8;
+        document.getElementById('res-be-hours').innerText = `${Math.ceil(hours)}h/mês`;
+        document.getElementById('res-be-days').innerText = `Equivale a ${Math.ceil(days)} dias úteis (8h/dia)`;
+        document.getElementById('breakeven-results').classList.remove('hidden');
+        logActivity(`Break-even: ${Math.ceil(hours)}h/mês para cobrir ${formatCurrency(fixed)}`);
+    });
+    // Auto-fill hourly rate from state
+    const rateEl = document.getElementById('be-hourly-rate');
+    if (rateEl && state.globalRate) rateEl.value = state.globalRate;
+}
+
+// ====== MAIN INIT - Hook all new features ======
+function initAllNewFeatures() {
+    // Timers and display
+    startLiveWorkTimer();
+    loadDailyTip();
+    renderHolidaysList();
+    renderActivityLog();
+
+    // Tools tab calculators
+    initPomodoro();
+    initINSSCalculator();
+    initOvertimeCalculator();
+    initRescisaoCalculator();
+    initInstallmentCalculator();
+    initShareSummary();
+    initFocusMode();
+    initRateConverter();
+    initCopyYesterday();
+    initDueDates();
+    initThemeToggle();
+    initWeeklyHoursGoal();
+    initBreakevenCalculator();
+
+    // Pre-fill hourly rate in break-even
+    const beRate = document.getElementById('be-hourly-rate');
+    if (beRate && state.globalRate) beRate.value = state.globalRate;
+}
+
+// Hook into applyFilters to render new dashboard sections
+const _origApplyFilters = applyFilters;
+// We override the render calls by extending renderDashboard
+const _origRenderDashboard = renderDashboard;
+function renderDashboard() {
+    _origRenderDashboard();
+    // New dashboard features
+    renderExtraKPIs();
+    renderWeeklySummary();
+    renderDayIntensity();
+    renderAchievements();
+    updateLiveWorkTimer();
+}
+
+const _origRenderFinance = renderFinance;
+function renderFinance() {
+    _origRenderFinance();
+    renderWeeklyExpensesBreakdown();
+    renderMonthComparison();
+    renderDueItems();
+}
+
+// Initialize on DOM ready - append to existing DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Run after main init (slight delay to let state load)
+    setTimeout(initAllNewFeatures, 800);
+    setTimeout(() => {
+        renderProductivityAnalysis();
+        // Add break-even rate from state
+        const beRate = document.getElementById('be-hourly-rate');
+        if (beRate && state.globalRate) beRate.value = state.globalRate;
+    }, 1500);
+});
+

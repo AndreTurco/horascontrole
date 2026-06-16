@@ -2102,3 +2102,157 @@ input:checked + .slider:before {
     padding: 0.5rem 0;
     border-top: 1px dashed rgba(255, 255, 255, 0.05);
 }
+
+/* ==========================================================================
+   LIGHT THEME (FEAT #17)
+   ========================================================================== */
+body.light-theme {
+    --bg-primary: #f1f5f9;
+    --bg-secondary: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.95);
+    --border-card: rgba(0, 0, 0, 0.08);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+body.light-theme::before {
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 85%);
+}
+body.light-theme::after {
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 85%);
+}
+body.light-theme .glass-card {
+    background: rgba(255,255,255,0.92);
+    border-color: rgba(0,0,0,0.07);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+}
+body.light-theme .app-header,
+body.light-theme .bottom-nav {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.07);
+}
+body.light-theme .nav-item {
+    color: #475569;
+}
+body.light-theme .nav-item.active {
+    color: #3b82f6;
+}
+body.light-theme .form-control-flat,
+body.light-theme .form-control-flat select {
+    background: rgba(0,0,0,0.04);
+    color: #0f172a;
+    border-color: rgba(0,0,0,0.12);
+}
+body.light-theme .tab-content {
+    background: transparent;
+}
+body.light-theme .history-table th {
+    background: rgba(0,0,0,0.04);
+    color: #475569;
+}
+body.light-theme .history-table tr:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+/* ==========================================================================
+   UTILITY CLASSES FOR NEW FEATURES
+   ========================================================================== */
+.color-cyan { color: #06b6d4 !important; }
+
+.btn-xs {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.72rem;
+    border-radius: 8px;
+}
+
+.w-100 { width: 100%; }
+
+.mt-2 { margin-top: 0.5rem; }
+
+.flex-grow { flex-grow: 1; }
+
+.form-row-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+@media (max-width: 420px) {
+    .form-row-grid { grid-template-columns: 1fr; }
+}
+
+/* Pomodoro display animation */
+#pomodoro-display {
+    transition: color 0.3s;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Intensity card hover */
+#day-intensity-card {
+    transition: all 0.3s;
+    cursor: default;
+}
+#day-intensity-card:hover {
+    border-color: rgba(255,255,255,0.12);
+}
+
+/* Achievement badges hover */
+#achievements-grid > div {
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+}
+#achievements-grid > div:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* Due items list */
+#due-items-list > div {
+    transition: opacity 0.2s;
+}
+
+/* Weekly expenses bars */
+#weekly-expenses-breakdown > div {
+    animation: fadeInUp 0.3s ease;
+}
+
+/* Share summary box */
+#share-summary-box textarea {
+    font-family: 'Courier New', monospace;
+    background: rgba(0,0,0,0.2);
+    color: var(--text-primary);
+    border-color: rgba(255,255,255,0.1);
+}
+body.light-theme #share-summary-box textarea {
+    background: rgba(0,0,0,0.04);
+    color: #0f172a;
+}
+
+/* Activity log scrollbar */
+#activity-log::-webkit-scrollbar { width: 4px; }
+#activity-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* Live work timer pulse */
+#live-work-timer {
+    animation: gentlePulse 2s ease-in-out infinite;
+}
+@keyframes gentlePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Holiday buttons hover */
+#holidays-list button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(245,158,11,0.2);
+}
+
+/* Productivity analysis grid */
+#productivity-analysis .grid > div {
+    transition: transform 0.2s;
+}
+#productivity-analysis .grid > div:hover {
+    transform: scale(1.02);
+}
+
