@@ -128,7 +128,10 @@ const state = {
     chart: null,
     financeChart: null,
     comparisonChart: null,
-    yearlyChart: null
+    yearlyChart: null,
+    
+    // Privacidade
+    hideFinancials: false
 };
 
 function switchTab(tabName) {
@@ -223,6 +226,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Configurações do tema (Sempre escuro por padrão)
     document.body.classList.add('dark-theme');
     document.body.classList.remove('light-theme');
+
+    // Carregar configuração de privacidade (ocultar valores)
+    state.hideFinancials = localStorage.getItem('hideFinancials') === 'true';
+    updateHideFinancialsUI();
 
     // Carregar nome do usuário
     let savedUserName = localStorage.getItem('app_user_name') || 'Premium';
@@ -1789,6 +1796,26 @@ function bindEvents() {
     document.getElementById('filter-month').addEventListener('change', applyFilters);
     document.getElementById('search-notes').addEventListener('input', applyFilters);
 
+    const btnClearFilters = document.getElementById('btn-clear-filters');
+    if (btnClearFilters) {
+        btnClearFilters.addEventListener('click', () => {
+            document.getElementById('filter-month').value = new Date().getMonth();
+            document.getElementById('search-notes').value = '';
+            
+            const rangeStartEl = document.getElementById('range-start');
+            const rangeEndEl = document.getElementById('range-end');
+            if (rangeStartEl) rangeStartEl.value = '';
+            if (rangeEndEl) rangeEndEl.value = '';
+            
+            state.rangeStart = '';
+            state.rangeEnd = '';
+            state.selectedMonth = new Date().getMonth();
+            
+            applyFilters();
+            showToast('Filtros limpos!', 'info');
+        });
+    }
+
     // 3. Modos de Visualização (Histórico Tabela vs Calendário)
     document.getElementById('btn-view-list').addEventListener('click', () => {
         document.getElementById('btn-view-list').classList.add('active');
@@ -2517,6 +2544,9 @@ function normalizeDate(cellValue) {
 }
 
 function formatCurrency(value) {
+    if (state && state.hideFinancials) {
+        return 'R$ ••••';
+    }
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
@@ -4226,6 +4256,19 @@ function loadMotivationalQuote() {
     quoteEl.innerHTML = `<i class="fa-solid fa-quote-left" style="color: var(--accent-blue); opacity: 0.6; margin-right: 6px; font-size: 0.8rem;"></i> ${MOTIVATIONAL_QUOTES[idx]} <i class="fa-solid fa-quote-right" style="color: var(--accent-blue); opacity: 0.6; margin-left: 6px; font-size: 0.8rem;"></i>`;
 }
 
+function updateHideFinancialsUI() {
+    const privacyIcon = document.getElementById('privacy-icon');
+    if (privacyIcon) {
+        if (state.hideFinancials) {
+            privacyIcon.className = 'fa-solid fa-eye-slash';
+            privacyIcon.title = 'Exibir Valores';
+        } else {
+            privacyIcon.className = 'fa-solid fa-eye';
+            privacyIcon.title = 'Ocultar Valores';
+        }
+    }
+}
+
 async function fetchCurrencyRates() {
     try {
         const res = await fetch('https://economia.awesomestapi.com.br/last/USD-BRL,EUR-BRL');
@@ -5308,7 +5351,7 @@ function initToolsEvents() {
     }
 
     // Bloco de Notas: Busca Dinâmica
-    const searchNotesInput = document.getElementById('search-notes');
+    const searchNotesInput = document.getElementById('search-notepad');
     if (searchNotesInput) {
         searchNotesInput.addEventListener('input', () => {
             loadNotes(searchNotesInput.value);
@@ -5396,6 +5439,57 @@ function initToolsEvents() {
             showToast('Tarifa recomendada calculada!', 'success');
         });
     }
+
+    // 5. Simulador CLT vs PJ
+    const btnCalcCltPj = document.getElementById('btn-calc-clt-pj');
+    if (btnCalcCltPj) {
+        btnCalcCltPj.addEventListener('click', () => {
+            const cltSalary = parseFloat(document.getElementById('clt-salary').value) || 0;
+            const cltBenefits = parseFloat(document.getElementById('clt-benefits').value) || 0;
+            const pjBilling = parseFloat(document.getElementById('pj-billing').value) || 0;
+
+            // CLT Anual Líquido Estimado: 13.33 salários + benefícios * 12 + FGTS (8% * 12)
+            // Desconto médio de impostos/INSS CLT ~18% (fator 0.82)
+            const cltAnnualSalaryNet = (cltSalary * 13.33) * 0.82;
+            const cltAnnualBenefits = cltBenefits * 12;
+            const cltAnnualFgts = cltSalary * 0.08 * 12;
+            const totalCltNet = cltAnnualSalaryNet + cltAnnualBenefits + cltAnnualFgts;
+
+            // PJ Anual Líquido Estimado: faturamento * 12 - imposto médio (Simples Nacional 6% + MEI DAS ~960)
+            const pjAnnualGross = pjBilling * 12;
+            const pjAnnualTaxes = (pjAnnualGross * 0.06) + 960;
+            const totalPjNet = pjAnnualGross - pjAnnualTaxes;
+
+            document.getElementById('result-clt-annual').innerText = 'R$ ' + totalCltNet.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('result-pj-annual').innerText = 'R$ ' + totalPjNet.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            const diff = Math.abs(totalPjNet - totalCltNet);
+            const diffStr = diff.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const compTextEl = document.getElementById('clt-pj-comparison-text');
+            if (totalPjNet > totalCltNet) {
+                compTextEl.innerHTML = `PJ é mais vantajoso por <span class="color-green">R$ ${diffStr}</span> / ano`;
+            } else if (totalCltNet > totalPjNet) {
+                compTextEl.innerHTML = `CLT é mais vantajoso por <span style="color: #ef4444;">R$ ${diffStr}</span> / ano`;
+            } else {
+                compTextEl.innerHTML = `Ambos possuem rendimentos líquidos equivalentes!`;
+            }
+
+            document.getElementById('clt-pj-results').classList.remove('hidden');
+            showToast('Simulação concluída!', 'success');
+        });
+    }
+
+    // 6. Botão de Privacidade (Ocultar/Exibir Valores Financeiros)
+    const btnTogglePrivacy = document.getElementById('btn-toggle-privacy');
+    if (btnTogglePrivacy) {
+        btnTogglePrivacy.addEventListener('click', () => {
+            state.hideFinancials = !state.hideFinancials;
+            localStorage.setItem('hideFinancials', state.hideFinancials ? 'true' : 'false');
+            updateHideFinancialsUI();
+            applyFilters();
+            showToast(state.hideFinancials ? 'Valores financeiros ocultados!' : 'Valores financeiros visíveis!', 'info');
+        });
+    }
 }
 
 async function loadNotes(filterQuery = '') {
@@ -5473,7 +5567,7 @@ async function loadNotes(filterQuery = '') {
                     tx.objectStore('notes').delete(n.id);
                     await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
                     showToast('Nota excluída!', 'success');
-                    loadNotes(document.getElementById('search-notes').value);
+                    loadNotes(document.getElementById('search-notepad').value);
                     
                     // Disparar sincronização na nuvem
                     localStorage.setItem('needs_sync', 'true');
