@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Pausar o carregamento principal até o usuário interagir
             await new Promise(resolve => {
-                document.getElementById('btn-start-clean').addEventListener('click', () => {
+                document.getElementById('btn-start-clean').addEventListener('click', async () => {
                     const name = document.getElementById('setup-user-name').value.trim();
                     if (name) {
                         localStorage.setItem('app_user_name', name);
@@ -267,6 +267,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const inputUserName = document.getElementById('input-user-name');
                         if (inputUserName) inputUserName.value = name;
                     }
+
+                    if (typeof PREFILLED_EXCEL_BASE64 !== 'undefined' && PREFILLED_EXCEL_BASE64) {
+                        try {
+                            overlay.innerHTML = '<div style="color:white; font-size:1.2rem; text-align:center;"><i class="fa-solid fa-spinner fa-spin" style="font-size:2rem; margin-bottom:1rem; color:#10b981;"></i><br>Carregando seus dados Premium...</div>';
+                            isImportingData = true;
+                            const res = await fetch(`data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${PREFILLED_EXCEL_BASE64}`);
+                            const blob = await res.blob();
+                            const file = new File([blob], "Controle_Premium.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                            await processExcelFile(file);
+                            isImportingData = false;
+                        } catch (err) {
+                            console.error("Erro ao carregar dados pre-existentes", err);
+                        }
+                    }
+
                     localStorage.setItem('app-setup-done', 'true');
                     overlay.style.display = 'none';
                     resolve();
