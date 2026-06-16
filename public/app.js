@@ -221,7 +221,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.remove('light-theme');
 
     // Carregar nome do usuário
-    const savedUserName = localStorage.getItem('app_user_name') || 'Premium';
+    let savedUserName = localStorage.getItem('app_user_name') || 'Premium';
+    if (savedUserName.trim().toLowerCase() === 'aline') {
+        savedUserName = 'Premium';
+        localStorage.setItem('app_user_name', 'Premium');
+    }
     const greetingEl = document.getElementById('dashboard-greeting-title');
     if (greetingEl) {
         greetingEl.innerText = `Olá, ${savedUserName}`;
@@ -3291,6 +3295,45 @@ function initBackupHandlers() {
         });
     }
 
+    // Restaurar Planilha Original (Premium)
+    const btnRestorePrefilled = document.getElementById('btn-restore-prefilled');
+    if (btnRestorePrefilled) {
+        btnRestorePrefilled.addEventListener('click', async () => {
+            if (typeof PREFILLED_EXCEL_BASE64 === 'undefined' || !PREFILLED_EXCEL_BASE64) {
+                showToast('Planilha original não está disponível nesta versão.', 'error');
+                return;
+            }
+            if (!confirm('Deseja realmente carregar os dados iniciais do projeto? Isso substituirá todo o seu banco de dados local com as informações preenchidas originais!')) return;
+            try {
+                // Limpar tabelas existentes
+                const txRows = db.transaction('rows', 'readwrite');
+                txRows.objectStore('rows').clear();
+                await new Promise((res, rej) => { txRows.oncomplete = res; txRows.onerror = rej; });
+
+                const txFin = db.transaction('finance', 'readwrite');
+                txFin.objectStore('finance').clear();
+                await new Promise((res, rej) => { txFin.oncomplete = res; txFin.onerror = rej; });
+
+                const txInv = db.transaction('invest', 'readwrite');
+                txInv.objectStore('invest').clear();
+                await new Promise((res, rej) => { txInv.oncomplete = res; txInv.onerror = rej; });
+
+                // Chamar função de semente
+                await seedFromPrefilledExcel();
+
+                localStorage.setItem('welcome_dismissed', 'true');
+                localStorage.setItem('needs_sync', 'true');
+                triggerAutoSync();
+
+                showToast('Dados originais carregados com sucesso! Recarregando...', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (err) {
+                console.error('[RESTORE-PREFILLED]', err);
+                showToast('Erro ao carregar dados iniciais!', 'error');
+            }
+        });
+    }
+
     // Exportar Planilha Excel (.xlsx)
     const btnExportXlsx = document.getElementById('btn-export-xlsx');
     if (btnExportXlsx) {
@@ -5041,6 +5084,9 @@ function checkAndShowWelcomeWizard() {
     modal.style.zIndex = '3000';
     modal.style.backdropFilter = 'blur(15px)';
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode') || 'user';
+
     modal.innerHTML = `
         <div class="glass-card" style="width: 90%; max-width: 520px; padding: 2rem; border-radius: var(--radius-lg); border: 1px solid rgba(6, 182, 212, 0.3); background: rgba(15, 23, 42, 0.95); text-align: center; max-height: 95vh; overflow-y: auto;">
             <i class="fa-solid fa-hourglass-start" style="font-size: 2.75rem; color: #06b6d4; margin-bottom: 0.75rem;"></i>
@@ -5053,11 +5099,24 @@ function checkAndShowWelcomeWizard() {
             </p>
             
             <div style="display: flex; flex-direction: column; gap: 0.75rem; text-align: left;">
+                <!-- Carregar Planilha Original (Premium) -->
+                ${(typeof PREFILLED_EXCEL_BASE64 !== 'undefined' && PREFILLED_EXCEL_BASE64 && mode !== 'clean') ? `
+                <button id="btn-wizard-prefilled" class="btn ripple" style="background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6, 182, 212, 0.35); color: #fff; padding: 0.85rem; border-radius: var(--radius-md); text-align: left; display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer; width: 100%;">
+                    <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.4rem; color: #06b6d4; margin-top: 2px;"></i>
+                    <div style="flex-grow: 1;">
+                        <strong style="display: block; font-size: 0.8rem; color: #06b6d4;">Carregar Planilha Padrão (Recomendado)</strong>
+                        <span style="display: block; font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.1rem; line-height: 1.2;">
+                            Inicializa o aplicativo diretamente com os seus dados do Excel pré-preenchidos.
+                        </span>
+                    </div>
+                </button>
+                ` : ''}
+
                 <!-- Conectar Drive -->
                 <button id="btn-wizard-gdrive" class="btn ripple" style="background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); color: #fff; padding: 0.85rem; border-radius: var(--radius-md); text-align: left; display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer; width: 100%;">
                     <i class="fa-brands fa-google-drive" style="font-size: 1.4rem; color: #06b6d4; margin-top: 2px;"></i>
                     <div style="flex-grow: 1;">
-                        <strong style="display: block; font-size: 0.8rem; color: #06b6d4;">Restaurar do Google Drive (Recomendado)</strong>
+                        <strong style="display: block; font-size: 0.8rem; color: #06b6d4;">Restaurar do Google Drive</strong>
                         <span style="display: block; font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.1rem; line-height: 1.2;">
                             Conecte sua conta Google para procurar e baixar seu backup anterior automaticamente em segundos.
                         </span>
@@ -5094,6 +5153,25 @@ function checkAndShowWelcomeWizard() {
     `;
 
     document.body.appendChild(modal);
+
+    const btnWizardPrefilled = document.getElementById('btn-wizard-prefilled');
+    if (btnWizardPrefilled) {
+        btnWizardPrefilled.addEventListener('click', async () => {
+            document.body.removeChild(modal);
+            try {
+                showToast('Importando dados padrão...', 'info');
+                await seedFromPrefilledExcel();
+                localStorage.setItem('welcome_dismissed', 'true');
+                localStorage.setItem('needs_sync', 'true');
+                triggerAutoSync();
+                showToast('Dados iniciais carregados com sucesso! Recarregando...', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (e) {
+                console.error(e);
+                showToast('Erro ao importar dados padrão!', 'error');
+            }
+        });
+    }
 
     document.getElementById('btn-wizard-clean').addEventListener('click', () => {
         localStorage.setItem('welcome_dismissed', 'true');
