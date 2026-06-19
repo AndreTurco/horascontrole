@@ -23,7 +23,7 @@
     
     <!-- FORÇAR QUEBRA DE CACHE (Auto-Updater) -->
     <script>
-        const APP_VERSION = 'v32';
+        const APP_VERSION = 'v33';
         
         // Auto-Updater: Detecta se há uma nova versão e força a limpeza de cache
         if (localStorage.getItem('app_version') !== APP_VERSION) {
@@ -48,7 +48,7 @@
     <!-- Google Identity Services for Google Drive Cloud Backup -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
-    <link rel="stylesheet" href="style.css?v=32">
+    <link rel="stylesheet" href="style.css?v=33">
     <style>
         .setup-overlay {
             position: fixed;
@@ -292,30 +292,33 @@
                 <!-- Tab: Dashboard -->
                 <section id="tab-dashboard" class="tab-content active">
                     <!-- Greeting and Welcome Panel with Weather/Currency Ticker and Quote -->
-                    <div class="dashboard-greeting-wrapper" style="margin-bottom: 1.5rem; text-align: left; padding: 0 5px; display: flex; flex-direction: column; gap: 0.5rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
-                            <div>
-                                <h2 id="dashboard-greeting-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0;">Olá, Premium</h2>
-                                <p id="dashboard-greeting-desc" style="font-size: 0.9rem; color: var(--text-secondary); margin: 0.25rem 0 0 0;">Pronto para gerenciar suas horas?</p>
+                    <div class="dashboard-greeting-wrapper" style="margin-bottom: 1rem; text-align: left; padding: 0 5px; display: flex; flex-direction: column; gap: 0.6rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 0.75rem;">
+                            <!-- Left block: Name & info indicators -->
+                            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                <h2 id="dashboard-greeting-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; font-weight: 700; color: #fff; margin: 0; display: inline-flex; align-items: center; gap: 0.5rem;">Olá, Premium</h2>
                                 
-                                <!-- SEGMENTED MODE TOGGLE -->
-                                <div class="mode-toggle-container" style="display: flex; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 30px; padding: 3px; gap: 2px; width: fit-content; margin-top: 0.6rem;">
-                                    <button id="btn-mode-hours" class="mode-toggle-btn active" onclick="setAppMode('hours')" style="border: none; background: rgba(56, 189, 248, 0.2); color: var(--accent-blue, #38bdf8); padding: 5px 14px; font-size: 0.75rem; font-weight: 700; border-radius: 30px; cursor: pointer; transition: all 0.2s;">
-                                        <i class="fa-solid fa-clock"></i> Controle de Horas
-                                    </button>
-                                    <button id="btn-mode-services" class="mode-toggle-btn" onclick="setAppMode('services')" style="border: none; background: transparent; color: var(--text-secondary); padding: 5px 14px; font-size: 0.75rem; font-weight: 600; border-radius: 30px; cursor: pointer; transition: all 0.2s;">
-                                        <i class="fa-solid fa-briefcase"></i> Serviços & Vendas
-                                    </button>
+                                <!-- Discrete Inline Tickers -->
+                                <div style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 20px; padding: 2px 8px; font-size: 0.72rem; color: #94a3b8;">
+                                    <span id="ticker-usd" style="display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-dollar-sign text-success" style="font-size: 0.65rem;"></i> USD: R$ --,--</span>
+                                    <span style="color: rgba(255, 255, 255, 0.08)">|</span>
+                                    <span id="weather-info" style="display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-cloud-sun text-info" style="font-size: 0.65rem;"></i> --°C</span>
                                 </div>
                             </div>
+                            
+                            <!-- Right block: Segmented Control & Privacy Toggle -->
                             <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <div id="weather-and-ticker" style="display: flex; gap: 0.75rem; align-items: center; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 0.5rem 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">
-                                    <span id="ticker-usd"><i class="fa-solid fa-dollar-sign color-green"></i> USD: R$ --,--</span>
-                                    <span style="color: rgba(255, 255, 255, 0.15)">|</span>
-                                    <span id="weather-info"><i class="fa-solid fa-cloud-sun color-cyan"></i> --°C</span>
+                                <!-- SEGMENTED MODE TOGGLE -->
+                                <div class="mode-toggle-container" style="display: flex; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 20px; padding: 2px; gap: 2px; width: fit-content;">
+                                    <button id="btn-mode-hours" class="mode-toggle-btn active" onclick="setAppMode('hours')" style="border: none; background: rgba(56, 189, 248, 0.15); color: var(--accent-blue, #38bdf8); padding: 4px 10px; font-size: 0.7rem; font-weight: 700; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                        <i class="fa-solid fa-clock" style="font-size: 0.65rem;"></i> Horas
+                                    </button>
+                                    <button id="btn-mode-services" class="mode-toggle-btn" onclick="setAppMode('services')" style="border: none; background: transparent; color: #94a3b8; padding: 4px 10px; font-size: 0.7rem; font-weight: 600; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                        <i class="fa-solid fa-briefcase" style="font-size: 0.65rem;"></i> Serviços
+                                    </button>
                                 </div>
-                                <button id="btn-toggle-privacy" class="btn btn-secondary ripple" style="padding: 0; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--text-secondary); width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer;" title="Ocultar/Exibir Valores">
-                                    <i id="privacy-icon" class="fa-solid fa-eye" style="font-size: 0.9rem;"></i>
+                                <button id="btn-toggle-privacy" class="btn btn-secondary ripple" style="padding: 0; border-radius: 50%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;" title="Ocultar/Exibir Valores">
+                                    <i id="privacy-icon" class="fa-solid fa-eye" style="font-size: 0.75rem;"></i>
                                 </button>
                             </div>
                         </div>
@@ -1275,6 +1278,54 @@
                         </div>
                     </div>
 
+                    <!-- Automação de Trajetos Inteligente -->
+                    <div class="glass-card alarms-card mt-3">
+                        <h3 class="card-section-title"><i class="fa-solid fa-satellite-dish color-cyan"></i> Automação de Trajetos Inteligente</h3>
+                        <p class="card-section-desc">Estime automaticamente seus deslocamentos cruzando a sua geolocalização e rede Wi-Fi ao conectar sua conta.</p>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 0.75rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                                <div>
+                                    <strong style="display: block; font-size: 0.8rem; color: #fff;">Calcular Trajetos Automáticos (GPS)</strong>
+                                    <span style="font-size: 0.65rem; color: var(--text-secondary); display: block; line-height: 1.2;">Calcula tempos de trajeto com base nas posições de Casa e Trabalho.</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="chk-auto-commute-gps" onchange="toggleAutoCommuteGPS(event)">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+
+                            <!-- GPS Settings Form -->
+                            <div id="gps-commute-config" style="display: none; flex-direction: column; gap: 0.75rem; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.04); border-radius: var(--radius-md); padding: 0.75rem;">
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; width: 100%;">
+                                    <div class="form-group-flat" style="flex: 1; min-width: 140px;">
+                                        <label style="font-size: 0.7rem;"><i class="fa-solid fa-house color-green"></i> Coordenadas de Casa</label>
+                                        <input type="text" id="commute-home-coords" class="form-control-flat" placeholder="Aguardando captura..." style="font-size: 0.7rem; height: 30px;" readonly>
+                                    </div>
+                                    <button class="btn btn-secondary btn-xs" onclick="captureGPSLocation('home')" style="height: 30px; align-self: flex-end; font-size: 0.65rem; padding: 0 0.5rem; border-color: rgba(255,255,255,0.1); border-radius: 4px;">
+                                        <i class="fa-solid fa-location-crosshairs"></i> Capturar Casa
+                                    </button>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; width: 100%;">
+                                    <div class="form-group-flat" style="flex: 1; min-width: 140px;">
+                                        <label style="font-size: 0.7rem;"><i class="fa-solid fa-briefcase color-blue"></i> Coordenadas do Trabalho</label>
+                                        <input type="text" id="commute-work-coords" class="form-control-flat" placeholder="Aguardando captura..." style="font-size: 0.7rem; height: 30px;" readonly>
+                                    </div>
+                                    <button class="btn btn-secondary btn-xs" onclick="captureGPSLocation('work')" style="height: 30px; align-self: flex-end; font-size: 0.65rem; padding: 0 0.5rem; border-color: rgba(255,255,255,0.1); border-radius: 4px;">
+                                        <i class="fa-solid fa-location-crosshairs"></i> Capturar Trabalho
+                                    </button>
+                                </div>
+                                <div class="form-group-flat" style="margin-top: 0.25rem;">
+                                    <label style="font-size: 0.7rem;"><i class="fa-solid fa-wifi color-purple"></i> Rede Wi-Fi de Trabalho (SSID)</label>
+                                    <input type="text" id="commute-work-wifi" class="form-control-flat" placeholder="Ex: SSID_TRABALHO" style="font-size: 0.75rem; height: 30px;">
+                                </div>
+                                <button class="btn btn-primary btn-xs" onclick="saveAutoCommuteConfig()" style="height: 30px; margin-top: 0.25rem; font-size: 0.75rem; width: 100%; background: var(--accent-blue); border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: 600;">
+                                    <i class="fa-solid fa-floppy-disk"></i> Salvar Parâmetros de Automação
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Daily Commute Trajectory Table -->
                     <div class="glass-card trajectory-card-list">
                         <h3 class="chart-title"><i class="fa-solid fa-route color-blue"></i> Histórico de Trajetos e Tempo Fora de Casa</h3>
@@ -1303,6 +1354,367 @@
                 </section>
 
                 <section id="tab-settings" class="tab-content">
+                    <div class="settings-grid-layout">
+                        <!-- Global Hourly Rate & Profile Card -->
+                        <div class="glass-card settings-card">
+                            <h3 class="settings-title"><i class="fa-solid fa-user-gear color-cyan"></i> Perfil & Taxa Horária</h3>
+                            <p class="settings-desc">Defina seus dados para relatórios personalizados e altere o valor cobrado por hora de trabalho.</p>
+                            
+                            <!-- Taxa Horária -->
+                            <div style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 1.25rem;">
+                                <div class="form-group-flat" style="flex: 1;">
+                                    <label for="input-global-rate">Valor da Hora Padrão (R$)</label>
+                                    <div class="input-icon-wrapper">
+                                        <span class="input-addon">R$</span>
+                                        <input type="number" id="input-global-rate" class="form-control-flat" placeholder="12.00" step="0.50" min="0">
+                                    </div>
+                                </div>
+                                <button id="btn-save-global-rate" class="btn btn-primary ripple" style="height: 38px; padding: 0 1rem; min-width: 90px; border-radius: 8px;">
+                                    <i class="fa-solid fa-floppy-disk"></i> Salvar Taxa
+                                </button>
+                            </div>
+                            
+                            <!-- Dados do Perfil -->
+                            <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                                <div class="profile-form-grid">
+                                    <div class="form-group-flat">
+                                        <label for="input-user-name"><i class="fa-solid fa-signature color-cyan"></i> Nome Completo</label>
+                                        <input type="text" id="input-user-name" class="form-control-flat" placeholder="Digite seu nome" value="Premium">
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="input-user-age"><i class="fa-solid fa-calendar-day color-yellow"></i> Idade</label>
+                                        <input type="number" id="input-user-age" class="form-control-flat" value="30" min="1" max="120">
+                                    </div>
+                                    <div class="form-group-flat">
+                                        <label for="input-user-gender"><i class="fa-solid fa-venus-mars color-purple"></i> Gênero</label>
+                                        <select id="input-user-gender" class="form-control-flat">
+                                            <option value="Feminino">Feminino</option>
+                                            <option value="Masculino">Masculino</option>
+                                            <option value="Outro">Outro</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end;">
+                                    <button id="btn-save-user-profile" class="btn btn-primary ripple" style="background: linear-gradient(135deg, #06b6d4, #0891b2); border: none; height: 38px; padding: 0 1.25rem; border-radius: 8px;">
+                                        <i class="fa-solid fa-floppy-disk"></i> Salvar Perfil
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Meta e Alertas Unificados -->
+                        <div class="glass-card settings-card">
+                            <h3 class="settings-title"><i class="fa-solid fa-bullseye color-purple"></i> Metas Pessoais</h3>
+                            <p class="settings-desc">Defina suas metas financeiras e de horas de trabalho semanais para acompanhar no painel.</p>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                                <!-- Meta de Ganhos -->
+                                <div style="display: flex; gap: 0.75rem; align-items: flex-end; width: 100%;">
+                                    <div class="form-group-flat" style="flex: 1;">
+                                        <label for="input-goal-earnings">Meta de Ganhos Mensais (R$)</label>
+                                        <div class="input-icon-wrapper">
+                                            <span class="input-addon">R$</span>
+                                            <input type="number" id="input-goal-earnings" class="form-control-flat" placeholder="1500.00" value="1500" step="100">
+                                        </div>
+                                    </div>
+                                    <button id="btn-save-goal" class="btn btn-primary ripple" style="height: 38px; padding: 0 1rem; min-width: 90px; border-radius: 8px;">
+                                        <i class="fa-solid fa-check"></i> Definir
+                                    </button>
+                                </div>
+
+                                <!-- Meta de Horas -->
+                                <div style="display: flex; gap: 0.75rem; align-items: flex-end; width: 100%; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem;">
+                                    <div class="form-group-flat" style="flex: 1;">
+                                        <label for="input-weekly-hours-goal">Meta de Horas Semanais</label>
+                                        <div class="input-icon-wrapper">
+                                            <span class="input-addon"><i class="fa-solid fa-clock color-cyan" style="font-size: 0.8rem;"></i></span>
+                                            <input type="number" id="input-weekly-hours-goal" class="form-control-flat" style="padding-left: 2rem;" placeholder="40" value="40" min="1" max="80">
+                                        </div>
+                                    </div>
+                                    <button id="btn-save-weekly-goal" class="btn btn-primary ripple" style="height: 38px; padding: 0 1rem; min-width: 90px; border-radius: 8px;">
+                                        <i class="fa-solid fa-check"></i> Salvar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuração de Percentuais Financeiros -->
+                        <div class="glass-card settings-card">
+                            <h3 class="settings-title"><i class="fa-solid fa-calculator color-blue"></i> Distribuição & Percentuais</h3>
+                            <p class="settings-desc">Ajuste as porcentagens aplicadas à sua receita bruta para dízimo, impostos e aportes.</p>
+                            
+                            <div class="form-row-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.75rem; margin-bottom: 0.5rem;">
+                                <div class="form-group-flat">
+                                    <label for="input-percent-tithing"><i class="fa-solid fa-church color-yellow" style="font-size: 0.8rem;"></i> Dízimo</label>
+                                    <div class="input-icon-wrapper">
+                                        <input type="number" id="input-percent-tithing" class="form-control-flat" value="10" min="0" max="100">
+                                        <span class="input-addon-right">%</span>
+                                    </div>
+                                </div>
+                                <div class="form-group-flat">
+                                    <label for="input-percent-taxes"><i class="fa-solid fa-receipt color-red" style="font-size: 0.8rem;"></i> Impostos</label>
+                                    <div class="input-icon-wrapper">
+                                        <input type="number" id="input-percent-taxes" class="form-control-flat" value="15" min="0" max="100">
+                                        <span class="input-addon-right">%</span>
+                                    </div>
+                                </div>
+                                <div class="form-group-flat">
+                                    <label for="input-invest-percent"><i class="fa-solid fa-chart-line color-green" style="font-size: 0.8rem;"></i> Aporte</label>
+                                    <div class="input-icon-wrapper">
+                                        <input type="number" id="input-invest-percent" class="form-control-flat" value="20" min="0" max="100">
+                                        <span class="input-addon-right">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; margin-top: 0.75rem;">
+                                <button id="btn-save-invest-percent" class="btn btn-primary ripple" style="background: linear-gradient(135deg, #10b981, #06b6d4); height: 38px; border: none; padding: 0 1rem; font-size: 0.8rem; font-weight: 600; border-radius: 8px;">
+                                    <i class="fa-solid fa-floppy-disk"></i> Salvar Percentuais
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Configuração da IA Gemini (API Key) -->
+                        <div class="glass-card settings-card">
+                            <h3 class="settings-title"><i class="fa-solid fa-brain color-purple"></i> Inteligência Artificial (Gemini)</h3>
+                            <p class="settings-desc">Adicione sua chave gratuita do Google AI Studio para ativar as 30 ferramentas e análise de insights.</p>
+                            
+                            <div style="display: flex; gap: 0.75rem; align-items: flex-end; width: 100%; margin-bottom: 0.5rem;">
+                                <div class="form-group-flat" style="flex: 1; margin-bottom: 0;">
+                                    <label for="input-gemini-key">Chave API do Gemini</label>
+                                    <div class="input-icon-wrapper" style="position: relative;">
+                                        <span class="input-addon"><i class="fa-solid fa-key color-purple"></i></span>
+                                        <input type="password" id="input-gemini-key" class="form-control-flat" placeholder="AIzaSy..." style="padding-right: 2.5rem;">
+                                        <button type="button" onclick="toggleGeminiKeyVisibility()" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer;" title="Mostrar/Ocultar Chave">
+                                            <i id="gemini-key-visibility-icon" class="fa-solid fa-eye-slash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button id="btn-save-gemini-key" class="btn btn-primary ripple" style="background: linear-gradient(135deg, #a855f7, #6366f1); border: none; height: 38px; padding: 0 1rem; min-width: 90px; border-radius: 8px;">
+                                    <i class="fa-solid fa-floppy-disk"></i> Salvar
+                                </button>
+                            </div>
+                            
+                            <div style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.75rem;">
+                                <strong style="font-size: 0.78rem; color: #fff; display: block; margin-bottom: 0.4rem;"><i class="fa-solid fa-graduation-cap"></i> Como obter sua chave gratuita:</strong>
+                                <ol style="font-size: 0.72rem; color: var(--text-secondary); padding-left: 1.1rem; line-height: 1.5; margin-bottom: 0.75rem;">
+                                    <li>Acesse o <a href="https://aistudio.google.com/" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Google AI Studio</a>.</li>
+                                    <li>Clique em <strong>"Get API key"</strong> no topo esquerdo.</li>
+                                    <li>Crie uma nova chave e cole-a no campo acima.</li>
+                                </ol>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <a href="https://www.youtube.com/watch?v=kYJ3J22vXyY" target="_blank" class="btn btn-secondary btn-xs" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05); font-size: 0.65rem; text-decoration: none; padding: 5px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                        <i class="fa-brands fa-youtube"></i> Vídeo Tutorial
+                                    </a>
+                                    <a href="https://www.youtube.com/results?search_query=como+criar+chave+api+gemini+google+ai+studio" target="_blank" class="btn btn-secondary btn-xs" style="color: var(--text-secondary); border-color: rgba(255,255,255,0.1); font-size: 0.65rem; text-decoration: none; padding: 5px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                        <i class="fa-solid fa-magnifying-glass"></i> Buscar Tutorial
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Aparência e Tema -->
+                        <div class="glass-card settings-card">
+                            <h3 class="settings-title"><i class="fa-solid fa-palette color-purple"></i> Customização Visual</h3>
+                            <p class="settings-desc">Configure o tema escuro/claro, tamanho do texto do app e a cor de destaque principal.</p>
+                            
+                            <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom: 1rem;">
+                                <button id="btn-theme-dark" class="btn btn-primary ripple" style="flex:1; height: 36px; padding: 0; border-radius: 8px;"><i class="fa-solid fa-moon"></i> Escuro</button>
+                                <button id="btn-theme-light" class="btn btn-secondary ripple" style="flex:1; height: 36px; padding: 0; border-radius: 8px;"><i class="fa-solid fa-sun"></i> Claro</button>
+                            </div>
+                            
+                            <!-- Cor de Destaque -->
+                            <div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:0.75rem; margin-bottom: 1rem;">
+                                <h4 style="font-size:0.78rem; color:var(--text-secondary); margin:0 0 0.5rem; font-weight: 600;"><i class="fa-solid fa-fill-drip color-cyan"></i> Paleta de Cores</h4>
+                                <div class="color-palette-grid" style="margin-bottom: 0.5rem;">
+                                    <div class="color-swatch active" style="background: hsl(210, 100%, 60%)" data-h="210" data-s="100%" data-l="60%" title="Azul Premium"></div>
+                                    <div class="color-swatch" style="background: hsl(270, 80%, 65%)" data-h="270" data-s="80%" data-l="65%" title="Roxo Neon"></div>
+                                    <div class="color-swatch" style="background: hsl(160, 100%, 45%)" data-h="160" data-s="100%" data-l="45%" title="Verde Esmeralda"></div>
+                                    <div class="color-swatch" style="background: hsl(10, 100%, 65%)" data-h="10" data-s="100%" data-l="65%" title="Coral"></div>
+                                    <div class="color-swatch" style="background: hsl(45, 100%, 50%)" data-h="45" data-s="100%" data-l="50%" title="Ouro"></div>
+                                    <div class="color-swatch" style="background: hsl(330, 100%, 65%)" data-h="330" data-s="100%" data-l="65%" title="Rosa Choque"></div>
+                                    <div class="color-swatch" style="background: hsl(190, 100%, 45%)" data-h="190" data-s="100%" data-l="45%" title="Ciano"></div>
+                                    <div class="color-swatch" style="background: hsl(30, 100%, 55%)" data-h="30" data-s="100%" data-l="55%" title="Laranja"></div>
+                                    <div class="color-swatch" style="background: hsl(350, 90%, 60%)" data-h="350" data-s="90%" data-l="60%" title="Vermelho Vibrante"></div>
+                                    <div class="color-swatch" style="background: hsl(240, 90%, 70%)" data-h="240" data-s="90%" data-l="70%" title="Índigo"></div>
+                                </div>
+                                <div class="color-picker-custom" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem;">
+                                    <span style="color:var(--text-secondary);">Escolher outra cor:</span>
+                                    <input type="color" id="custom-color-picker" value="#3b82f6" style="border: none; background: none; width: 32px; height: 28px; cursor: pointer;">
+                                </div>
+                            </div>
+
+                            <!-- Tamanho da Fonte -->
+                            <div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:0.75rem;">
+                                <h4 style="font-size:0.78rem; color:var(--text-secondary); margin:0 0 0.5rem; font-weight: 600;"><i class="fa-solid fa-text-height color-yellow"></i> Ajuste do Texto</h4>
+                                <div class="font-size-btns">
+                                    <button class="font-size-btn" data-size="sm" style="flex: 1; padding: 6px; border-radius: 6px;">Pequena</button>
+                                    <button class="font-size-btn active" data-size="md" style="flex: 1; padding: 6px; border-radius: 6px;">Padrão</button>
+                                    <button class="font-size-btn" data-size="lg" style="flex: 1; padding: 6px; border-radius: 6px;">Grande</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gerenciamento de Planilha e Banco de Dados (Wide Card) -->
+                        <div class="glass-card settings-card wide-card">
+                            <h3 class="settings-title"><i class="fa-solid fa-database color-green"></i> Planilha, Backup & Nuvem</h3>
+                            <p class="settings-desc">Como o aplicativo roda 100% no seu celular, exporte ou salve seus dados físicos localmente ou na nuvem.</p>
+                            
+                            <div class="settings-actions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
+                                <!-- Exportar Excel -->
+                                <div class="action-card" style="border-left: 3px solid #10b981;">
+                                    <strong style="display: block; font-size: 0.85rem; color: #10b981;"><i class="fa-solid fa-file-excel"></i> Planilha Excel (.xlsx)</strong>
+                                    <span style="font-size: 0.68rem; color: var(--text-secondary); line-height: 1.3;">Gere e baixe a planilha Excel oficial com todas as abas.</span>
+                                    <button id="btn-export-xlsx" class="btn btn-primary ripple" style="width: 100%; background: #10b981; border: none; height: 34px; font-size: 0.75rem; border-radius: 6px;">
+                                        <i class="fa-solid fa-file-arrow-down"></i> Exportar Excel
+                                    </button>
+                                </div>
+
+                                <!-- Importar Excel -->
+                                <div class="action-card" style="border-left: 3px solid #3b82f6;">
+                                    <strong style="display: block; font-size: 0.85rem; color: #3b82f6;"><i class="fa-solid fa-file-import"></i> Carregar Planilha</strong>
+                                    <span style="font-size: 0.68rem; color: var(--text-secondary); line-height: 1.3;">Importe uma planilha Excel de controle para carregar todos os dados.</span>
+                                    <input type="file" id="input-import-xlsx" accept=".xlsx" style="display: none;">
+                                    <button id="btn-trigger-import-xlsx" class="btn btn-primary ripple" style="width: 100%; background: #3b82f6; border: none; height: 34px; font-size: 0.75rem; border-radius: 6px;">
+                                        <i class="fa-solid fa-file-arrow-up"></i> Importar Excel
+                                    </button>
+                                </div>
+
+                                <!-- Backup JSON -->
+                                <div class="action-card" style="border-left: 3px solid #8b5cf6;">
+                                    <strong style="display: block; font-size: 0.85rem; color: #8b5cf6;"><i class="fa-solid fa-file-code"></i> Salvar Cópia (JSON)</strong>
+                                    <span style="font-size: 0.68rem; color: var(--text-secondary); line-height: 1.3;">Baixe uma cópia de segurança completa com todas as abas.</span>
+                                    <button id="btn-download-backup" class="btn btn-secondary ripple" style="width: 100%; height: 34px; font-size: 0.75rem; border-radius: 6px;">
+                                        <i class="fa-solid fa-download"></i> Baixar Backup
+                                    </button>
+                                </div>
+
+                                <!-- Restaurar Backup JSON -->
+                                <div class="action-card" style="border-left: 3px solid #f59e0b;">
+                                    <strong style="display: block; font-size: 0.85rem; color: #f59e0b;"><i class="fa-solid fa-upload"></i> Restaurar Cópia</strong>
+                                    <span style="font-size: 0.68rem; color: var(--text-secondary); line-height: 1.3;">Restaure sua base de dados a partir de um backup JSON.</span>
+                                    <button id="btn-restore-backup" class="btn btn-secondary ripple" style="width: 100%; height: 34px; font-size: 0.75rem; border-radius: 6px;">
+                                        <i class="fa-solid fa-upload"></i> Restaurar Backup
+                                    </button>
+                                </div>
+
+                                <!-- Restaurar Planilha Padrão do Projeto -->
+                                <div class="action-card" id="card-restore-prefilled" style="border-left: 3px solid #06b6d4;">
+                                    <strong style="display: block; font-size: 0.85rem; color: #06b6d4;"><i class="fa-solid fa-file-invoice-dollar"></i> Dados Originais (Excel)</strong>
+                                    <span style="font-size: 0.68rem; color: var(--text-secondary); line-height: 1.3;">Sobrescreve a base local com os dados preenchidos da planilha original.</span>
+                                    <button id="btn-restore-prefilled" class="btn btn-primary ripple" style="width: 100%; background: #06b6d4; border-color: #06b6d4; height: 34px; font-size: 0.75rem; border-radius: 6px;">
+                                        <i class="fa-solid fa-rotate-left"></i> Carregar Originais
+                                    </button>
+                                </div>
+
+                                <!-- Exportar Relatórios CSV/PDF -->
+                                <div class="action-card" style="border-left: 3px solid #e11d48;">
+                                    <strong style="display: block; font-size: 0.85rem; color: #e11d48;"><i class="fa-solid fa-file-pdf"></i> Impressão & Relatórios</strong>
+                                    <span style="font-size: 0.68rem; color: var(--text-secondary); line-height: 1.3;">Gere relatórios limpos do mês em PDF ou arquivos CSV brutos.</span>
+                                    <div style="display: flex; gap: 0.4rem;">
+                                        <button id="btn-export-pdf" class="btn btn-secondary ripple" style="flex: 1; padding: 0; height: 34px; font-size: 0.7rem; border-color: rgba(255,255,255,0.1); border-radius: 6px;"><i class="fa-solid fa-file-pdf text-danger"></i> PDF</button>
+                                        <button id="btn-export-csv" class="btn btn-secondary ripple" style="flex: 1; padding: 0; height: 34px; font-size: 0.7rem; border-color: rgba(255,255,255,0.1); border-radius: 6px;"><i class="fa-solid fa-file-csv text-success"></i> CSV</button>
+                                    </div>
+                                </div>
+
+                                <!-- Google Drive Cloud Sync Card (Wide item inside grid) -->
+                                <div class="action-card" id="gdrive-sync-card" style="grid-column: span 2; border-left: 3px solid #06b6d4; background: rgba(6, 182, 212, 0.02) !important;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                                        <strong style="font-size: 0.9rem; color: #06b6d4; display: flex; align-items: center; gap: 0.4rem;">
+                                            <i class="fa-brands fa-google-drive"></i> Sincronização em Nuvem (Google Drive)
+                                        </strong>
+                                        <span id="gdrive-status-badge" style="font-size: 0.65rem; padding: 0.15rem 0.4rem; border-radius: 12px; font-weight: bold; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">Desconectado</span>
+                                    </div>
+                                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                                        Sincronize seus dados com o Google Drive automaticamente de forma criptografada. Funciona offline e atualiza na nuvem quando a conexão retornar.
+                                    </p>
+
+                                    <!-- Profile Info (hidden by default) -->
+                                    <div id="gdrive-profile-info" style="display: none; align-items: center; gap: 0.75rem; background: rgba(0, 0, 0, 0.2); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid rgba(255, 255, 255, 0.05); margin-top: 0.25rem;">
+                                        <img id="gdrive-user-avatar" src="" alt="Avatar" style="width: 30px; height: 30px; border-radius: 50%; border: 1px solid #06b6d4;">
+                                        <div style="flex-grow: 1; min-width: 0;">
+                                            <strong id="gdrive-user-name" style="display: block; font-size: 0.75rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Nome Usuário</strong>
+                                            <span id="gdrive-user-email" style="display: block; font-size: 0.65rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">email@gmail.com</span>
+                                        </div>
+                                        <button id="btn-gdrive-disconnect" class="btn btn-secondary ripple" style="padding: 0.3rem 0.6rem; font-size: 0.65rem; background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); cursor: pointer; border-radius: 4px;">
+                                            Desconectar
+                                        </button>
+                                    </div>
+
+                                    <!-- Connection Prompt (shown by default) -->
+                                    <div id="gdrive-login-prompt" style="text-align: center; padding: 0.75rem; border: 1px dashed rgba(6, 182, 212, 0.25); border-radius: var(--radius-sm); background: rgba(6, 182, 212, 0.01); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;">
+                                        <span style="font-size: 0.7rem; color: var(--text-secondary);">
+                                            Conecte sua conta para habilitar o salvamento em nuvem.
+                                        </span>
+                                        <button id="btn-gdrive-connect" class="btn btn-primary ripple" style="background: #06b6d4; border-color: #06b6d4; font-size: 0.75rem; padding: 0.4rem 0.8rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 0.3rem;">
+                                            <i class="fa-solid fa-cloud-arrow-up"></i> Conectar Google Drive
+                                        </button>
+                                    </div>
+
+                                    <!-- Sync controls (hidden by default) -->
+                                    <div id="gdrive-sync-options" style="display: none; flex-direction: column; gap: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.5rem;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                                            <div>
+                                                <strong style="display: block; font-size: 0.75rem; color: #fff;">Backup Automático</strong>
+                                                <span style="font-size: 0.6rem; color: var(--text-secondary); display: block; line-height: 1.2;">Sincronizar na nuvem a cada alteração.</span>
+                                            </div>
+                                            <label class="switch" style="width: 36px; height: 20px;">
+                                                <input type="checkbox" id="chk-gdrive-autosync" checked>
+                                                <span class="slider round"></span>
+                                            </label>
+                                        </div>
+                                        
+                                        <div style="display: flex; gap: 0.4rem; margin-top: 0.25rem;">
+                                            <button id="btn-gdrive-sync-now" class="btn btn-primary ripple" style="background: linear-gradient(135deg, #06b6d4, #3b82f6); font-size: 0.7rem; padding: 0.4rem; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; border-radius: 4px; border: none; color: white;">
+                                                <i class="fa-solid fa-rotate"></i> Sincronizar Agora
+                                            </button>
+                                            <button id="btn-gdrive-restore-cloud" class="btn btn-secondary ripple" style="font-size: 0.7rem; padding: 0.4rem; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; border-color: rgba(255,255,255,0.1); border-radius: 4px;">
+                                                <i class="fa-solid fa-cloud-arrow-down"></i> Restaurar da Nuvem
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Advanced Google API configuration (Accordion) -->
+                                    <div class="accordion" style="margin-top: 0.25rem;">
+                                        <div class="accordion-header" id="gdrive-accordion-header" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-secondary); border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.4rem; cursor: pointer; user-select: none;">
+                                            <span><i class="fa-solid fa-gears color-cyan"></i> Configuração Avançada (OAuth Client ID)</span>
+                                            <i class="fa-solid fa-chevron-down"></i>
+                                        </div>
+                                        <div class="accordion-content" id="gdrive-accordion-content" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; padding: 0.5rem;">
+                                            <div style="font-size: 0.68rem; color: var(--text-secondary); line-height: 1.4; display: flex; flex-direction: column; gap: 0.4rem;">
+                                                <strong style="color: #fff;">Configurando seu Client ID OAuth</strong>
+                                                <span>Caso utilize um domínio customizado, configure sua credencial do Google Cloud para habilitar o Google Drive:</span>
+                                                <ol style="margin-left: 1rem; display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.62rem; color: var(--text-muted); padding-left: 0.5rem;">
+                                                    <li>Crie um projeto no <b><a href="https://console.cloud.google.com/" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Google Cloud Console</a></b>.</li>
+                                                    <li>Vá em <b>Credenciais</b> -> Criar credenciais -> ID do cliente OAuth (Aplicativo da Web).</li>
+                                                    <li>Adicione <code>https://andreturco.github.io</code> nas Origens JavaScript Autorizadas.</li>
+                                                    <li>Copie o Client ID e cole no campo de entrada abaixo.</li>
+                                                </ol>
+                                            </div>
+                                            <div class="form-group-flat" style="margin-top: 0.25rem;">
+                                                <label for="input-gdrive-client-id" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Google Client ID Personalizado</label>
+                                                <input type="text" id="input-gdrive-client-id" class="form-control-flat" style="font-size: 0.65rem; padding: 0.4rem; height: 30px;" placeholder="Cole aqui seu client ID do Google Cloud">
+                                            </div>
+                                            <div style="display: flex; gap: 0.4rem;">
+                                                <button id="btn-save-gdrive-client-id" class="btn btn-primary ripple" style="font-size: 0.65rem; padding: 0.4rem 0.6rem; background: #06b6d4; border: none; border-radius: 4px; font-weight: 600;">
+                                                    Salvar ID
+                                                </button>
+                                                <button id="btn-reset-gdrive-client-id" class="btn btn-secondary ripple" style="font-size: 0.65rem; padding: 0.4rem 0.6rem; border-color: rgba(255,255,255,0.1); border-radius: 4px;">
+                                                    Restaurar Padrão
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem; margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; grid-column: span 2;">
+                                <span style="font-size: 0.7rem; color: var(--text-secondary);"><i class="fa-solid fa-circle-info"></i> Lembre-se de baixar um backup JSON regularmente.</span>
+                                <button id="btn-wipe-data" class="btn btn-secondary ripple" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 0.75rem; padding: 0.4rem 0.8rem; border-radius: 4px;">
+                                    <i class="fa-solid fa-trash-can"></i> Limpar Todo o Aplicativo (Wipe)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Tab: Tools -->
@@ -1731,8 +2143,8 @@
     </div>
 
     <!-- Application Logic -->
-    <script src="prefilled_data.js?v=32"></script>
-    <script src="app.js?v=32"></script>
-    <script src="tools_30.js?v=32"></script>
+    <script src="prefilled_data.js?v=33"></script>
+    <script src="app.js?v=33"></script>
+    <script src="tools_30.js?v=33"></script>
 </body>
 </html>

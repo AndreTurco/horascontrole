@@ -7360,5 +7360,77 @@ window.initAllNewFeatures = function() {
             }
         }
     });
+
+    // Carregar parâmetros de Automação de Trajetos
+    const savedAutoCommute = localStorage.getItem('autoCommute');
+    if (savedAutoCommute) {
+        try {
+            state.autoCommute = JSON.parse(savedAutoCommute);
+            setTimeout(() => {
+                const chk = document.getElementById('chk-auto-commute-gps');
+                const home = document.getElementById('commute-home-coords');
+                const work = document.getElementById('commute-work-coords');
+                const wifi = document.getElementById('commute-work-wifi');
+                
+                if (chk && state.autoCommute) {
+                    chk.checked = true;
+                    const configPanel = document.getElementById('gps-commute-config');
+                    if (configPanel) configPanel.style.display = 'flex';
+                    if (home) home.value = state.autoCommute.home || '';
+                    if (work) work.value = state.autoCommute.work || '';
+                    if (wifi) wifi.value = state.autoCommute.wifi || '';
+                }
+            }, 500);
+        } catch (e) {
+            console.error('Erro ao ler autoCommute config:', e);
+        }
+    }
+};
+
+// Automação de Trajetos Inteligente
+window.toggleAutoCommuteGPS = function(e) {
+    const configPanel = document.getElementById('gps-commute-config');
+    if (configPanel) {
+        configPanel.style.display = e.target.checked ? 'flex' : 'none';
+    }
+};
+
+window.captureGPSLocation = function(type) {
+    if (!navigator.geolocation) {
+        showToast("Geolocalização não suportada no seu navegador!", "error");
+        return;
+    }
+    showToast("Obtendo localização atual pelo GPS...", "info");
+    navigator.geolocation.getCurrentPosition(position => {
+        const coords = `${position.coords.latitude.toFixed(6)},${position.coords.longitude.toFixed(6)}`;
+        const input = document.getElementById(`commute-${type}-coords`);
+        if (input) input.value = coords;
+        showToast(`Localização de ${type === 'home' ? 'Casa' : 'Trabalho'} capturada!`, "success");
+    }, error => {
+        showToast("Erro ao obter localização: " + error.message, "error");
+    });
+};
+
+window.saveAutoCommuteConfig = function() {
+    const home = document.getElementById('commute-home-coords').value;
+    const work = document.getElementById('commute-work-coords').value;
+    const wifi = document.getElementById('commute-work-wifi').value.trim();
+    
+    state.autoCommute = { home, work, wifi };
+    localStorage.setItem('autoCommute', JSON.stringify(state.autoCommute));
+    
+    showToast("Configurações de automação salvas com sucesso!", "success");
+    
+    if (home && work) {
+        const hParts = home.split(',').map(Number);
+        const wParts = work.split(',').map(Number);
+        
+        const dy = 111.3 * (hParts[0] - wParts[0]);
+        const dx = 111.3 * (hParts[1] - wParts[1]) * Math.cos(hParts[0] * Math.PI / 180);
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        
+        const estimatedMinutes = Math.round((distance / 30) * 60 + 5);
+        showToast(`Estimativa de trajeto automática: ${estimatedMinutes} min (${distance.toFixed(2)} km).`, "info");
+    }
 };
 

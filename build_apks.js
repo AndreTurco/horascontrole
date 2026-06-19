@@ -25,7 +25,7 @@ const webManifestUrl = `${pwaUrl}manifest.json`;
 async function compileApk(mode) {
     const isPrefilled = (mode === 'user');
     const label = isPrefilled ? 'PREENCHIDO (Premium)' : 'LIMPO (Distribuição)';
-    const filename = isPrefilled ? 'Controle_de_Horas_Premium_v32.apk' : 'Controle_de_Horas_Limpo_v32.apk';
+    const filename = isPrefilled ? 'Controle_de_Horas_Premium_v33.apk' : 'Controle_de_Horas_Limpo_v33.apk';
     const packageId = isPrefilled ? "com.andreturco.horascontrole.premium" : "com.andreturco.horascontrole";
     const apkDestPath = path.join(__dirname, filename);
     const zipPath = path.join(__dirname, `temp_${mode}.zip`);
@@ -43,8 +43,8 @@ async function compileApk(mode) {
     try { fs.unlinkSync(apkDestPath); } catch (e) {}
 
     const postData = JSON.stringify({
-        appVersion: "1.32.0.0",
-        appVersionCode: 32,
+        appVersion: "1.33.0.0",
+        appVersionCode: 33,
         backgroundColor: "#0b0f19",
         display: "fullscreen",
         enableNotifications: true,
