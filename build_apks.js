@@ -106,7 +106,7 @@ async function compileApk(mode) {
                 'platform-identifier-version': '1.0.0',
                 'correlation-id': `controle-horas-${mode}-id`
             },
-            timeout: 120000 // 2 minutos de timeout
+            timeout: 300000 // 5 minutos de timeout
         };
 
         console.log(`[APK] Enviando requisição para o compilador do PWABuilder...`);
