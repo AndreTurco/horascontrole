@@ -2,7 +2,7 @@
 // MODO OFFLINE TOTAL — INDEXEDDB LOCAL (SEM SERVIDOR)
 // ==========================================================================
 const DB_NAME = 'controle_horas_db';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 let db = null;
 
 async function initDB() {
@@ -28,6 +28,15 @@ async function initDB() {
             if (!d.objectStoreNames.contains('notes')) {
                 const ns = d.createObjectStore('notes', { keyPath: 'id' });
                 ns.createIndex('updatedAt', 'updatedAt', { unique: false });
+            }
+            // MODO SERVIÇOS & LEMBRETES (INDEXEDDB V5)
+            if (!d.objectStoreNames.contains('services')) {
+                const ss = d.createObjectStore('services', { keyPath: 'id' });
+                ss.createIndex('date', 'date', { unique: false });
+            }
+            if (!d.objectStoreNames.contains('reminders')) {
+                const rms = d.createObjectStore('reminders', { keyPath: 'id' });
+                rms.createIndex('datetime', 'datetime', { unique: false });
             }
         };
         req.onsuccess = (e) => { db = e.target.result; resolve(db); };
@@ -106,6 +115,19 @@ const state = {
     investEntries: [],
     filteredInvestEntries: [],
     totalInvested: 0.0,
+    
+    // Serviços e Vendas (Modo Serviços)
+    servicesEntries: [],
+    filteredServicesEntries: [],
+    
+    // Lembretes e Alarmes
+    remindersEntries: [],
+    
+    // Configurações do Usuário e IA
+    appMode: 'hours',
+    userAge: 30,
+    userGender: 'Feminino',
+    geminiKey: '',
     
     // Filtros e Configurações
     selectedMonth: new Date().getMonth(),
@@ -376,7 +398,15 @@ async function fetchData() {
         if (cfgRate) state.globalRate = cfgRate.value;
         const cfgInvPct = await dbGet('config', 'investPercent');
         if (cfgInvPct) state.investPercent = cfgInvPct.value;
-
+        
+        // Configurações do Usuário e IA (Gemini V5)
+        const cfgGeminiKey = await dbGet('config', 'geminiKey');
+        if (cfgGeminiKey) state.geminiKey = cfgGeminiKey.value;
+        const cfgUserAge = await dbGet('config', 'userAge');
+        if (cfgUserAge) state.userAge = cfgUserAge.value;
+        const cfgUserGender = await dbGet('config', 'userGender');
+        if (cfgUserGender) state.userGender = cfgUserGender.value;
+        
         // Carregar linhas de ponto
         let rows = await dbGetAll('rows');
 
@@ -405,9 +435,12 @@ async function fetchData() {
         state.totalEarningsSinceJan = totalEarnings;
         state.pendingEarnings = pendingEarnings;
 
-        // Carregar finanças e investimentos
+        // Carregar finanças, investimentos, serviços e lembretes
         state.financeEntries = await dbGetAll('finance');
         state.investEntries = await dbGetAll('invest');
+        state.servicesEntries = await dbGetAll('services') || [];
+        state.remindersEntries = await dbGetAll('reminders') || [];
+        
         await autoSyncInvestments();
         state.totalInvested = state.investEntries.reduce((s, e) => s + (e.amount || 0), 0);
 
@@ -420,6 +453,20 @@ async function fetchData() {
         // Atualizar porcentagem de investimento na UI
         const investPctEl = document.getElementById('input-invest-percent');
         if (investPctEl) investPctEl.value = state.investPercent;
+        
+        // Atualizar UI de Perfil e Gemini
+        const ageEl = document.getElementById('input-user-age');
+        if (ageEl) ageEl.value = state.userAge || 30;
+        const genderEl = document.getElementById('input-user-gender');
+        if (genderEl) genderEl.value = state.userGender || 'Feminino';
+        const geminiEl = document.getElementById('input-gemini-key');
+        if (geminiEl) geminiEl.value = state.geminiKey || '';
+
+        // Restaurar modo ativo
+        state.appMode = localStorage.getItem('app_active_mode') || 'hours';
+        setTimeout(() => {
+            if (window.setAppMode) window.setAppMode(state.appMode);
+        }, 100);
 
         populateCategoriesDropdown();
         applyFilters();
@@ -563,6 +610,30 @@ async function seedFromPrefilledExcel() {
             }
         }
 
+        const importedServices = [];
+        const svcSheet = workbook.getWorksheet('Serviços e Vendas');
+        if (svcSheet) {
+            const svcRowCount = svcSheet.rowCount;
+            for (let r = 2; r <= svcRowCount; r++) {
+                const excelRow = svcSheet.getRow(r);
+                const id = excelRow.getCell(1).value;
+                const dateVal = formatCellDate(excelRow.getCell(2).value);
+                if (!dateVal) continue;
+
+                const entry = {
+                    id: id || generateId(),
+                    date: dateVal,
+                    client: excelRow.getCell(3).value || '',
+                    service: excelRow.getCell(4).value || '',
+                    quantity: Number(excelRow.getCell(5).value || 1),
+                    unitPrice: Number(excelRow.getCell(6).value || 0),
+                    status: excelRow.getCell(8).value || 'Pendente',
+                    notes: excelRow.getCell(9).value || ''
+                };
+                importedServices.push(entry);
+            }
+        }
+
         // Escrever no banco de dados
         await dbPut('config', { key: 'globalRate', value: importedGlobalRate });
         state.globalRate = importedGlobalRate;
@@ -581,8 +652,13 @@ async function seedFromPrefilledExcel() {
         for (const i of importedInvest) {
             await txInv.objectStore('invest').put(i);
         }
+        
+        const txSvc = db.transaction('services', 'readwrite');
+        for (const s of importedServices) {
+            await txSvc.objectStore('services').put(s);
+        }
 
-        console.log(`[DB-SEED] Semente aplicada: ${importedRows.length} pontos, ${importedFinance.length} finanças, ${importedInvest.length} investimentos.`);
+        console.log(`[DB-SEED] Semente aplicada: ${importedRows.length} pontos, ${importedFinance.length} finanças, ${importedInvest.length} investimentos, ${importedServices.length} serviços.`);
     } catch (e) {
         console.error('[DB-SEED] Erro ao aplicar semente pré-preenchida:', e);
     } finally {
@@ -895,6 +971,28 @@ function applyFilters() {
     
     state.filteredInvestEntries = state.filteredInvestEntries.filter(entry => entry.date);
     state.filteredInvestEntries.sort((a, b) => a.date.localeCompare(b.date));
+
+    // 4. Filtrar Serviços e Vendas (Nova V5)
+    state.filteredServicesEntries = (state.servicesEntries || []).filter(entry => {
+        const dateParts = parseDateParts(entry.date);
+        
+        let matchDate = dateParts.month === monthSelect;
+        if (state.rangeStart && state.rangeEnd) {
+            matchDate = entry.date >= state.rangeStart && entry.date <= state.rangeEnd;
+        }
+        
+        let matchSearch = true;
+        if (searchVal) {
+            matchSearch = (entry.client && entry.client.toLowerCase().includes(searchVal)) ||
+                          (entry.service && entry.service.toLowerCase().includes(searchVal)) ||
+                          (entry.notes && entry.notes.toLowerCase().includes(searchVal)) ||
+                          (entry.status && entry.status.toLowerCase().includes(searchVal));
+        }
+        
+        return matchDate && matchSearch;
+    });
+    state.filteredServicesEntries = state.filteredServicesEntries.filter(entry => entry.date);
+    state.filteredServicesEntries.sort((a, b) => a.date.localeCompare(b.date));
     
     // Renderizações reativas
     renderDashboard();
@@ -992,70 +1090,142 @@ function renderDashboard() {
         btn.disabled = true;
     }
 
-    // Calcular faturamento do mês atual filtrado
-    let totalMinutesMonth = 0;
-    let totalEarningsMonth = 0;
-    
-    state.filteredRows.forEach(row => {
-        totalMinutesMonth += row.minutosTrabalhados;
-        totalEarningsMonth += row.ganhos;
-    });
-    
-    // Horas da semana (baseado no último dia com registros de horas)
-    let lastWorkedRow = null;
-    for (let i = state.rows.length - 1; i >= 0; i--) {
-        if (state.rows[i].minutosTrabalhados > 0) {
-            lastWorkedRow = state.rows[i];
-            break;
+    // Calcular faturamento e horas/serviços com base no modo ativo
+    if (state.appMode === 'services') {
+        let totalEarningsServicesMonth = 0;
+        let totalPendingServicesMonth = 0;
+        let jobCountMonth = 0;
+        
+        state.filteredServicesEntries.forEach(entry => {
+            const tot = (entry.quantity * entry.unitPrice) || 0;
+            totalEarningsServicesMonth += tot;
+            if (entry.status !== 'Pago') {
+                totalPendingServicesMonth += tot;
+            }
+            jobCountMonth++;
+        });
+        
+        let totalEarningsServicesYear = 0;
+        let totalPendingServicesTotal = 0;
+        (state.servicesEntries || []).forEach(entry => {
+            const tot = (entry.quantity * entry.unitPrice) || 0;
+            totalEarningsServicesYear += tot;
+            if (entry.status !== 'Pago') {
+                totalPendingServicesTotal += tot;
+            }
+        });
+
+        // Injetar KPIs no Modo Serviços
+        document.getElementById('kpi-month-earnings').innerText = formatCurrency(totalEarningsServicesMonth);
+        document.getElementById('kpi-month-hours').innerText = `${jobCountMonth} lançamentos`;
+        
+        document.getElementById('kpi-global-earnings').innerText = formatCurrency(totalEarningsServicesYear);
+        document.getElementById('kpi-pending-earnings').innerText = formatCurrency(totalPendingServicesTotal);
+        
+        // Faturamento da semana (Modo Serviços)
+        const currentWeekDays = getDaysOfCurrentWeek(null);
+        let totalEarningsWeek = 0;
+        state.servicesEntries.forEach(entry => {
+            if (currentWeekDays.includes(entry.date)) {
+                totalEarningsWeek += (entry.quantity * entry.unitPrice) || 0;
+            }
+        });
+        document.getElementById('kpi-week-hours').innerText = formatCurrency(totalEarningsWeek);
+        const subtitleEl = document.getElementById('kpi-week-hours-subtitle');
+        if (subtitleEl && currentWeekDays.length === 7) {
+            const startParts = currentWeekDays[0].split('-');
+            const endParts = currentWeekDays[6].split('-');
+            subtitleEl.innerText = `Receita da Semana`;
         }
-    }
-    const refDate = lastWorkedRow ? lastWorkedRow.date : null;
-    const currentWeekDays = getDaysOfCurrentWeek(refDate);
-    
-    let totalMinutesWeek = 0;
-    state.rows.forEach(row => {
-        if (currentWeekDays.includes(row.date)) {
-            totalMinutesWeek += row.minutosTrabalhados;
+        
+        // Atualizar KPI Reserva de Investimento Recebida Geral
+        const totalReceived = totalEarningsServicesYear - totalPendingServicesTotal;
+        const globalAutoInvest = totalReceived * (state.investPercent / 100);
+        const kpiGlobalInvestAuto = document.getElementById('kpi-global-invest-auto');
+        if (kpiGlobalInvestAuto) {
+            kpiGlobalInvestAuto.innerText = formatCurrency(globalAutoInvest);
         }
-    });
-    
-    // Injetar KPIs de faturamento histórico, pendente e mensal no Dashboard
-    document.getElementById('kpi-month-earnings').innerText = formatCurrency(totalEarningsMonth);
-    document.getElementById('kpi-month-hours').innerText = `${formatMinutesToHoursStr(totalMinutesMonth)} trabalhados`;
-    
-    document.getElementById('kpi-global-earnings').innerText = formatCurrency(state.totalEarningsSinceJan);
-    document.getElementById('kpi-pending-earnings').innerText = formatCurrency(state.pendingEarnings);
-    document.getElementById('kpi-week-hours').innerText = formatMinutesToHoursStr(totalMinutesWeek);
-    
-    const subtitleEl = document.getElementById('kpi-week-hours-subtitle');
-    if (subtitleEl && currentWeekDays.length === 7) {
-        const startParts = currentWeekDays[0].split('-');
-        const endParts = currentWeekDays[6].split('-');
-        subtitleEl.innerText = `Ref: ${startParts[2]}/${startParts[1]} a ${endParts[2]}/${endParts[1]}`;
+        const kpiGlobalInvestAutoTitle = document.getElementById('kpi-global-invest-auto-title');
+        if (kpiGlobalInvestAutoTitle) {
+            kpiGlobalInvestAutoTitle.innerText = `Reserva ${state.investPercent}% Recebida`;
+        }
+        const kpiGlobalInvestAutoSub = document.getElementById('kpi-global-invest-auto-subtitle');
+        if (kpiGlobalInvestAutoSub) {
+            kpiGlobalInvestAutoSub.innerText = `Ref: ${state.investPercent}% de ${formatCurrency(totalReceived)} pagos`;
+        }
+        
+        // Meta de progresso mensal
+        const goalPercent = Math.min(100, Math.floor((totalEarningsServicesMonth / state.goalEarnings) * 100));
+        document.getElementById('goal-percent-text').innerText = `${goalPercent}%`;
+        document.getElementById('goal-progress-fill').style.width = `${goalPercent}%`;
+        document.getElementById('goal-min-text').innerText = `Meta: R$ ${state.goalEarnings.toFixed(2)}`;
+        document.getElementById('goal-current-text').innerText = `Ganhos: R$ ${totalEarningsServicesMonth.toFixed(2)}`;
+    } else {
+        // Modo Controle de Horas
+        let totalMinutesMonth = 0;
+        let totalEarningsMonth = 0;
+        
+        state.filteredRows.forEach(row => {
+            totalMinutesMonth += row.minutosTrabalhados;
+            totalEarningsMonth += row.ganhos;
+        });
+        
+        // Horas da semana (baseado no último dia com registros de horas)
+        let lastWorkedRow = null;
+        for (let i = state.rows.length - 1; i >= 0; i--) {
+            if (state.rows[i].minutosTrabalhados > 0) {
+                lastWorkedRow = state.rows[i];
+                break;
+            }
+        }
+        const refDate = lastWorkedRow ? lastWorkedRow.date : null;
+        const currentWeekDays = getDaysOfCurrentWeek(refDate);
+        
+        let totalMinutesWeek = 0;
+        state.rows.forEach(row => {
+            if (currentWeekDays.includes(row.date)) {
+                totalMinutesWeek += row.minutosTrabalhados;
+            }
+        });
+        
+        // Injetar KPIs de faturamento histórico, pendente e mensal no Dashboard
+        document.getElementById('kpi-month-earnings').innerText = formatCurrency(totalEarningsMonth);
+        document.getElementById('kpi-month-hours').innerText = `${formatMinutesToHoursStr(totalMinutesMonth)} trabalhados`;
+        
+        document.getElementById('kpi-global-earnings').innerText = formatCurrency(state.totalEarningsSinceJan);
+        document.getElementById('kpi-pending-earnings').innerText = formatCurrency(state.pendingEarnings);
+        document.getElementById('kpi-week-hours').innerText = formatMinutesToHoursStr(totalMinutesWeek);
+        
+        const subtitleEl = document.getElementById('kpi-week-hours-subtitle');
+        if (subtitleEl && currentWeekDays.length === 7) {
+            const startParts = currentWeekDays[0].split('-');
+            const endParts = currentWeekDays[6].split('-');
+            subtitleEl.innerText = `Ref: ${startParts[2]}/${startParts[1]} a ${endParts[2]}/${endParts[1]}`;
+        }
+        
+        // Atualizar KPI Reserva de Investimento Recebida Geral
+        const totalReceived = state.totalEarningsSinceJan - state.pendingEarnings;
+        const globalAutoInvest = totalReceived * (state.investPercent / 100);
+        const kpiGlobalInvestAuto = document.getElementById('kpi-global-invest-auto');
+        if (kpiGlobalInvestAuto) {
+            kpiGlobalInvestAuto.innerText = formatCurrency(globalAutoInvest);
+        }
+        const kpiGlobalInvestAutoTitle = document.getElementById('kpi-global-invest-auto-title');
+        if (kpiGlobalInvestAutoTitle) {
+            kpiGlobalInvestAutoTitle.innerText = `Reserva ${state.investPercent}% Recebida`;
+        }
+        const kpiGlobalInvestAutoSub = document.getElementById('kpi-global-invest-auto-subtitle');
+        if (kpiGlobalInvestAutoSub) {
+            kpiGlobalInvestAutoSub.innerText = `Ref: ${state.investPercent}% de ${formatCurrency(totalReceived)} pagos`;
+        }
+        
+        // Meta de progresso mensal
+        const goalPercent = Math.min(100, Math.floor((totalEarningsMonth / state.goalEarnings) * 100));
+        document.getElementById('goal-percent-text').innerText = `${goalPercent}%`;
+        document.getElementById('goal-progress-fill').style.width = `${goalPercent}%`;
+        document.getElementById('goal-min-text').innerText = `Meta: R$ ${state.goalEarnings.toFixed(2)}`;
+        document.getElementById('goal-current-text').innerText = `Ganhos: R$ ${totalEarningsMonth.toFixed(2)}`;
     }
-    
-    // Atualizar KPI Reserva de Investimento Recebida Geral
-    const totalReceived = state.totalEarningsSinceJan - state.pendingEarnings;
-    const globalAutoInvest = totalReceived * (state.investPercent / 100);
-    const kpiGlobalInvestAuto = document.getElementById('kpi-global-invest-auto');
-    if (kpiGlobalInvestAuto) {
-        kpiGlobalInvestAuto.innerText = formatCurrency(globalAutoInvest);
-    }
-    const kpiGlobalInvestAutoTitle = document.getElementById('kpi-global-invest-auto-title');
-    if (kpiGlobalInvestAutoTitle) {
-        kpiGlobalInvestAutoTitle.innerText = `Reserva ${state.investPercent}% Recebida`;
-    }
-    const kpiGlobalInvestAutoSub = document.getElementById('kpi-global-invest-auto-subtitle');
-    if (kpiGlobalInvestAutoSub) {
-        kpiGlobalInvestAutoSub.innerText = `Ref: ${state.investPercent}% de ${formatCurrency(totalReceived)} pagos`;
-    }
-    
-    // Meta de progresso mensal
-    const goalPercent = Math.min(100, Math.floor((totalEarningsMonth / state.goalEarnings) * 100));
-    document.getElementById('goal-percent-text').innerText = `${goalPercent}%`;
-    document.getElementById('goal-progress-fill').style.width = `${goalPercent}%`;
-    document.getElementById('goal-min-text').innerText = `Meta: R$ ${state.goalEarnings.toFixed(2)}`;
-    document.getElementById('goal-current-text').innerText = `Ganhos: R$ ${totalEarningsMonth.toFixed(2)}`;
 }
 
 // 2. Tabela e Calendário de Pontos
@@ -1063,50 +1233,127 @@ function renderHistory() {
     const tableBody = document.getElementById('history-table-body');
     tableBody.innerHTML = '';
     
-    if (state.filteredRows.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-center">Nenhum registro de ponto encontrado para este mês ou busca.</td></tr>';
-        return;
+    // Atualizar cabeçalho da tabela dinamicamente
+    const thead = document.querySelector('.history-table thead');
+    if (thead) {
+        if (state.appMode === 'services') {
+            thead.innerHTML = `
+                <tr>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Serviço/Produto</th>
+                    <th>Quant.</th>
+                    <th>Val. Unitário</th>
+                    <th>Total (R$)</th>
+                    <th>Status</th>
+                    <th>Observações</th>
+                    <th class="actions-col">Editar</th>
+                </tr>
+            `;
+        } else {
+            thead.innerHTML = `
+                <tr>
+                    <th>Data</th>
+                    <th>Dia Semana</th>
+                    <th>Turno 1</th>
+                    <th>Turno 2</th>
+                    <th>Total Horas</th>
+                    <th>Ganhos (R$)</th>
+                    <th>Status</th>
+                    <th>Notas</th>
+                    <th class="actions-col">Editar</th>
+                </tr>
+            `;
+        }
     }
-    
-    state.filteredRows.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.id = `history-row-${row.rowNum}`;
-        
-        const dateParts = parseDateParts(row.date);
-        const dayLabel = String(dateParts.day).padStart(2, '0') + '/' + String(dateParts.month + 1).padStart(2, '0');
-        
-        const badgeE1 = row.entrada1 ? `<span class="badge-time active">${row.entrada1}</span>` : '<span class="badge-time">--:--</span>';
-        const badgeS1 = row.saida1 ? `<span class="badge-time active">${row.saida1}</span>` : '<span class="badge-time">--:--</span>';
-        const badgeE2 = row.entrada2 ? `<span class="badge-time active">${row.entrada2}</span>` : '<span class="badge-time">--:--</span>';
-        const badgeS2 = row.saida2 ? `<span class="badge-time active">${row.saida2}</span>` : '<span class="badge-time">--:--</span>';
 
-        const statusClass = row.statusPagamento === 'Pago' ? 'paid' : 'pending';
-        const statusText = row.statusPagamento === 'Pago' ? 'Pago' : 'Pendente';
-        const badgePay = `<span class="badge-pay ${statusClass}">${statusText}</span>`;
+    if (state.appMode === 'services') {
+        if (!state.filteredServicesEntries || state.filteredServicesEntries.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="9" class="text-center">Nenhum registro de serviço ou venda encontrado para este mês ou busca.</td></tr>';
+            renderCalendarGrid();
+            return;
+        }
 
-        const obsHtml = row.observacoes ? `<div class="notes-text" title="${row.observacoes}">${row.observacoes}</div>` : '<span class="text-muted">-</span>';
-
-        tr.innerHTML = `
-            <td data-label="Data" class="clickable-cell"><strong>${dayLabel}</strong></td>
-            <td data-label="Dia Semana" class="clickable-cell">${row.weekday}</td>
-            <td data-label="Turno 1" class="clickable-cell">${badgeE1} → ${badgeS1}</td>
-            <td data-label="Turno 2" class="clickable-cell">${badgeE2} → ${badgeS2}</td>
-            <td data-label="Total Horas" class="clickable-cell"><span class="total-hours-lbl">${row.horasMinutos}</span></td>
-            <td data-label="Ganhos (R$)" class="clickable-cell"><span class="earnings-lbl">${formatCurrency(row.ganhos)}</span></td>
-            <td data-label="Status" class="clickable-cell">${badgePay}</td>
-            <td data-label="Notas" class="clickable-cell">${obsHtml}</td>
-            <td class="actions-col" data-label="Ações">
-                <button class="edit-btn" aria-label="Editar dia">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-            </td>
-        `;
-        tr.style.cursor = 'pointer';
-        tr.addEventListener('click', () => {
-            triggerRowEdit(row.rowNum);
+        state.filteredServicesEntries.forEach(entry => {
+            const tr = document.createElement('tr');
+            tr.id = `service-row-${entry.id}`;
+            
+            const dateParts = parseDateParts(entry.date);
+            const dayLabel = String(dateParts.day).padStart(2, '0') + '/' + String(dateParts.month + 1).padStart(2, '0');
+            
+            const totalVal = (entry.quantity * entry.unitPrice) || 0;
+            const statusClass = entry.status === 'Pago' ? 'paid' : 'pending';
+            const badgePay = `<span class="badge-pay ${statusClass}">${entry.status || 'Pendente'}</span>`;
+            const obsHtml = entry.notes ? `<div class="notes-text" title="${entry.notes}">${entry.notes}</div>` : '<span class="text-muted">-</span>';
+            
+            tr.innerHTML = `
+                <td data-label="Data"><strong>${dayLabel}</strong></td>
+                <td data-label="Cliente">${entry.client || ''}</td>
+                <td data-label="Serviço/Produto">${entry.service || ''}</td>
+                <td data-label="Quant.">${entry.quantity || 1}</td>
+                <td data-label="Val. Unitário">${formatCurrency(entry.unitPrice || 0)}</td>
+                <td data-label="Total (R$)"><span class="earnings-lbl">${formatCurrency(totalVal)}</span></td>
+                <td data-label="Status">${badgePay}</td>
+                <td data-label="Observações">${obsHtml}</td>
+                <td class="actions-col">
+                    <button class="edit-btn" aria-label="Editar serviço">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                </td>
+            `;
+            tr.style.cursor = 'pointer';
+            tr.addEventListener('click', (e) => {
+                openEditServiceModal(entry.id);
+            });
+            tableBody.appendChild(tr);
         });
-        tableBody.appendChild(tr);
-    });
+    } else {
+        if (state.filteredRows.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="9" class="text-center">Nenhum registro de ponto encontrado para este mês ou busca.</td></tr>';
+            renderCalendarGrid();
+            return;
+        }
+        
+        state.filteredRows.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.id = `history-row-${row.rowNum}`;
+            
+            const dateParts = parseDateParts(row.date);
+            const dayLabel = String(dateParts.day).padStart(2, '0') + '/' + String(dateParts.month + 1).padStart(2, '0');
+            
+            const badgeE1 = row.entrada1 ? `<span class="badge-time active">${row.entrada1}</span>` : '<span class="badge-time">--:--</span>';
+            const badgeS1 = row.saida1 ? `<span class="badge-time active">${row.saida1}</span>` : '<span class="badge-time">--:--</span>';
+            const badgeE2 = row.entrada2 ? `<span class="badge-time active">${row.entrada2}</span>` : '<span class="badge-time">--:--</span>';
+            const badgeS2 = row.saida2 ? `<span class="badge-time active">${row.saida2}</span>` : '<span class="badge-time">--:--</span>';
+
+            const statusClass = row.statusPagamento === 'Pago' ? 'paid' : 'pending';
+            const statusText = row.statusPagamento === 'Pago' ? 'Pago' : 'Pendente';
+            const badgePay = `<span class="badge-pay ${statusClass}">${statusText}</span>`;
+
+            const obsHtml = row.observacoes ? `<div class="notes-text" title="${row.observacoes}">${row.observacoes}</div>` : '<span class="text-muted">-</span>';
+
+            tr.innerHTML = `
+                <td data-label="Data" class="clickable-cell"><strong>${dayLabel}</strong></td>
+                <td data-label="Dia Semana" class="clickable-cell">${row.weekday}</td>
+                <td data-label="Turno 1" class="clickable-cell">${badgeE1} → ${badgeS1}</td>
+                <td data-label="Turno 2" class="clickable-cell">${badgeE2} → ${badgeS2}</td>
+                <td data-label="Total Horas" class="clickable-cell"><span class="total-hours-lbl">${row.horasMinutos}</span></td>
+                <td data-label="Ganhos (R$)" class="clickable-cell"><span class="earnings-lbl">${formatCurrency(row.ganhos)}</span></td>
+                <td data-label="Status" class="clickable-cell">${badgePay}</td>
+                <td data-label="Notas" class="clickable-cell">${obsHtml}</td>
+                <td class="actions-col" data-label="Ações">
+                    <button class="edit-btn" aria-label="Editar dia">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                </td>
+            `;
+            tr.style.cursor = 'pointer';
+            tr.addEventListener('click', () => {
+                triggerRowEdit(row.rowNum);
+            });
+            tableBody.appendChild(tr);
+        });
+    }
 
     renderCalendarGrid();
 }
@@ -1129,44 +1376,83 @@ function renderCalendarGrid() {
     }
     
     const dayMap = {};
-    state.rows.forEach(row => {
-        const dateParts = parseDateParts(row.date);
-        if (dateParts.month === month && dateParts.year === year) {
-            dayMap[dateParts.day] = row;
-        }
-    });
+    if (state.appMode === 'services') {
+        (state.servicesEntries || []).forEach(entry => {
+            const dateParts = parseDateParts(entry.date);
+            if (dateParts.month === month && dateParts.year === year) {
+                if (!dayMap[dateParts.day]) {
+                    dayMap[dateParts.day] = { total: 0, count: 0, entries: [] };
+                }
+                dayMap[dateParts.day].total += (entry.quantity * entry.unitPrice) || 0;
+                dayMap[dateParts.day].count++;
+                dayMap[dateParts.day].entries.push(entry);
+            }
+        });
+    } else {
+        state.rows.forEach(row => {
+            const dateParts = parseDateParts(row.date);
+            if (dateParts.month === month && dateParts.year === year) {
+                dayMap[dateParts.day] = row;
+            }
+        });
+    }
 
     for (let d = 1; d <= totalDays; d++) {
         const cell = document.createElement('div');
         cell.className = 'calendar-day-cell';
+        const cellDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         
-        const row = dayMap[d];
-        let hoursStr = '00:00';
-        let workedHours = 0;
-        
-        if (row) {
-            workedHours = row.horasFracionarias;
-            hoursStr = row.horasMinutos;
-            
-            if (row.minutosTrabalhados === 0) {
-                cell.classList.add('day-off');
-            } else if (workedHours < 4) {
-                cell.classList.add('day-short');
-            } else if (workedHours < 8) {
-                cell.classList.add('day-partial');
-            } else {
+        if (state.appMode === 'services') {
+            const dayData = dayMap[d];
+            if (dayData) {
                 cell.classList.add('day-full');
+                cell.innerHTML = `
+                    <span class="cal-day-num">${d}</span>
+                    <span class="cal-day-hours" style="color:var(--accent-green); font-size:0.65rem;">R$ ${Math.round(dayData.total)}</span>
+                `;
+                cell.addEventListener('click', () => {
+                    // Abrir lista ou editar primeiro serviço
+                    openEditServiceModal(dayData.entries[0].id);
+                });
+            } else {
+                cell.classList.add('day-off');
+                cell.innerHTML = `
+                    <span class="cal-day-num">${d}</span>
+                    <span class="cal-day-hours">-</span>
+                `;
+                cell.addEventListener('click', () => {
+                    openNewServiceModal(cellDate);
+                });
+            }
+        } else {
+            const row = dayMap[d];
+            let hoursStr = '00:00';
+            let workedHours = 0;
+            
+            if (row) {
+                workedHours = row.horasFracionarias;
+                hoursStr = row.horasMinutos;
+                
+                if (row.minutosTrabalhados === 0) {
+                    cell.classList.add('day-off');
+                } else if (workedHours < 4) {
+                    cell.classList.add('day-short');
+                } else if (workedHours < 8) {
+                    cell.classList.add('day-partial');
+                } else {
+                    cell.classList.add('day-full');
+                }
+                
+                cell.addEventListener('click', () => openEditModal(row));
+            } else {
+                cell.classList.add('day-off');
             }
             
-            cell.addEventListener('click', () => openEditModal(row));
-        } else {
-            cell.classList.add('day-off');
+            cell.innerHTML = `
+                <span class="cal-day-num">${d}</span>
+                <span class="cal-day-hours">${hoursStr}</span>
+            `;
         }
-        
-        cell.innerHTML = `
-            <span class="cal-day-num">${d}</span>
-            <span class="cal-day-hours">${hoursStr}</span>
-        `;
         gridBody.appendChild(cell);
     }
 }
@@ -1789,6 +2075,153 @@ function closeEditModal() {
     document.body.style.overflow = '';
 }
 
+// ==========================================================================
+// CONTROLADORES DO MODAL DE SERVIÇOS & ALTERNÂNCIA DE MODO (V5)
+// ==========================================================================
+window.setAppMode = function(mode) {
+    state.appMode = mode;
+    localStorage.setItem('app_active_mode', mode);
+    
+    const btnHours = document.getElementById('btn-mode-hours');
+    const btnServices = document.getElementById('btn-mode-services');
+    const descEl = document.getElementById('dashboard-greeting-desc');
+    
+    if (btnHours && btnServices) {
+        if (mode === 'services') {
+            btnHours.classList.remove('active');
+            btnHours.style.background = 'transparent';
+            btnHours.style.color = 'var(--text-secondary)';
+            
+            btnServices.classList.add('active');
+            btnServices.style.background = 'rgba(16, 185, 129, 0.2)';
+            btnServices.style.color = 'var(--accent-green, #00e5a0)';
+            
+            // Exibir botão de lançar serviço
+            const quickSvcBtn = document.getElementById('quick-service-btn');
+            if (quickSvcBtn) quickSvcBtn.style.display = 'flex';
+            
+            if (descEl) descEl.innerText = 'Gerencie seus serviços, vendas e contratos';
+        } else {
+            btnServices.classList.remove('active');
+            btnServices.style.background = 'transparent';
+            btnServices.style.color = 'var(--text-secondary)';
+            
+            btnHours.classList.add('active');
+            btnHours.style.background = 'rgba(56, 189, 248, 0.2)';
+            btnHours.style.color = 'var(--accent-blue, #38bdf8)';
+            
+            // Ocultar botão de lançar serviço
+            const quickSvcBtn = document.getElementById('quick-service-btn');
+            if (quickSvcBtn) quickSvcBtn.style.display = 'none';
+            
+            if (descEl) descEl.innerText = 'Pronto para gerenciar suas horas?';
+        }
+    }
+    
+    applyFilters();
+};
+
+window.openNewServiceModal = function(dateStr) {
+    const today = new Date();
+    const formattedToday = dateStr || today.getFullYear() + '-' + 
+        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(today.getDate()).padStart(2, '0');
+    
+    document.getElementById('service-id').value = '';
+    document.getElementById('service-date').value = formattedToday;
+    document.getElementById('service-status').value = 'Pendente';
+    document.getElementById('service-client').value = '';
+    document.getElementById('service-name').value = '';
+    document.getElementById('service-quantity').value = 1;
+    document.getElementById('service-unit-price').value = '';
+    document.getElementById('service-notes').value = '';
+    
+    document.getElementById('service-modal-title').innerHTML = `<i class="fa-solid fa-file-invoice-dollar color-green"></i> Lançar Serviço / Venda`;
+    document.getElementById('service-total-preview').innerText = 'R$ 0,00';
+    document.getElementById('btn-delete-service').style.display = 'none';
+    
+    const modal = document.getElementById('service-modal');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+};
+
+window.openEditServiceModal = function(id) {
+    const entry = state.servicesEntries.find(e => e.id === id);
+    if (!entry) return;
+    
+    document.getElementById('service-id').value = entry.id;
+    document.getElementById('service-date').value = entry.date;
+    document.getElementById('service-status').value = entry.status || 'Pendente';
+    document.getElementById('service-client').value = entry.client || '';
+    document.getElementById('service-name').value = entry.service || '';
+    document.getElementById('service-quantity').value = entry.quantity || 1;
+    document.getElementById('service-unit-price').value = entry.unitPrice || 0;
+    document.getElementById('service-notes').value = entry.notes || '';
+    
+    document.getElementById('service-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square color-green"></i> Editar Serviço / Venda`;
+    recalcServiceTotal();
+    document.getElementById('btn-delete-service').style.display = 'block';
+    
+    const modal = document.getElementById('service-modal');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeServiceModal = function() {
+    const modal = document.getElementById('service-modal');
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+};
+
+window.recalcServiceTotal = function() {
+    const qty = parseFloat(document.getElementById('service-quantity').value) || 0;
+    const price = parseFloat(document.getElementById('service-unit-price').value) || 0;
+    const total = qty * price;
+    document.getElementById('service-total-preview').innerText = formatCurrency(total);
+};
+
+window.saveServiceEntry = async function() {
+    const id = document.getElementById('service-id').value || generateId();
+    const date = document.getElementById('service-date').value;
+    const status = document.getElementById('service-status').value;
+    const client = document.getElementById('service-client').value.trim();
+    const service = document.getElementById('service-name').value.trim();
+    const quantity = parseFloat(document.getElementById('service-quantity').value) || 0;
+    const unitPrice = parseFloat(document.getElementById('service-unit-price').value) || 0;
+    const notes = document.getElementById('service-notes').value.trim();
+    
+    if (!date || !client || !service || quantity <= 0 || unitPrice < 0) {
+        showToast('Por favor, preencha todos os campos obrigatórios!', 'error');
+        return;
+    }
+    
+    const entry = { id, date, status, client, service, quantity, unitPrice, notes };
+    
+    try {
+        await dbPut('services', entry);
+        showToast('Registro de serviço/venda salvo!', 'success');
+        closeServiceModal();
+        await fetchData();
+    } catch (e) {
+        console.error(e);
+        showToast('Erro ao salvar registro no banco local!', 'error');
+    }
+};
+
+window.deleteServiceEntry = async function(id) {
+    if (!id) return;
+    if (!confirm('Deseja realmente excluir este registro de serviço/venda?')) return;
+    try {
+        await dbDelete('services', id);
+        showToast('Registro excluído!', 'success');
+        closeServiceModal();
+        await fetchData();
+    } catch (e) {
+        console.error(e);
+        showToast('Erro ao excluir do banco local!', 'error');
+    }
+};
+
 // Função de cálculo imediato na visualização do Modal
 function runLivePreview() {
     const e1 = document.getElementById('edit-e1').value;
@@ -2328,22 +2761,68 @@ function bindEvents() {
         });
     }
 
-    // 10d. Salvar Nome do Usuário
-    const btnSaveUserName = document.getElementById('btn-save-user-name');
-    if (btnSaveUserName) {
-        btnSaveUserName.addEventListener('click', () => {
+    // 10d. Salvar Perfil do Usuário (Nome, Idade, Gênero)
+    const btnSaveUserProfile = document.getElementById('btn-save-user-profile');
+    if (btnSaveUserProfile) {
+        btnSaveUserProfile.addEventListener('click', async () => {
             const inputUserName = document.getElementById('input-user-name');
-            const val = inputUserName ? inputUserName.value.trim() : '';
-            if (val) {
-                localStorage.setItem('app_user_name', val);
+            const inputUserAge = document.getElementById('input-user-age');
+            const inputUserGender = document.getElementById('input-user-gender');
+            
+            const nameVal = inputUserName ? inputUserName.value.trim() : 'Premium';
+            const ageVal = inputUserAge ? parseInt(inputUserAge.value, 10) : 30;
+            const genderVal = inputUserGender ? inputUserGender.value : 'Feminino';
+            
+            localStorage.setItem('app_user_name', nameVal);
+            state.userAge = ageVal;
+            state.userGender = genderVal;
+            
+            try {
+                await dbPut('config', { key: 'userAge', value: ageVal });
+                await dbPut('config', { key: 'userGender', value: genderVal });
+                
                 const gEl = document.getElementById('dashboard-greeting-title');
-                if (gEl) gEl.innerText = `Olá, ${val}`;
-                showToast('Nome do usuário salvo com sucesso!', 'success');
-            } else {
-                showToast('Por favor, informe um nome válido.', 'error');
+                if (gEl) gEl.innerText = `Olá, ${nameVal}`;
+                showToast('Perfil do usuário atualizado!', 'success');
+            } catch (e) {
+                console.error(e);
+                showToast('Erro ao salvar perfil no banco!', 'error');
             }
         });
     }
+
+    // 10e. Salvar Chave API do Gemini
+    const btnSaveGeminiKey = document.getElementById('btn-save-gemini-key');
+    if (btnSaveGeminiKey) {
+        btnSaveGeminiKey.addEventListener('click', async () => {
+            const inputGeminiKey = document.getElementById('input-gemini-key');
+            const val = inputGeminiKey ? inputGeminiKey.value.trim() : '';
+            
+            state.geminiKey = val;
+            try {
+                await dbPut('config', { key: 'geminiKey', value: val });
+                showToast('Chave API do Gemini salva com sucesso!', 'success');
+            } catch (e) {
+                console.error(e);
+                showToast('Erro ao salvar chave de API!', 'error');
+            }
+        });
+    }
+
+    // Helper para visualizar chave Gemini
+    window.toggleGeminiKeyVisibility = function() {
+        const input = document.getElementById('input-gemini-key');
+        const icon = document.getElementById('gemini-key-visibility-icon');
+        if (input && icon) {
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye-slash';
+            }
+        }
+    };
 
     // 10c. Botão de sincronização manual (recarrega do IndexedDB)
     const syncBadge = document.getElementById('sync-status');
@@ -3596,6 +4075,34 @@ async function exportExcel() {
             excelRow.getCell(5).value = entry.type || '';
         });
 
+        // 3.5. Serviços e Vendas Sheet
+        const svcSheet = workbook.addWorksheet('Serviços e Vendas');
+        svcSheet.getRow(1).values = ['ID', 'Data', 'Cliente', 'Serviço/Produto', 'Quantidade', 'Valor Unitário', 'Total', 'Status', 'Observações'];
+        svcSheet.getRow(1).font = { bold: true };
+        
+        (state.servicesEntries || []).forEach((entry, i) => {
+            const rNum = i + 2;
+            const excelRow = svcSheet.getRow(rNum);
+            excelRow.getCell(1).value = entry.id;
+            const dVal = entry.date ? new Date(entry.date + 'T00:00:00') : null;
+            excelRow.getCell(2).value = dVal;
+            excelRow.getCell(2).numFmt = 'yyyy-mm-dd';
+            excelRow.getCell(3).value = entry.client || '';
+            excelRow.getCell(4).value = entry.service || '';
+            excelRow.getCell(5).value = entry.quantity || 1;
+            excelRow.getCell(6).value = entry.unitPrice || 0;
+            excelRow.getCell(6).numFmt = '"R$"#,##0.00';
+            
+            // Fórmula do total: Quantidade * Unitário
+            excelRow.getCell(7).value = {
+                formula: `=E${rNum}*F${rNum}`
+            };
+            excelRow.getCell(7).numFmt = '"R$"#,##0.00';
+            
+            excelRow.getCell(8).value = entry.status || 'Pendente';
+            excelRow.getCell(9).value = entry.notes || '';
+        });
+
         // 4. Filtro Sheet
         const filterSheet = workbook.addWorksheet('Filtro');
         filterSheet.getRow(3).values = ['Data', 'Dia da Semana', 'Soma de Valor do Dia (R$)', null, 'Rótulos de Linha', 'Soma de Valor do Dia (R$)', 'Soma de Horas do Dia'];
@@ -3758,8 +4265,32 @@ async function processExcelFile(file, skipConfirm = false) {
             }
         }
         
+        const importedServices = [];
+        const svcSheet = workbook.getWorksheet('Serviços e Vendas');
+        if (svcSheet) {
+            const svcRowCount = svcSheet.rowCount;
+            for (let r = 2; r <= svcRowCount; r++) {
+                const excelRow = svcSheet.getRow(r);
+                const id = excelRow.getCell(1).value;
+                const dateVal = formatCellDate(excelRow.getCell(2).value);
+                if (!dateVal) continue;
+                
+                const entry = {
+                    id: id || generateId(),
+                    date: dateVal,
+                    client: excelRow.getCell(3).value || '',
+                    service: excelRow.getCell(4).value || '',
+                    quantity: Number(excelRow.getCell(5).value || 1),
+                    unitPrice: Number(excelRow.getCell(6).value || 0),
+                    status: excelRow.getCell(8).value || 'Pendente',
+                    notes: excelRow.getCell(9).value || ''
+                };
+                importedServices.push(entry);
+            }
+        }
+        
         if (!skipConfirm) {
-            if (!confirm(`Planilha lida com sucesso!\n- ${importedRows.length} dias de trabalho\n- ${importedFinance.length} lançamentos financeiros\n- ${importedInvest.length} aportes de investimento\n\nIsso substituirá TODOS os dados atuais do aplicativo! Deseja prosseguir?`)) {
+            if (!confirm(`Planilha lida com sucesso!\n- ${importedRows.length} dias de trabalho\n- ${importedFinance.length} lançamentos financeiros\n- ${importedInvest.length} aportes de investimento\n- ${importedServices.length} registros de serviços/vendas\n\nIsso substituirá TODOS os dados atuais do aplicativo! Deseja prosseguir?`)) {
                 return;
             }
         }
@@ -3784,6 +4315,12 @@ async function processExcelFile(file, skipConfirm = false) {
         await txInv.objectStore('invest').clear();
         for (const i of importedInvest) {
             await txInv.objectStore('invest').put(i);
+        }
+
+        const txSvc = db.transaction('services', 'readwrite');
+        await txSvc.objectStore('services').clear();
+        for (const s of importedServices) {
+            await txSvc.objectStore('services').put(s);
         }
         
         showToast('Dados importados com sucesso! Recarregando...', 'success');
