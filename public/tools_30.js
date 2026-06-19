@@ -1,684 +1,1648 @@
+// ==========================================================================
+// MÓDULO DE SUPER FERRAMENTAS DE ELITE (10 PREMIUM APPS)
+// ==========================================================================
 
+// Injeção de Estilos CSS customizados para abas e métricas das ferramentas
+const styleEl = document.createElement('style');
+styleEl.textContent = `
+    .st-tabs-nav {
+        display: flex;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 1.25rem;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+    }
+    .st-tab-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .st-tab-btn:hover {
+        color: #fff;
+    }
+    .st-tab-btn.active {
+        color: var(--accent-blue, #38bdf8);
+        border-bottom-color: var(--accent-blue, #38bdf8);
+    }
+    .st-card-metric {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 1rem;
+        text-align: center;
+        flex: 1;
+        min-width: 120px;
+    }
+    .st-metric-val {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #fff;
+        margin-top: 0.25rem;
+    }
+    .st-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    @media (max-width: 600px) {
+        .st-form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+    .st-badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+    .st-badge-success {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .st-badge-warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .st-badge-danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .st-trophy-card {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: transform 0.2s, border-color 0.2s;
+    }
+    .st-trophy-card.unlocked {
+        border-color: rgba(234, 179, 8, 0.4);
+        background: linear-gradient(135deg, rgba(234, 179, 8, 0.05) 0%, rgba(15, 23, 42, 0.8) 100%);
+    }
+    .st-trophy-icon {
+        font-size: 2.2rem;
+        color: #475569;
+    }
+    .st-trophy-card.unlocked .st-trophy-icon {
+        color: #eab308;
+        filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.4));
+    }
+`;
+document.head.appendChild(styleEl);
+
+// Função global para troca de abas no modal das ferramentas
+window.switchStTab = (btn, tabId) => {
+    const parent = btn.parentElement;
+    parent.querySelectorAll('.st-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // Subir até encontrar o container pai do modal de ferramentas
+    const container = parent.parentElement;
+    container.querySelectorAll('.st-tab-content').forEach(c => c.style.display = 'none');
+    
+    const targetContent = container.querySelector('#' + tabId);
+    if(targetContent) {
+        targetContent.style.display = 'block';
+    }
+};
+
+// Variáveis de escopo de áudio para o Gerador de Frequências (Web Audio API)
+let audioCtx = null;
+let currentNoiseNode = null;
+let gainNode = null;
+
+// Banco de dados de Ferramentas de Elite
 const SUPER_TOOLS_DB = [
     {
-        id: 'calc',
-        category: 'utilidades',
-        icon: 'fa-solid fa-calculator color-blue',
-        title: 'Calculadora Premium',
-        desc: 'Calculadora avançada com histórico e operações completas.',
+        id: 'calc_fire',
+        category: 'financas',
+        icon: 'fa-solid fa-fire-flame-curved color-red',
+        title: 'F.I.R.E. Hub: Independência',
+        desc: 'Planeje sua aposentadoria antecipada com juros compostos avançados e simulação Monte Carlo.',
         render: (container) => {
             container.innerHTML = `
-<div class="calculator-container" style="background:#1e293b; padding:1.5rem; border-radius:12px; max-width:350px; margin:0 auto; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
-    <div id="calc-history" style="height:20px; font-size:0.85rem; color:#94a3b8; text-align:right; margin-bottom:5px;"></div>
-    <div id="calc-display" style="background:#0f172a; padding:1rem; font-size:2.5rem; text-align:right; color:#fff; border-radius:8px; margin-bottom:1rem; overflow:hidden; text-overflow:ellipsis;">0</div>
-    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.5rem;">
-        <button class="calc-btn" style="background:#334155; color:#f87171;" onclick="calcAction('C')">C</button>
-        <button class="calc-btn" style="background:#334155; color:#f87171;" onclick="calcAction('CE')">CE</button>
-        <button class="calc-btn" style="background:#334155; color:#38bdf8;" onclick="calcAction('%')">%</button>
-        <button class="calc-btn" style="background:#0ea5e9; color:#fff;" onclick="calcAction('/')">÷</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('7')">7</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('8')">8</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('9')">9</button>
-        <button class="calc-btn" style="background:#0ea5e9; color:#fff;" onclick="calcAction('*')">×</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('4')">4</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('5')">5</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('6')">6</button>
-        <button class="calc-btn" style="background:#0ea5e9; color:#fff;" onclick="calcAction('-')">-</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('1')">1</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('2')">2</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('3')">3</button>
-        <button class="calc-btn" style="background:#0ea5e9; color:#fff;" onclick="calcAction('+')">+</button>
-        <button class="calc-btn" style="background:#475569; color:#fff; grid-column:span 2;" onclick="calcAction('0')">0</button>
-        <button class="calc-btn" style="background:#475569; color:#fff;" onclick="calcAction('.')">,</button>
-        <button class="calc-btn" style="background:#10b981; color:#fff;" onclick="calcAction('=')">=</button>
-    </div>
-</div>
-<style>
-.calc-btn { border:none; padding:1rem; font-size:1.2rem; font-weight:bold; border-radius:8px; cursor:pointer; transition:filter 0.2s; }
-.calc-btn:hover { filter:brightness(1.2); }
-.calc-btn:active { transform:scale(0.95); }
-</style>
-`;
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'fire-sim')">Simulador</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'fire-graph')">Evolução Patrimonial</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'fire-monte-carlo')">Monte Carlo</button>
+                </div>
+                
+                <div id="fire-sim" class="st-tab-content">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Patrimônio Atual (R$)</label>
+                            <input type="number" id="fire-init" class="form-control-flat" value="10000">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Aporte Mensal (R$)</label>
+                            <input type="number" id="fire-aporte" class="form-control-flat" value="1500">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Custo de Vida Mensal Desejado (R$)</label>
+                            <input type="number" id="fire-cost" class="form-control-flat" value="5000">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Taxa de Juros Anual Nominal (%)</label>
+                            <input type="number" id="fire-rate" class="form-control-flat" value="10">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Inflação Anual Média (%)</label>
+                            <input type="number" id="fire-inflation" class="form-control-flat" value="4.5">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Taxa de Retirada Segura - SWR (%)</label>
+                            <input type="number" id="fire-swr" class="form-control-flat" value="4" step="0.1">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.runFireSimulation()" style="width: 100%; margin-top: 0.5rem;">Calcular Aposentadoria</button>
+                    
+                    <div id="fire-results" style="margin-top: 1.25rem; display: none; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Patrimônio Alvo (FIRE)</span>
+                                <div class="st-metric-val" id="fire-val-target" style="color: #eab308;">R$ 0,00</div>
+                            </div>
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Tempo Estimado</span>
+                                <div class="st-metric-val" id="fire-val-time" style="color: #10b981;">0 anos</div>
+                            </div>
+                        </div>
+                        <div class="glass-card" style="padding: 1rem; font-size: 0.85rem; line-height: 1.4;">
+                            <span id="fire-summary-text"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="fire-graph" class="st-tab-content" style="display: none;">
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Gráfico interativo simulando patrimônio acumulado nominal vs real (ajustado pela inflação):</p>
+                    <canvas id="fire-chart" style="width: 100%; max-height: 250px; background: rgba(0,0,0,0.2); border-radius: 8px;"></canvas>
+                </div>
+                
+                <div id="fire-monte-carlo" class="st-tab-content" style="display: none;">
+                    <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: #fff;">Simulação Estocástica de Sobrevivência</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Roda 250 cenários aleatórios de rentabilidade anual considerando uma volatilidade de mercado de 15% ao ano.</p>
+                    <div style="display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; padding: 1.5rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 3rem; font-weight: 800; color: #10b981;" id="mc-prob-val">-%</div>
+                        <div style="text-align: center;">
+                            <strong style="color: #fff; font-size: 0.9rem;">Probabilidade de Sucesso em 30 anos</strong>
+                            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;" id="mc-desc">Clique no botão abaixo para rodar a simulação.</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="window.runMonteCarloSim()" style="width: 100%; margin-top: 1rem;">Rodar Análise Monte Carlo</button>
+                </div>
+            `;
             
-    let current = '0';
-    let prev = '';
-    let op = null;
-    let resetOnNext = false;
-    window.calcAction = (val) => {
-        const display = document.getElementById('calc-display');
-        const hist = document.getElementById('calc-history');
-        if(val === 'C') { current = '0'; prev = ''; op = null; }
-        else if(val === 'CE') { current = '0'; }
-        else if(val === '=') {
-            if(!op || !prev) return;
-            const a = parseFloat(prev); const b = parseFloat(current);
-            let res = 0;
-            if(op === '+') res = a + b;
-            if(op === '-') res = a - b;
-            if(op === '*') res = a * b;
-            if(op === '/') res = a / b;
-            hist.innerText = `${prev} ${op} ${current} =`;
-            current = String(res); prev = ''; op = null; resetOnNext = true;
-        }
-        else if(['+','-','*','/'].includes(val)) {
-            if(op && !resetOnNext) { window.calcAction('='); }
-            prev = current; op = val; hist.innerText = `${prev} ${op}`; resetOnNext = true;
-        }
-        else if(val === '%') { current = String(parseFloat(current) / 100); }
-        else if(val === '.') { if(!current.includes('.')) current += '.'; }
-        else {
-            if(current === '0' || resetOnNext) { current = val; resetOnNext = false; }
-            else { current += val; }
-        }
-        display.innerText = current.substring(0, 12);
-    };
-
+            window.runFireSimulation = () => {
+                const init = parseFloat(document.getElementById('fire-init').value) || 0;
+                const aporte = parseFloat(document.getElementById('fire-aporte').value) || 0;
+                const cost = parseFloat(document.getElementById('fire-cost').value) || 0;
+                const rate = (parseFloat(document.getElementById('fire-rate').value) || 0) / 100;
+                const inflation = (parseFloat(document.getElementById('fire-inflation').value) || 0) / 100;
+                const swr = (parseFloat(document.getElementById('fire-swr').value) || 0) / 100;
+                
+                if(cost <= 0 || swr <= 0) return;
+                
+                const target = (cost * 12) / swr;
+                const realRate = (1 + rate) / (1 + inflation) - 1;
+                
+                let capReal = init;
+                let capNominal = init;
+                let months = 0;
+                let maxMonths = 720; // 60 anos limite
+                
+                const dataNominal = [];
+                const dataReal = [];
+                const labels = [];
+                
+                while(capReal < target && months < maxMonths) {
+                    capReal = capReal * (1 + realRate/12) + aporte;
+                    capNominal = capNominal * (1 + rate/12) + aporte;
+                    months++;
+                    if(months % 12 === 0) {
+                        dataReal.push(Math.round(capReal));
+                        dataNominal.push(Math.round(capNominal));
+                        labels.push(`Ano ${months/12}`);
+                    }
+                }
+                
+                const years = Math.floor(months / 12);
+                const remainingMonths = months % 12;
+                
+                document.getElementById('fire-results').style.display = 'flex';
+                document.getElementById('fire-val-target').innerText = 'R$ ' + target.toLocaleString('pt-BR', {maximumFractionDigits: 0});
+                document.getElementById('fire-val-time').innerText = years > 0 ? `${years}a ${remainingMonths}m` : `${remainingMonths} meses`;
+                
+                document.getElementById('fire-summary-text').innerHTML = `Seu patrimônio alvo para a aposentadoria é de <strong>R$ ${target.toLocaleString('pt-BR', {maximumFractionDigits:2})}</strong>. Aportando <strong>R$ ${aporte.toLocaleString('pt-BR')}</strong> mensalmente com rendimento real líquido de <strong>${(realRate*100).toFixed(2)}%</strong> ao ano, você atingirá a liberdade financeira em <strong>${years} anos e ${remainingMonths} meses</strong>.`;
+                
+                // Plotar gráfico usando Chart.js
+                const ctx = document.getElementById('fire-chart').getContext('2d');
+                if (window.fireChartInstance) window.fireChartInstance.destroy();
+                
+                window.fireChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Patrimônio Real (Deflacionado)',
+                                data: dataReal,
+                                borderColor: '#38bdf8',
+                                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                fill: true,
+                                tension: 0.2
+                            },
+                            {
+                                label: 'Patrimônio Nominal',
+                                data: dataNominal,
+                                borderColor: '#eab308',
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0.2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { labels: { color: '#94a3b8' } } },
+                        scales: {
+                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+                        }
+                    }
+                });
+            };
+            
+            window.runMonteCarloSim = () => {
+                const init = parseFloat(document.getElementById('fire-init').value) || 0;
+                const aporte = parseFloat(document.getElementById('fire-aporte').value) || 0;
+                const cost = parseFloat(document.getElementById('fire-cost').value) || 0;
+                const rate = (parseFloat(document.getElementById('fire-rate').value) || 0) / 100;
+                const inflation = (parseFloat(document.getElementById('fire-inflation').value) || 0) / 100;
+                
+                const realRate = (1 + rate) / (1 + inflation) - 1;
+                const volatility = 0.15; // Volatilidade padrão 15%
+                const totalAnnualExpenses = cost * 12;
+                
+                let successCount = 0;
+                const runs = 250;
+                const years = 30;
+                
+                for(let r = 0; r < runs; r++) {
+                    let cap = init;
+                    let failed = false;
+                    for(let y = 0; y < years; y++) {
+                        // Transformada Box-Muller para distribuição normal de retornos
+                        const u1 = Math.random() || 0.0001;
+                        const u2 = Math.random() || 0.0001;
+                        const rand = Math.sqrt(-2.0 * Math.log(u1)) * Math.sin(2.0 * Math.PI * u2);
+                        const yearlyReturn = realRate + volatility * rand;
+                        
+                        cap = cap * (1 + yearlyReturn) + (aporte * 12);
+                        cap -= totalAnnualExpenses;
+                        
+                        if(cap <= 0) {
+                            failed = true;
+                            break;
+                        }
+                    }
+                    if(!failed) successCount++;
+                }
+                
+                const prob = Math.round((successCount / runs) * 100);
+                const probEl = document.getElementById('mc-prob-val');
+                const descEl = document.getElementById('mc-desc');
+                
+                probEl.innerText = `${prob}%`;
+                if(prob >= 80) {
+                    probEl.style.color = '#10b981';
+                    descEl.innerHTML = `Excelente! O portfólio tem alta segurança contra flutuações e crises de mercado de ações.`;
+                } else if(prob >= 50) {
+                    probEl.style.color = '#f59e0b';
+                    descEl.innerHTML = `Moderado. Há risco médio do patrimônio acabar em 30 anos sob cenários pessimistas. Considere poupar mais.`;
+                } else {
+                    probEl.style.color = '#ef4444';
+                    descEl.innerHTML = `Crítico. Alta probabilidade de insolvência do fundo em 30 anos. Aumente o aporte ou reduza o custo de vida.`;
+                }
+            };
+            
+            setTimeout(() => window.runFireSimulation(), 200);
         }
     },
     {
-        id: 'pomodoro',
+        id: 'clt_pj_coop',
+        category: 'trabalho',
+        icon: 'fa-solid fa-scale-balanced color-blue',
+        title: 'CLT vs PJ vs Cooperado',
+        desc: 'Simule propostas de contratação corporativa integrando encargos tributários de forma real.',
+        render: (container) => {
+            container.innerHTML = `
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'cpc-sim')">Simulador</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'cpc-table')">Detalhamento Anual</button>
+                </div>
+                
+                <div id="cpc-sim" class="st-tab-content">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Salário CLT Bruto (R$)</label>
+                            <input type="number" id="cpc-clt-bruto" class="form-control-flat" value="8000">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Proposta PJ Mensal (R$)</label>
+                            <input type="number" id="cpc-pj-bruto" class="form-control-flat" value="13000">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>VA/VR Mensal CLT (R$)</label>
+                            <input type="number" id="cpc-clt-ben" class="form-control-flat" value="1000">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Imposto Simples PJ (%)</label>
+                            <input type="number" id="cpc-pj-tax" class="form-control-flat" value="6">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Despesa Contador PJ (R$/mês)</label>
+                            <input type="number" id="cpc-pj-cont" class="form-control-flat" value="250">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Proposta Cooperado (R$)</label>
+                            <input type="number" id="cpc-coop-bruto" class="form-control-flat" value="12000">
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="window.runCpcSim()" style="width: 100%; margin-top: 0.5rem;">Comparar Modelos</button>
+                    
+                    <div id="cpc-results" style="margin-top: 1.25rem; display: none; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">CLT Líquido (Mês)</span>
+                                <div class="st-metric-val" id="cpc-val-clt" style="color: #ef4444;">R$ 0,00</div>
+                            </div>
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">PJ Líquido (Mês)</span>
+                                <div class="st-metric-val" id="cpc-val-pj" style="color: #10b981;">R$ 0,00</div>
+                            </div>
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Cooperado (Mês)</span>
+                                <div class="st-metric-val" id="cpc-val-coop" style="color: #38bdf8;">R$ 0,00</div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card" style="padding: 1rem; border-left: 4px solid #eab308; background: rgba(234, 179, 8, 0.05);">
+                            <strong style="color: #fff; font-size: 0.85rem;">Análise e Recomendação:</strong>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; line-height: 1.45;" id="cpc-verdict"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="cpc-table" class="st-tab-content" style="display: none;">
+                    <div style="overflow-x: auto;">
+                        <table class="table-flat" style="width: 100%; font-size: 0.8rem;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">Rubrica Anual</th>
+                                    <th style="text-align: right;">CLT</th>
+                                    <th style="text-align: right;">PJ</th>
+                                    <th style="text-align: right;">Cooperado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cpc-table-body">
+                                <!-- Preenchido dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            window.runCpcSim = () => {
+                const cltBruto = parseFloat(document.getElementById('cpc-clt-bruto').value) || 0;
+                const cltBen = parseFloat(document.getElementById('cpc-clt-ben').value) || 0;
+                const pjBruto = parseFloat(document.getElementById('cpc-pj-bruto').value) || 0;
+                const pjTax = (parseFloat(document.getElementById('cpc-pj-tax').value) || 0) / 100;
+                const pjCont = parseFloat(document.getElementById('cpc-pj-cont').value) || 0;
+                const coopBruto = parseFloat(document.getElementById('cpc-coop-bruto').value) || 0;
+                
+                // Cálculo CLT Progressivo simplificado (INSS e IRPF)
+                let inss = 0;
+                if(cltBruto <= 1412) inss = cltBruto * 0.075;
+                else if(cltBruto <= 2666.68) inss = 1412 * 0.075 + (cltBruto - 1412) * 0.09;
+                else if(cltBruto <= 4000.03) inss = 1412 * 0.075 + 1254.68 * 0.09 + (cltBruto - 2666.68) * 0.12;
+                else inss = 1412 * 0.075 + 1254.68 * 0.09 + 1333.35 * 0.12 + (Math.min(cltBruto, 7786.02) - 4000.03) * 0.14;
+                
+                const baseIRPF = cltBruto - inss;
+                let irpf = 0;
+                if(baseIRPF <= 2259.20) irpf = 0;
+                else if(baseIRPF <= 2828.65) irpf = (baseIRPF * 0.075) - 169.44;
+                else if(baseIRPF <= 3751.06) irpf = (baseIRPF * 0.15) - 381.44;
+                else if(baseIRPF <= 4664.68) irpf = (baseIRPF * 0.225) - 662.77;
+                else irpf = (baseIRPF * 0.275) - 896.00;
+                
+                const cltLiqMês = cltBruto - inss - irpf + cltBen;
+                const cltFGTS = cltBruto * 0.08;
+                
+                // Cálculo CLT Anual (13 salários + 1/3 férias + 12 meses benefícios + 12 meses FGTS)
+                const cltAnual = (cltBruto - inss - irpf) * 13 + (cltBruto/3) + (cltBen * 12) + (cltFGTS * 12);
+                
+                // Cálculo PJ Anual
+                const pjReceitaAnual = pjBruto * 12;
+                const pjImpostoAnual = pjReceitaAnual * pjTax;
+                const pjCustosAnual = pjCont * 12;
+                const pjAnual = pjReceitaAnual - pjImpostoAnual - pjCustosAnual;
+                
+                // Cooperado (Retenção média de 10% de imposto/cooperativa)
+                const coopTax = 0.10;
+                const coopAnual = (coopBruto * (1 - coopTax)) * 12;
+                
+                document.getElementById('cpc-results').style.display = 'flex';
+                document.getElementById('cpc-val-clt').innerText = 'R$ ' + Math.round(cltLiqMês).toLocaleString('pt-BR');
+                document.getElementById('cpc-val-pj').innerText = 'R$ ' + Math.round(pjAnual / 12).toLocaleString('pt-BR');
+                document.getElementById('cpc-val-coop').innerText = 'R$ ' + Math.round(coopAnual / 12).toLocaleString('pt-BR');
+                
+                // Tabela Detalhada
+                const tbody = document.getElementById('cpc-table-body');
+                tbody.innerHTML = `
+                    <tr><td>Faturamento Bruto</td><td style="text-align:right;">R$ ${(cltBruto*13.33).toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;color:#10b981;">R$ ${pjReceitaAnual.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;">R$ ${(coopBruto*12).toLocaleString('pt-BR', {maximumFractionDigits:0})}</td></tr>
+                    <tr><td>INSS / Encargos</td><td style="text-align:right;">R$ ${(inss*13).toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;">-</td><td style="text-align:right;">-</td></tr>
+                    <tr><td>Impostos Incidentes</td><td style="text-align:right;">R$ ${(irpf*13).toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;color:#ef4444;">R$ ${pjImpostoAnual.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;color:#ef4444;">R$ ${(coopBruto*12*coopTax).toLocaleString('pt-BR', {maximumFractionDigits:0})}</td></tr>
+                    <tr><td>Benefícios / Custos Extras</td><td style="text-align:right;color:#10b981;">R$ ${(cltBen*12 + cltFGTS*12).toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;color:#ef4444;">R$ ${pjCustosAnual.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;">-</td></tr>
+                    <tr style="font-weight:bold; background:rgba(255,255,255,0.05);><td>LÍQUIDO ANUAL</td><td style="text-align:right;color:#ef4444;">R$ ${cltAnual.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;color:#10b981;">R$ ${pjAnual.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td><td style="text-align:right;color:#38bdf8;">R$ ${coopAnual.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td></tr>
+                `;
+                
+                // Veredito
+                const breakEvenPj = (cltAnual / 12) / (1 - pjTax) + pjCont;
+                let best = 'PJ';
+                if(cltAnual > pjAnual && cltAnual > coopAnual) best = 'CLT';
+                else if(coopAnual > pjAnual) best = 'Cooperado';
+                
+                let text = `O modelo ideal para você é o <strong>${best}</strong>. `;
+                if(best === 'PJ') {
+                    const diff = pjAnual - cltAnual;
+                    text += `Você ganhará <strong>R$ ${diff.toLocaleString('pt-BR', {maximumFractionDigits:0})} a mais por ano</strong> se aceitar o PJ. `;
+                } else if(best === 'CLT') {
+                    const diff = cltAnual - pjAnual;
+                    text += `O CLT ainda é mais vantajoso em <strong>R$ ${diff.toLocaleString('pt-BR', {maximumFractionDigits:0})} anuais</strong> devido aos benefícios e FGTS. `;
+                }
+                text += `O valor mínimo faturável em PJ para empatar com a sua proposta CLT atual é de <strong>R$ ${breakEvenPj.toLocaleString('pt-BR', {maximumFractionDigits:0})} por mês</strong>.`;
+                document.getElementById('cpc-verdict').innerHTML = text;
+            };
+            
+            setTimeout(() => window.runCpcSim(), 200);
+        }
+    },
+    {
+        id: 'financiamento_sac_price',
+        category: 'financas',
+        icon: 'fa-solid fa-house-laptop color-green',
+        title: 'Simulador SAC vs Price',
+        desc: 'Amortizações extraordinárias e comparação técnica de tabelas de financiamento imobiliário.',
+        render: (container) => {
+            container.innerHTML = `
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'fin-calculator')">Simulação</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'fin-amort-table')">Tabela SAC vs Price</button>
+                </div>
+                
+                <div id="fin-calculator" class="st-tab-content">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Valor Financiado (R$)</label>
+                            <input type="number" id="fin-pv" class="form-control-flat" value="300000">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Taxa de Juros Anual Nominal (%)</label>
+                            <input type="number" id="fin-rate-year" class="form-control-flat" value="10.5" step="0.1">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Prazo Total (meses)</label>
+                            <input type="number" id="fin-n" class="form-control-flat" value="360">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Amortização Extra Mensal (R$)</label>
+                            <input type="number" id="fin-extra" class="form-control-flat" value="1000">
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="window.runFinancSim()" style="width: 100%; margin-top: 0.5rem;">Simular Amortização</button>
+                    
+                    <div id="fin-results" style="margin-top: 1.25rem; display: none; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Total de Juros (Normal)</span>
+                                <div class="st-metric-val" id="fin-juros-normal" style="color: #ef4444; font-size: 1.15rem;">R$ 0,00</div>
+                            </div>
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Total de Juros (Amortizado)</span>
+                                <div class="st-metric-val" id="fin-juros-amort" style="color: #10b981; font-size: 1.15rem;">R$ 0,00</div>
+                            </div>
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Economia Gerada</span>
+                                <div class="st-metric-val" id="fin-saving" style="color: #eab308; font-size: 1.15rem;">R$ 0,00</div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card" style="padding: 1rem; border-left: 4px solid #10b981; background: rgba(16,185,129,0.05); font-size: 0.8rem; line-height: 1.4;">
+                            <p id="fin-text-summary"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="fin-amort-table" class="st-tab-content" style="display: none;">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                        <label style="font-size:0.85rem; color:#fff;">Sistema Visualizado:</label>
+                        <select id="fin-table-system" class="form-control-flat" style="width: auto; padding: 0.25rem 1.5rem;" onchange="window.renderAmortTable()">
+                            <option value="SAC">SAC (Amortização Constante)</option>
+                            <option value="PRICE">Tabela Price (Parcela Fixa)</option>
+                        </select>
+                    </div>
+                    <div style="max-height: 250px; overflow-y: auto;">
+                        <table class="table-flat" style="width: 100%; font-size: 0.75rem;">
+                            <thead>
+                                <tr>
+                                    <th>Mês</th>
+                                    <th style="text-align: right;">Prestação</th>
+                                    <th style="text-align: right;">Juros</th>
+                                    <th style="text-align: right;">Amortizado</th>
+                                    <th style="text-align: right;">Saldo Devedor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fin-table-body">
+                                <!-- Injetado dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            window.runFinancSim = () => {
+                const pv = parseFloat(document.getElementById('fin-pv').value) || 0;
+                const rateY = parseFloat(document.getElementById('fin-rate-year').value) || 0;
+                const n = parseInt(document.getElementById('fin-n').value) || 0;
+                const extra = parseFloat(document.getElementById('fin-extra').value) || 0;
+                
+                if(pv <= 0 || rateY <= 0 || n <= 0) return;
+                
+                const rateM = (1 + rateY/100)**(1/12) - 1;
+                
+                // Simulação SAC (Normal)
+                let balanceNormal = pv;
+                let jurosNormal = 0;
+                const amortConst = pv / n;
+                for(let i=0; i<n; i++) {
+                    const j = balanceNormal * rateM;
+                    jurosNormal += j;
+                    balanceNormal -= amortConst;
+                }
+                
+                // Simulação SAC (Com Amortização Extraordinária)
+                let balanceAmort = pv;
+                let jurosAmort = 0;
+                let monthsSaved = 0;
+                let actualMonths = 0;
+                
+                while(balanceAmort > 0 && actualMonths < 600) {
+                    const j = balanceAmort * rateM;
+                    jurosAmort += j;
+                    
+                    const amort = Math.min(amortConst + extra, balanceAmort);
+                    balanceAmort -= amort;
+                    actualMonths++;
+                    if(balanceAmort <= 0) break;
+                }
+                
+                monthsSaved = n - actualMonths;
+                const saving = jurosNormal - jurosAmort;
+                
+                document.getElementById('fin-results').style.display = 'flex';
+                document.getElementById('fin-juros-normal').innerText = 'R$ ' + Math.round(jurosNormal).toLocaleString('pt-BR');
+                document.getElementById('fin-juros-amort').innerText = 'R$ ' + Math.round(jurosAmort).toLocaleString('pt-BR');
+                document.getElementById('fin-saving').innerText = 'R$ ' + Math.round(saving).toLocaleString('pt-BR');
+                
+                document.getElementById('fin-text-summary').innerHTML = `Fazendo aportes extras de <strong>R$ ${extra.toLocaleString('pt-BR')}</strong> mensalmente, você reduzirá o prazo do financiamento de <strong>${n}</strong> para apenas <strong>${actualMonths} meses</strong> (economia de <strong>${monthsSaved} meses</strong> ou <strong>${(monthsSaved/12).toFixed(1)} anos</strong> a menos pagando prestações). A economia total estimada é de <strong>R$ ${saving.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</strong> apenas em juros evitados.`;
+                
+                window.renderAmortTable();
+            };
+            
+            window.renderAmortTable = () => {
+                const pv = parseFloat(document.getElementById('fin-pv').value) || 0;
+                const rateY = parseFloat(document.getElementById('fin-rate-year').value) || 0;
+                const n = parseInt(document.getElementById('fin-n').value) || 0;
+                const system = document.getElementById('fin-table-system').value;
+                
+                if(pv <= 0 || rateY <= 0 || n <= 0) return;
+                const rateM = (1 + rateY/100)**(1/12) - 1;
+                
+                const tbody = document.getElementById('fin-table-body');
+                tbody.innerHTML = '';
+                
+                let balance = pv;
+                const rowsToShow = [];
+                
+                if(system === 'SAC') {
+                    const amort = pv / n;
+                    for(let i=1; i<=n; i++) {
+                        const j = balance * rateM;
+                        const p = amort + j;
+                        balance -= amort;
+                        if(i <= 10 || i === n || i % 60 === 0) {
+                            rowsToShow.push({ m: i, p, j, a: amort, bal: Math.max(0, balance) });
+                        }
+                    }
+                } else {
+                    const p = (pv * rateM) / (1 - (1 + rateM)**(-n));
+                    for(let i=1; i<=n; i++) {
+                        const j = balance * rateM;
+                        const amort = p - j;
+                        balance -= amort;
+                        if(i <= 10 || i === n || i % 60 === 0) {
+                            rowsToShow.push({ m: i, p, j, a: amort, bal: Math.max(0, balance) });
+                        }
+                    }
+                }
+                
+                rowsToShow.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.m === n ? 'Último (' + row.m + ')' : 'Parcela ' + row.m}</td>
+                        <td style="text-align:right;">R$ ${row.p.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td>
+                        <td style="text-align:right;color:#ef4444;">R$ ${row.j.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td>
+                        <td style="text-align:right;color:#10b981;">R$ ${row.a.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td>
+                        <td style="text-align:right;">R$ ${row.bal.toLocaleString('pt-BR', {maximumFractionDigits:0})}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            };
+            
+            setTimeout(() => window.runFinancSim(), 200);
+        }
+    },
+    {
+        id: 'carne_leao',
+        category: 'trabalho',
+        icon: 'fa-solid fa-receipt color-blue',
+        title: 'Carnê-Leão & Autônomos',
+        desc: 'Controle de livro caixa digital de despesas profissionais e apuração do carnê-leão mensal.',
+        render: (container) => {
+            container.innerHTML = `
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'cl-sim')">Apuração Mensal</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'cl-livro')">Livro Caixa</button>
+                </div>
+                
+                <div id="cl-sim" class="st-tab-content">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Receita Autônoma Bruta (R$)</label>
+                            <input type="number" id="cl-receita" class="form-control-flat" value="6500">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Número de Dependentes</label>
+                            <input type="number" id="cl-depend" class="form-control-flat" value="0">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Outras Deduções (INSS Autônomo)</label>
+                            <input type="number" id="cl-deduc" class="form-control-flat" value="0">
+                        </div>
+                        <div class="form-group-flat" style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="window.calcCarneLeao()" style="width: 100%;">Apurar Imposto</button>
+                        </div>
+                    </div>
+                    
+                    <div id="cl-results" style="margin-top: 1.25rem; display: none; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Base de Cálculo</span>
+                                <div class="st-metric-val" id="cl-val-base" style="color: #fff;">R$ 0,00</div>
+                            </div>
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Imposto Devido (DARF)</span>
+                                <div class="st-metric-val" id="cl-val-imposto" style="color: #ef4444;">R$ 0,00</div>
+                            </div>
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Alíquota Efetiva</span>
+                                <div class="st-metric-val" id="cl-val-efetiva" style="color: #38bdf8;">0.0%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card" style="padding: 1rem; font-size: 0.8rem; line-height: 1.4;">
+                            <strong style="color: #fff; font-size: 0.85rem;">Detalhamento da Guia DARF:</strong>
+                            <p style="color: var(--text-secondary); margin-top: 0.25rem;">
+                                Código da Receita: <strong>0190</strong> (Carnê-Leão Mensal)<br>
+                                Vencimento: Último dia útil do mês subsequente.<br>
+                                Despesas Deduzidas do Livro Caixa: <strong id="cl-total-despesas-text">R$ 0,00</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="cl-livro" class="st-tab-content" style="display: none;">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: #fff;">Despesas Dedutíveis (Livro Caixa)</h4>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">Lojas, escritórios, internet e despesas operacionais necessárias para exercer sua atividade.</p>
+                    
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="text" id="cl-desp-nome" class="form-control-flat" placeholder="Ex: Assinatura Software Co-working" style="flex: 2;">
+                        <input type="number" id="cl-desp-val" class="form-control-flat" placeholder="Valor R$" style="flex: 1;">
+                        <button class="btn btn-secondary" onclick="window.addClDespesa()"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    
+                    <div style="max-height: 150px; overflow-y: auto; margin-bottom: 1rem;">
+                        <ul id="cl-despesas-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem;">
+                            <!-- Injetado dinamicamente -->
+                        </ul>
+                    </div>
+                    <div style="text-align: right; font-weight: bold; font-size: 0.85rem; color: #fff;">
+                        Total Livro Caixa: <span id="cl-despesas-total" style="color: #38bdf8;">R$ 0,00</span>
+                    </div>
+                </div>
+            `;
+            
+            let despesas = [
+                { name: 'Licença de Software e IDEs', amount: 150 },
+                { name: 'Acesso Internet Comercial', amount: 120 }
+            ];
+            
+            window.renderClDespesas = () => {
+                const listEl = document.getElementById('cl-despesas-list');
+                const totalEl = document.getElementById('cl-despesas-total');
+                if(!listEl || !totalEl) return;
+                
+                listEl.innerHTML = '';
+                let total = 0;
+                despesas.forEach((d, idx) => {
+                    total += d.amount;
+                    const li = document.createElement('li');
+                    li.style.cssText = 'display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.5rem; border-radius:6px; border: 1px solid rgba(255,255,255,0.05); align-items:center; font-size: 0.8rem;';
+                    li.innerHTML = `
+                        <span>${d.name}</span>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:#10b981; font-weight:bold;">R$ ${d.amount.toFixed(2)}</span>
+                            <button onclick="window.removeClDesp(${idx})" style="background:none; border:none; color:#ef4444; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                    listEl.appendChild(li);
+                });
+                
+                totalEl.innerText = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                const summaryText = document.getElementById('cl-total-despesas-text');
+                if(summaryText) summaryText.innerText = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            };
+            
+            window.addClDespesa = () => {
+                const nameInput = document.getElementById('cl-desp-nome');
+                const valInput = document.getElementById('cl-desp-val');
+                const name = nameInput.value.trim();
+                const amount = parseFloat(valInput.value) || 0;
+                
+                if(!name || amount <= 0) return;
+                despesas.push({ name, amount });
+                nameInput.value = '';
+                valInput.value = '';
+                window.renderClDespesas();
+                window.calcCarneLeao();
+            };
+            
+            window.removeClDesp = (idx) => {
+                despesas.splice(idx, 1);
+                window.renderClDespesas();
+                window.calcCarneLeao();
+            };
+            
+            window.calcCarneLeao = () => {
+                const receita = parseFloat(document.getElementById('cl-receita').value) || 0;
+                const dependented = parseInt(document.getElementById('cl-depend').value) || 0;
+                const outrasDeducoes = parseFloat(document.getElementById('cl-deduc').value) || 0;
+                
+                const totalDespesas = despesas.reduce((s, d) => s + d.amount, 0);
+                const deducDependente = dependented * 189.59;
+                
+                const baseCalculo = Math.max(0, receita - totalDespesas - deducDependente - outrasDeducoes);
+                
+                // Tabela progressiva IRPF
+                let imposto = 0;
+                if(baseCalculo <= 2259.20) imposto = 0;
+                else if(baseCalculo <= 2828.65) imposto = (baseCalculo * 0.075) - 169.44;
+                else if(baseCalculo <= 3751.06) imposto = (baseCalculo * 0.15) - 381.44;
+                else if(baseCalculo <= 4664.68) imposto = (baseCalculo * 0.225) - 662.77;
+                else imposto = (baseCalculo * 0.275) - 896.00;
+                
+                const alicEfetiva = receita > 0 ? (imposto / receita) * 100 : 0;
+                
+                document.getElementById('cl-results').style.display = 'flex';
+                document.getElementById('cl-val-base').innerText = 'R$ ' + baseCalculo.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                document.getElementById('cl-val-imposto').innerText = 'R$ ' + imposto.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                document.getElementById('cl-val-efetiva').innerText = alicEfetiva.toFixed(2) + '%';
+            };
+            
+            setTimeout(() => {
+                window.renderClDespesas();
+                window.calcCarneLeao();
+            }, 200);
+        }
+    },
+    {
+        id: 'trophy_hub',
+        category: 'financas',
+        icon: 'fa-solid fa-trophy color-yellow',
+        title: 'Trophy Hub & Conquistas',
+        desc: 'Monitore conquistas financeiras e ganhe troféus à medida que bate metas de horas e aportes.',
+        render: (container) => {
+            container.innerHTML = `
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'trophy-list')">Conquistas Recentes</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'trophy-stats')">Diagnóstico e Estatísticas</button>
+                </div>
+                
+                <div id="trophy-list" class="st-tab-content">
+                    <div id="trophies-container" style="display: grid; grid-template-columns: 1fr; gap: 0.75rem; max-height: 350px; overflow-y: auto; padding-right: 5px;">
+                        <!-- Injetado dinamicamente -->
+                    </div>
+                </div>
+                
+                <div id="trophy-stats" class="st-tab-content" style="display: none;">
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 1.25rem; border-radius: 12px; margin-bottom: 1rem;">
+                        <h4 style="font-size:0.95rem; color:#fff; margin-bottom: 0.5rem;">Resumo de Produtividade</h4>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem; font-size:0.8rem;">
+                            <span style="color:var(--text-secondary)">Total de Horas Trabalhadas:</span>
+                            <span style="font-weight:bold; color:#fff;" id="stats-total-hours">0,00 h</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem; font-size:0.8rem;">
+                            <span style="color:var(--text-secondary)">Faturamento Total Acumulado:</span>
+                            <span style="font-weight:bold; color:#10b981;" id="stats-total-earnings">R$ 0,00</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+                            <span style="color:var(--text-secondary)">Aportes e Investimentos:</span>
+                            <span style="font-weight:bold; color:#38bdf8;" id="stats-total-invested">R$ 0,00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card" style="padding:1rem; border-left:4px solid #38bdf8;">
+                        <strong style="color: #fff; font-size: 0.85rem;">Próxima Meta Sugerida:</strong>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;" id="stats-next-goal">Carregando sugestão...</p>
+                    </div>
+                </div>
+            `;
+            
+            window.renderTrophyHub = async () => {
+                // Cálculo das conquistas com base no state global do aplicativo
+                let totalHours = 0;
+                let totalGanhos = 0;
+                let totalInvested = 0;
+                
+                if (window.state) {
+                    if (window.state.rows) {
+                        totalHours = window.state.rows.reduce((sum, r) => sum + (parseFloat(r.horas) || 0), 0);
+                    }
+                    totalGanhos = window.state.totalEarningsSinceJan || 0;
+                    totalInvested = window.state.totalInvested || 0;
+                    if (totalInvested === 0 && window.state.investEntries) {
+                        totalInvested = window.state.investEntries.reduce((s, e) => s + (e.amount || 0), 0);
+                    }
+                }
+                
+                const achievements = [
+                    { id: 'pe_de_meia', title: 'Pé de Meia Iniciante', desc: 'Aporte de pelo menos R$ 500 em investimentos.', icon: 'fa-solid fa-piggy-bank', target: 500, current: totalInvested },
+                    { id: 'investidor_audaz', title: 'Investidor Audaz', desc: 'Aporte acumulado de R$ 5.000 em investimentos.', icon: 'fa-solid fa-chart-line', target: 5000, current: totalInvested },
+                    { id: 'patrimonio_ouro', title: 'Patrimônio de Ouro', desc: 'Aporte acumulado de R$ 20.000 em investimentos.', icon: 'fa-solid fa-gem', target: 20000, current: totalInvested },
+                    { id: 'guerreiro_horas', title: 'Guerreiro do Ponto', desc: 'Soma de 100 horas trabalhadas registradas.', icon: 'fa-solid fa-user-clock', target: 100, current: totalHours },
+                    { id: 'elite_prod', title: 'Elite da Produtividade', desc: 'Soma de 200 horas trabalhadas registradas.', icon: 'fa-solid fa-crown', target: 200, current: totalHours },
+                    { id: 'faturamento_diamante', title: 'Faturamento Diamante', desc: 'Ganhos totais acumulados de R$ 15.000.', icon: 'fa-solid fa-award', target: 15000, current: totalGanhos }
+                ];
+                
+                const container = document.getElementById('trophies-container');
+                if(!container) return;
+                container.innerHTML = '';
+                
+                achievements.forEach(item => {
+                    const isUnlocked = item.current >= item.target;
+                    const pct = Math.min(100, (item.current / item.target) * 100);
+                    
+                    const card = document.createElement('div');
+                    card.className = `st-trophy-card ${isUnlocked ? 'unlocked' : ''}`;
+                    card.innerHTML = `
+                        <div class="st-trophy-icon"><i class="${item.icon}"></i></div>
+                        <div style="flex:1;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong style="font-size:0.85rem; color:#fff;">${item.title}</strong>
+                                <span style="font-size:0.7rem; color:${isUnlocked ? '#eab308':'#64748b'}">${isUnlocked ? 'Desbloqueado!':'Pendente'}</span>
+                            </div>
+                            <p style="font-size:0.75rem; color:var(--text-secondary); margin:0.2rem 0 0.4rem 0;">${item.desc}</p>
+                            <div style="width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                <div style="width:${pct}%; height:100%; background:${isUnlocked ? '#eab308':'#3b82f6'};"></div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+                
+                // Atualizar painel de Estatísticas
+                const hoursEl = document.getElementById('stats-total-hours');
+                const earningsEl = document.getElementById('stats-total-earnings');
+                const investEl = document.getElementById('stats-total-invested');
+                const nextGoalEl = document.getElementById('stats-next-goal');
+                
+                if (hoursEl) hoursEl.innerText = `${totalHours.toFixed(1)} h`;
+                if (earningsEl) earningsEl.innerText = 'R$ ' + totalGanhos.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                if (investEl) investEl.innerText = 'R$ ' + totalInvested.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                
+                if (nextGoalEl) {
+                    const nextLocked = achievements.find(a => a.current < a.target);
+                    if(nextLocked) {
+                        nextGoalEl.innerHTML = `Alcance <strong>${nextLocked.target}</strong> no objetivo <strong>${nextLocked.title}</strong> (Faltam <strong>${(nextLocked.target - nextLocked.current).toFixed(0)}</strong>).`;
+                    } else {
+                        nextGoalEl.innerText = "Parabéns! Você alcançou todas as conquistas de elite financeiras.";
+                    }
+                }
+            };
+            
+            setTimeout(() => window.renderTrophyHub(), 200);
+        }
+    },
+    {
+        id: 'contrato_gerador',
+        category: 'trabalho',
+        icon: 'fa-solid fa-file-signature color-blue',
+        title: 'Gerador de Contratos de Elite',
+        desc: 'Elabore contratos juridicamente válidos de prestação de serviços com cálculos tributários embutidos.',
+        render: (container) => {
+            container.innerHTML = `
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'contract-form')">Formulário</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'contract-view')">Minuta do Contrato</button>
+                </div>
+                
+                <div id="contract-form" class="st-tab-content">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Nome do Contratante (Cliente)</label>
+                            <input type="text" id="ct-client" class="form-control-flat" value="Organizações ACME S.A.">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Nome do Contratado (Prestador)</label>
+                            <input type="text" id="ct-provider" class="form-control-flat" value="André Turco Finanças">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Objeto do Serviço</label>
+                            <input type="text" id="ct-service" class="form-control-flat" value="Consultoria Estratégica em Planejamento Financeiro e Otimização de Custos">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Valor Total do Contrato (R$)</label>
+                            <input type="number" id="ct-value" class="form-control-flat" value="15000">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Prazo de Conclusão (dias)</label>
+                            <input type="number" id="ct-deadline" class="form-control-flat" value="90">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Multa por Atraso (%)</label>
+                            <input type="number" id="ct-multa" class="form-control-flat" value="10">
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="window.generateContract()" style="width: 100%; margin-top: 0.5rem;">Gerar Contrato Legal</button>
+                </div>
+                
+                <div id="contract-view" class="st-tab-content" style="display: none;">
+                    <div class="glass-card" id="ct-text-container" style="padding: 1.5rem; background: #0f172a; border-radius: 8px; color: #cbd5e1; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; max-height: 250px; overflow-y: auto; line-height: 1.5; white-space: pre-wrap; border: 1px solid rgba(255,255,255,0.06);">
+                        Preencha o formulário para visualizar o contrato.
+                    </div>
+                    <button class="btn btn-secondary" onclick="window.copyContractToClipboard()" style="width: 100%; margin-top: 1rem;"><i class="fa-solid fa-copy"></i> Copiar Minuta Completa</button>
+                </div>
+            `;
+            
+            window.generateContract = () => {
+                const client = document.getElementById('ct-client').value.trim();
+                const provider = document.getElementById('ct-provider').value.trim();
+                const service = document.getElementById('ct-service').value.trim();
+                const val = parseFloat(document.getElementById('ct-value').value) || 0;
+                const deadline = document.getElementById('ct-deadline').value;
+                const multa = document.getElementById('ct-multa').value;
+                
+                const today = new Date().toLocaleDateString('pt-BR');
+                
+                const template = `INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS PROFISSIONAIS
+
+CONTRATANTE: ${client}, doravante denominado simplesmente CONTRATANTE;
+CONTRATADO: ${provider}, doravante denominado simplesmente CONTRATADO;
+
+As partes acima qualificadas têm, entre si, justo e acordado o presente contrato mediante as seguintes cláusulas:
+
+CLÁUSULA PRIMEIRA - DO OBJETO:
+O CONTRATADO compromete-se a prestar ao CONTRATANTE os serviços descritos como: ${service}.
+
+CLÁUSULA SEGUNDA - DO PREÇO E DA FORMA DE PAGAMENTO:
+Pela execução dos serviços pactuados, o CONTRATANTE pagará ao CONTRATADO o valor total de R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits: 2})}, divididos de acordo com as entregas acordadas.
+
+CLÁUSULA TERCEIRA - DO PRAZO:
+O prazo total estimado para a conclusão e entrega definitiva dos serviços é de ${deadline} dias, com início imediato a partir da assinatura.
+
+CLÁUSULA QUARTA - DAS MULTAS:
+Em caso de inadimplemento ou descumprimento de prazos contratuais sem justificativa de força maior, incidirá multa penal fixada em ${multa}% do valor total do contrato sobre a parte inadimplente.
+
+CLÁUSULA QUINTA - DA PROPRIEDADE INTELECTUAL:
+Todos os materiais, códigos e relatórios gerados em decorrência deste contrato pertencerão em caráter de exclusividade ao CONTRATANTE mediante a quitação integral das parcelas.
+
+CLÁUSULA SEXTA - DO FORO:
+Fica eleito o foro da comarca da capital do estado do domicílio das partes para dirimir eventuais dúvidas relativas a este contrato.
+
+E, por estarem justos e contratados, assinam o presente instrumento.
+
+Data de Emissão: ${today}`;
+                
+                document.getElementById('ct-text-container').innerText = template;
+                
+                // Trocar para a aba visualização automaticamente
+                const nav = document.querySelector('.st-tabs-nav');
+                const btnView = nav.querySelectorAll('.st-tab-btn')[1];
+                window.switchStTab(btnView, 'contract-view');
+            };
+            
+            window.copyContractToClipboard = () => {
+                const text = document.getElementById('ct-text-container').innerText;
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Copiado com sucesso para a área de transferência!');
+                }).catch(e => {
+                    alert('Erro ao copiar!');
+                });
+            };
+        }
+    },
+    {
+        id: 'precificacao_hora',
+        category: 'trabalho',
+        icon: 'fa-solid fa-hourglass-half color-blue',
+        title: 'Precificação de Hora Ideal',
+        desc: 'Descubra quanto cobrar por hora baseado em despesas fixas, impostos e rentabilidade real esperada.',
+        render: (container) => {
+            container.innerHTML = `
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'ph-custos')">Custos & Metas</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'ph-horas')">Horas Úteis</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'ph-preco')">Valor de Venda</button>
+                </div>
+                
+                <div id="ph-custos" class="st-tab-content">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Pro labore / Salário Desejado (R$)</label>
+                            <input type="number" id="ph-target-sal" class="form-control-flat" value="10000">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Internet + Softwares + Ferramentas (R$)</label>
+                            <input type="number" id="ph-tools-cost" class="form-control-flat" value="500">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Reserva de Emergência / Investimentos (R$)</label>
+                            <input type="number" id="ph-reserve" class="form-control-flat" value="1500">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Outras Despesas de Escritório (R$)</label>
+                            <input type="number" id="ph-office-cost" class="form-control-flat" value="400">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.switchTabToPhHoras()" style="width: 100%; margin-top: 0.5rem;">Avançar para Horas Úteis</button>
+                </div>
+                
+                <div id="ph-horas" class="st-tab-content" style="display: none;">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Horas de Trabalho p/ Dia</label>
+                            <input type="number" id="ph-hours-day" class="form-control-flat" value="6">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Dias de Trabalho p/ Semana</label>
+                            <input type="number" id="ph-days-week" class="form-control-flat" value="5">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Semanas de Férias por Ano</label>
+                            <input type="number" id="ph-vacation" class="form-control-flat" value="4">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Eficiência Operacional (%)</label>
+                            <input type="number" id="ph-efficiency" class="form-control-flat" value="80">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.calcHoraIdeal()" style="width: 100%; margin-top: 0.5rem;">Calcular Preço de Venda</button>
+                </div>
+                
+                <div id="ph-preco" class="st-tab-content" style="display: none;">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <div class="st-card-metric">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary)">Custo da Hora (Seco)</span>
+                            <div class="st-metric-val" id="ph-val-custo" style="color: #ef4444;">R$ 0,00</div>
+                        </div>
+                        <div class="st-card-metric">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary)">Cobrar por Hora (Margem 20%)</span>
+                            <div class="st-metric-val" id="ph-val-sugerido" style="color: #10b981;">R$ 0,00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card" style="padding: 1.25rem; font-size: 0.8rem; line-height: 1.4; margin-top: 1rem; border-left: 4px solid #eab308;">
+                        <strong style="color: #fff; font-size: 0.85rem;">Distribuição das Horas:</strong>
+                        <p style="color: var(--text-secondary); margin-top: 0.25rem;" id="ph-detail-text">
+                            Horas produtivas mensais estimadas...
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            window.switchTabToPhHoras = () => {
+                const nav = document.querySelector('.st-tabs-nav');
+                const btnView = nav.querySelectorAll('.st-tab-btn')[1];
+                window.switchStTab(btnView, 'ph-horas');
+            };
+            
+            window.calcHoraIdeal = () => {
+                const sal = parseFloat(document.getElementById('ph-target-sal').value) || 0;
+                const tools = parseFloat(document.getElementById('ph-tools-cost').value) || 0;
+                const reserve = parseFloat(document.getElementById('ph-reserve').value) || 0;
+                const office = parseFloat(document.getElementById('ph-office-cost').value) || 0;
+                
+                const hoursD = parseFloat(document.getElementById('ph-hours-day').value) || 0;
+                const daysW = parseFloat(document.getElementById('ph-days-week').value) || 0;
+                const vac = parseFloat(document.getElementById('ph-vacation').value) || 0;
+                const eff = (parseFloat(document.getElementById('ph-efficiency').value) || 0) / 100;
+                
+                const totalCustos = sal + tools + reserve + office;
+                
+                // Horas no ano
+                const totalWeeks = 52 - vac;
+                const potentialHours = totalWeeks * daysW * hoursD;
+                // Horas reais com base no fator de eficiência (reuniões, admin, etc.)
+                const billableHoursYear = potentialHours * eff;
+                const billableHoursMonth = billableHoursYear / 12;
+                
+                const custoHora = totalCustos / billableHoursMonth;
+                const precoVenda = custoHora * 1.25; // Adicionando 25% de margem de segurança/lucro
+                
+                document.getElementById('ph-val-custo').innerText = 'R$ ' + custoHora.toFixed(2);
+                document.getElementById('ph-val-sugerido').innerText = 'R$ ' + precoVenda.toFixed(2);
+                
+                document.getElementById('ph-detail-text').innerHTML = `
+                    Total de custos mensais a cobrir: <strong>R$ ${totalCustos.toLocaleString('pt-BR')}</strong>.<br>
+                    Horas faturáveis estimadas por mês: <strong>${billableHoursMonth.toFixed(1)}h</strong> (considerando eficiência de ${(eff*100).toFixed(0)}%).<br>
+                    Para atingir sua meta e manter a estrutura financeira saudável, seu valor de venda hora mínima deve ser de <strong>R$ ${precoVenda.toFixed(2)}</strong>.
+                `;
+                
+                const nav = document.querySelector('.st-tabs-nav');
+                const btnView = nav.querySelectorAll('.st-tab-btn')[2];
+                window.switchStTab(btnView, 'ph-preco');
+            };
+        }
+    },
+    {
+        id: 'pomodoro_audio',
         category: 'produtividade',
-        icon: 'fa-solid fa-stopwatch color-red',
-        title: 'Timer Pomodoro',
-        desc: 'Aumente seu foco com a técnica Pomodoro (25min).',
+        icon: 'fa-solid fa-headset color-red',
+        title: 'Pomodoro & Audio Hub',
+        desc: 'Timer Pomodoro integrado a um gerador de frequências sonoras ambientais em tempo real.',
         render: (container) => {
             container.innerHTML = `
-<div style="text-align:center; padding:2rem; background:#1e293b; border-radius:12px;">
-    <h2 id="pom-time" style="font-size:4rem; color:#fff; margin:0; font-family:monospace;">25:00</h2>
-    <p id="pom-status" style="color:#10b981; margin-top:0;">Foco</p>
-    <div style="margin-top:2rem; display:flex; gap:1rem; justify-content:center;">
-        <button id="pom-start" class="btn btn-primary"><i class="fa-solid fa-play"></i> Iniciar</button>
-        <button id="pom-pause" class="btn btn-secondary"><i class="fa-solid fa-pause"></i> Pausar</button>
-        <button id="pom-reset" class="btn btn-danger" style="background:#ef4444;"><i class="fa-solid fa-rotate-right"></i> Reset</button>
-    </div>
-</div>
-`;
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'pomo-timer-view')">Pomodoro</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'audio-foco-view')">Sons para Concentração</button>
+                </div>
+                
+                <div id="pomo-timer-view" class="st-tab-content" style="text-align: center; padding: 1rem 0;">
+                    <div style="font-size: 4.5rem; font-weight: 800; font-family: monospace; color: #fff; line-height: 1;" id="pomo-time-display">25:00</div>
+                    <div id="pomo-status-label" style="color: #ef4444; font-weight: bold; margin-bottom: 1.5rem; font-size: 0.95rem;">FOCO DE ELITE</div>
+                    
+                    <div style="display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem;">
+                        <button class="btn btn-primary" onclick="window.startPomoTimer()"><i class="fa-solid fa-play"></i> Iniciar</button>
+                        <button class="btn btn-secondary" onclick="window.pausePomoTimer()"><i class="fa-solid fa-pause"></i> Pausar</button>
+                        <button class="btn btn-danger" onclick="window.resetPomoTimer()" style="background:#ef4444;"><i class="fa-solid fa-rotate-right"></i> Reset</button>
+                    </div>
+                </div>
+                
+                <div id="audio-foco-view" class="st-tab-content" style="display: none;">
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">Ligue os geradores sonoros sintéticos offline para abafar distrações:</p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <!-- Ruído Marrom -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 0.5rem 1rem; border-radius: 8px; border:1px solid rgba(255,255,255,0.05);">
+                            <span style="font-size: 0.85rem; color: #fff;"><i class="fa-solid fa-wind"></i> Ruído Marrom (Foco)</span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="range" id="vol-brown" min="0" max="1" step="0.05" value="0.5" style="width: 80px;" oninput="window.changeNoiseVolume('brown', this.value)">
+                                <button class="btn btn-secondary" style="padding: 0.25rem 0.6rem;" onclick="window.toggleNoise('brown')"><i class="fa-solid fa-play" id="btn-icon-brown"></i></button>
+                            </div>
+                        </div>
+                        
+                        <!-- Ruído Pink -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 0.5rem 1rem; border-radius: 8px; border:1px solid rgba(255,255,255,0.05);">
+                            <span style="font-size: 0.85rem; color: #fff;"><i class="fa-solid fa-water"></i> Chuva Sintética</span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="range" id="vol-rain" min="0" max="1" step="0.05" value="0.4" style="width: 80px;" oninput="window.changeNoiseVolume('rain', this.value)">
+                                <button class="btn btn-secondary" style="padding: 0.25rem 0.6rem;" onclick="window.toggleNoise('rain')"><i class="fa-solid fa-play" id="btn-icon-rain"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-    let timeLeft = 25 * 60;
-    let timerId = null;
-    const timeEl = document.getElementById('pom-time');
-    const updateTime = () => {
-        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-        const s = (timeLeft % 60).toString().padStart(2, '0');
-        timeEl.innerText = `${m}:${s}`;
-    };
-    document.getElementById('pom-start').onclick = () => {
-        if(!timerId) timerId = setInterval(() => {
-            if(timeLeft > 0) { timeLeft--; updateTime(); }
-            else { clearInterval(timerId); alert('Tempo finalizado!'); }
-        }, 1000);
-    };
-    document.getElementById('pom-pause').onclick = () => { clearInterval(timerId); timerId = null; };
-    document.getElementById('pom-reset').onclick = () => { clearInterval(timerId); timerId = null; timeLeft = 25*60; updateTime(); };
-
+            // Lógica Pomodoro
+            let duration = 25 * 60;
+            let timerRunning = false;
+            let timerId = null;
+            
+            window.updatePomoDisplay = () => {
+                const m = Math.floor(duration / 60).toString().padStart(2, '0');
+                const s = (duration % 60).toString().padStart(2, '0');
+                const display = document.getElementById('pomo-time-display');
+                if(display) display.innerText = `${m}:${s}`;
+            };
+            
+            window.startPomoTimer = () => {
+                if(timerRunning) return;
+                timerRunning = true;
+                timerId = setInterval(() => {
+                    if(duration > 0) {
+                        duration--;
+                        window.updatePomoDisplay();
+                    } else {
+                        clearInterval(timerId);
+                        timerRunning = false;
+                        alert('Tempo de Foco de Elite concluído!');
+                        duration = 25 * 60;
+                        window.updatePomoDisplay();
+                    }
+                }, 1000);
+            };
+            
+            window.pausePomoTimer = () => {
+                clearInterval(timerId);
+                timerRunning = false;
+            };
+            
+            window.resetPomoTimer = () => {
+                clearInterval(timerId);
+                timerRunning = false;
+                duration = 25 * 60;
+                window.updatePomoDisplay();
+            };
+            
+            // Lógica Áudio
+            let playingType = null;
+            
+            window.toggleNoise = (type) => {
+                if (playingType === type) {
+                    window.stopNoiseAudio();
+                    playingType = null;
+                    document.getElementById(`btn-icon-${type}`).className = 'fa-solid fa-play';
+                } else {
+                    if(playingType) {
+                        window.stopNoiseAudio();
+                        document.getElementById(`btn-icon-${playingType}`).className = 'fa-solid fa-play';
+                    }
+                    const vol = parseFloat(document.getElementById(`vol-${type}`).value);
+                    window.playNoiseAudio(type, vol);
+                    playingType = type;
+                    document.getElementById(`btn-icon-${type}`).className = 'fa-solid fa-stop';
+                }
+            };
+            
+            window.changeNoiseVolume = (type, val) => {
+                if(playingType === type && gainNode) {
+                    gainNode.gain.value = parseFloat(val);
+                }
+            };
+            
+            window.playNoiseAudio = (type, volume) => {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                
+                const bufferSize = 2 * audioCtx.sampleRate;
+                const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                
+                if (type === 'brown') {
+                    let lastOut = 0.0;
+                    for (let i = 0; i < bufferSize; i++) {
+                        const white = Math.random() * 2 - 1;
+                        output[i] = (lastOut + (0.02 * white)) / 1.02;
+                        lastOut = output[i];
+                        output[i] *= 3.5;
+                    }
+                } else if (type === 'rain') {
+                    let lastOut = 0.0;
+                    for (let i = 0; i < bufferSize; i++) {
+                        const white = Math.random() * 2 - 1;
+                        let val = (lastOut + (0.015 * white)) / 1.015;
+                        lastOut = val;
+                        if (Math.random() < 0.0005) {
+                            val += (Math.random() * 0.4) - 0.2;
+                        }
+                        output[i] = val * 3.0;
+                    }
+                }
+                
+                const noiseSource = audioCtx.createBufferSource();
+                noiseSource.buffer = noiseBuffer;
+                noiseSource.loop = true;
+                
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = volume;
+                
+                noiseSource.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                noiseSource.start();
+                currentNoiseNode = noiseSource;
+            };
+            
+            window.stopNoiseAudio = () => {
+                if (currentNoiseNode) {
+                    try { currentNoiseNode.stop(); } catch(e) {}
+                    currentNoiseNode = null;
+                }
+            };
         }
     },
     {
-        id: '503020',
+        id: 'orcamento_503020',
         category: 'financas',
         icon: 'fa-solid fa-chart-pie color-green',
-        title: 'Regra 50/30/20',
-        desc: 'Planejamento orçamentário ideal em segundos.',
+        title: 'Orçamento 50/30/20 Hub',
+        desc: 'Monitore seus gastos com base nas regras financeiras de elite 50/30/20 e receba diagnóstico inteligente.',
         render: (container) => {
             container.innerHTML = `
-<div class="form-group-flat">
-    <label>Renda Mensal (R$)</label>
-    <input type="number" id="f-renda" class="form-control-flat" placeholder="3000" oninput="window.calc503020()">
-</div>
-<div id="f-res" style="margin-top:1rem; display:none;">
-    <div style="padding:1rem; background:rgba(16,185,129,0.1); border-left:4px solid #10b981; margin-bottom:0.5rem;">
-        <strong>Necessidades (50%):</strong> <span id="f-50" style="color:#10b981; font-weight:bold;"></span><br>
-        <small style="color:var(--text-secondary)">Moradia, contas, alimentação básica.</small>
-    </div>
-    <div style="padding:1rem; background:rgba(56,189,248,0.1); border-left:4px solid #38bdf8; margin-bottom:0.5rem;">
-        <strong>Desejos (30%):</strong> <span id="f-30" style="color:#38bdf8; font-weight:bold;"></span><br>
-        <small style="color:var(--text-secondary)">Lazer, compras, assinaturas.</small>
-    </div>
-    <div style="padding:1rem; background:rgba(168,85,247,0.1); border-left:4px solid #a855f7;">
-        <strong>Poupança/Investimento (20%):</strong> <span id="f-20" style="color:#a855f7; font-weight:bold;"></span><br>
-        <small style="color:var(--text-secondary)">Reserva de emergência, investimentos.</small>
-    </div>
-</div>
-`;
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'o50-sim')">Alocação</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'o50-diag')">Diagnóstico de Saúde</button>
+                </div>
+                
+                <div id="o50-sim" class="st-tab-content">
+                    <div class="form-group-flat" style="margin-bottom: 1rem;">
+                        <label>Renda Mensal Líquida (R$)</label>
+                        <input type="number" id="o50-renda" class="form-control-flat" value="5000" oninput="window.calc503020()">
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <!-- Necessidades -->
+                        <div style="padding: 0.75rem; background: rgba(16, 185, 129, 0.05); border-left: 4px solid #10b981; border-radius: 4px;">
+                            <div style="display:flex; justify-content:space-between; font-size: 0.85rem; font-weight: 600;">
+                                <span style="color:#fff;">Necessidades Essenciais (50%)</span>
+                                <span id="o50-val-50" style="color:#10b981;">R$ 2.500,00</span>
+                            </div>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary)">Moradia, contas básicas, alimentação e saúde.</span>
+                        </div>
+                        
+                        <!-- Desejos -->
+                        <div style="padding: 0.75rem; background: rgba(56, 189, 248, 0.05); border-left: 4px solid #38bdf8; border-radius: 4px;">
+                            <div style="display:flex; justify-content:space-between; font-size: 0.85rem; font-weight: 600;">
+                                <span style="color:#fff;">Desejos Pessoais (30%)</span>
+                                <span id="o50-val-30" style="color:#38bdf8;">R$ 1.500,00</span>
+                            </div>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary)">Lazer, jantares, compras, viagens e assinaturas.</span>
+                        </div>
+                        
+                        <!-- Investimentos -->
+                        <div style="padding: 0.75rem; background: rgba(168, 85, 247, 0.05); border-left: 4px solid #a855f7; border-radius: 4px;">
+                            <div style="display:flex; justify-content:space-between; font-size: 0.85rem; font-weight: 600;">
+                                <span style="color:#fff;">Prioridades Financeiras / Poupança (20%)</span>
+                                <span id="o50-val-20" style="color:#a855f7;">R$ 1.000,00</span>
+                            </div>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary)">Investimentos, previdência e pagamento de dívidas.</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="o50-diag" class="st-tab-content" style="display: none;">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Seu Gasto Essencial (R$)</label>
+                            <input type="number" id="o50-real-ess" class="form-control-flat" value="2800" oninput="window.diagnoseHealth()">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Seu Gasto com Desejos (R$)</label>
+                            <input type="number" id="o50-real-des" class="form-control-flat" value="1200" oninput="window.diagnoseHealth()">
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card" style="padding: 1.25rem; border-left: 4px solid #38bdf8;" id="o50-health-box">
+                        <strong style="color: #fff; font-size: 0.85rem;">Diagnóstico Automático:</strong>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; line-height: 1.45;" id="o50-health-text"></p>
+                    </div>
+                </div>
+            `;
             
-    window.calc503020 = () => {
-        const val = parseFloat(document.getElementById('f-renda').value);
-        if(!isNaN(val) && val > 0) {
-            document.getElementById('f-res').style.display = 'block';
-            document.getElementById('f-50').innerText = 'R$ ' + (val * 0.5).toFixed(2);
-            document.getElementById('f-30').innerText = 'R$ ' + (val * 0.3).toFixed(2);
-            document.getElementById('f-20').innerText = 'R$ ' + (val * 0.2).toFixed(2);
-        } else {
-            document.getElementById('f-res').style.display = 'none';
-        }
-    };
-
-        }
-    },
-    {
-        id: 'passgen',
-        category: 'utilidades',
-        icon: 'fa-solid fa-key color-blue',
-        title: 'Gerador de Senhas',
-        desc: 'Crie senhas impenetráveis facilmente.',
-        render: (container) => {
-            container.innerHTML = `
-<div style="background:#1e293b; padding:1.5rem; border-radius:12px; text-align:center;">
-    <div id="pw-display" style="font-family:monospace; font-size:1.5rem; color:#10b981; padding:1rem; background:#0f172a; border-radius:8px; margin-bottom:1rem; word-break:break-all;">GerarSenha123!</div>
-    <div style="display:flex; justify-content:center; gap:1rem; margin-bottom:1rem;">
-        <label><input type="checkbox" id="pw-num" checked> Números</label>
-        <label><input type="checkbox" id="pw-sym" checked> Símbolos</label>
-        <label><input type="checkbox" id="pw-upp" checked> Maiúsculas</label>
-    </div>
-    <div class="form-group-flat" style="text-align:left;">
-        <label>Tamanho: <span id="pw-len-lbl">16</span></label>
-        <input type="range" id="pw-len" min="8" max="32" value="16" style="width:100%" oninput="document.getElementById('pw-len-lbl').innerText=this.value; window.genPw()">
-    </div>
-    <button class="btn btn-primary" onclick="window.genPw()" style="width:100%; margin-bottom:0.5rem;"><i class="fa-solid fa-rotate"></i> Gerar Nova Senha</button>
-    <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('pw-display').innerText); alert('Copiado!')" style="width:100%;"><i class="fa-solid fa-copy"></i> Copiar Senha</button>
-</div>
-`;
+            window.calc503020 = () => {
+                const val = parseFloat(document.getElementById('o50-renda').value) || 0;
+                document.getElementById('o50-val-50').innerText = 'R$ ' + (val * 0.5).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                document.getElementById('o50-val-30').innerText = 'R$ ' + (val * 0.3).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                document.getElementById('o50-val-20').innerText = 'R$ ' + (val * 0.2).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            };
             
-    window.genPw = () => {
-        const len = parseInt(document.getElementById('pw-len').value);
-        const useNum = document.getElementById('pw-num').checked;
-        const useSym = document.getElementById('pw-sym').checked;
-        const useUpp = document.getElementById('pw-upp').checked;
-        const lower = 'abcdefghijklmnopqrstuvwxyz';
-        const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const nums = '0123456789';
-        const syms = '!@#$%^&*()_+~`|}{[]:;?><,./-=';
-        let chars = lower;
-        if(useUpp) chars += upper; if(useNum) chars += nums; if(useSym) chars += syms;
-        let pw = '';
-        for(let i=0; i<len; i++) { pw += chars.charAt(Math.floor(Math.random() * chars.length)); }
-        document.getElementById('pw-display').innerText = pw;
-    };
-    window.genPw();
-
-        }
-    },
-    {
-        id: 'juros_comp',
-        category: 'financas',
-        icon: 'fa-solid fa-money-bill-trend-up color-green',
-        title: 'Juros Compostos',
-        desc: 'Simule seus rendimentos de longo prazo.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Valor Inicial (R$)</label><input type="number" id="jc-init" class="form-control-flat" value="1000"></div>
-<div class="form-group-flat"><label>Aporte Mensal (R$)</label><input type="number" id="jc-month" class="form-control-flat" value="200"></div>
-<div class="form-group-flat"><label>Taxa de Juros Mensal (%)</label><input type="number" id="jc-rate" class="form-control-flat" value="1.0" step="0.1"></div>
-<div class="form-group-flat"><label>Tempo (Meses)</label><input type="number" id="jc-time" class="form-control-flat" value="60"></div>
-<button class="btn btn-primary" onclick="window.calcJC()" style="width:100%; margin-bottom:1rem;">Calcular Retorno</button>
-<div id="jc-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px;">
-    <h3 style="color:#10b981; margin:0;" id="jc-total">R$ 0,00</h3><small style="color:var(--text-secondary)">Total Acumulado</small>
-    <p style="margin:0.5rem 0 0 0; color:#38bdf8;" id="jc-juros"></p>
-</div>
-`;
+            window.diagnoseHealth = () => {
+                const renda = parseFloat(document.getElementById('o50-renda').value) || 0;
+                const ess = parseFloat(document.getElementById('o50-real-ess').value) || 0;
+                const des = parseFloat(document.getElementById('o50-real-des').value) || 0;
+                
+                if(renda <= 0) return;
+                
+                const poupReal = renda - ess - des;
+                const pctEss = (ess / renda) * 100;
+                const pctDes = (des / renda) * 100;
+                const pctPoup = (poupReal / renda) * 100;
+                
+                const box = document.getElementById('o50-health-box');
+                const text = document.getElementById('o50-health-text');
+                
+                let feedback = `Seu perfil atual de despesas é: <strong>${pctEss.toFixed(0)}%</strong> Essencial, <strong>${pctDes.toFixed(0)}%</strong> Desejos e <strong>${pctPoup.toFixed(0)}%</strong> Poupança. <br><br>`;
+                
+                if (pctEss > 55) {
+                    box.style.borderLeftColor = '#ef4444';
+                    feedback += `⚠️ Suas despesas fixas estão altas (<strong>${pctEss.toFixed(0)}%</strong>). Isso engessa seu orçamento e diminui sua margem de segurança contra imprevistos. Tente otimizar contratos de aluguel, luz ou serviços recorrentes.`;
+                } else if (poupReal < 0) {
+                    box.style.borderLeftColor = '#ef4444';
+                    feedback += `❌ Você está operando com saldo negativo (déficit financeiro) de R$ ${Math.abs(poupReal).toLocaleString('pt-BR')}. Reduza imediatamente as despesas supérfluas de desejos.`;
+                } else if (pctPoup >= 20) {
+                    box.style.borderLeftColor = '#10b981';
+                    feedback += `🎉 Excelente saúde financeira! Você está investindo/poupando <strong>${pctPoup.toFixed(0)}%</strong> da sua renda líquida mensal. Isso acelera drasticamente sua jornada de independência financeira.`;
+                } else {
+                    box.style.borderLeftColor = '#f59e0b';
+                    feedback += `💡 Orçamento está equilibrado, mas sua taxa de poupança está abaixo da recomendação de elite de 20%. Tente remanejar alguns gastos supérfluos para poupar mais.`;
+                }
+                
+                text.innerHTML = feedback;
+            };
             
-    window.calcJC = () => {
-        let p = parseFloat(document.getElementById('jc-init').value) || 0;
-        let m = parseFloat(document.getElementById('jc-month').value) || 0;
-        let r = parseFloat(document.getElementById('jc-rate').value) || 0;
-        let t = parseInt(document.getElementById('jc-time').value) || 0;
-        let rate = r / 100;
-        let total = p * Math.pow(1 + rate, t);
-        for(let i=1; i<=t; i++){ total += m * Math.pow(1 + rate, t - i); }
-        let investido = p + (m * t);
-        let juros = total - investido;
-        document.getElementById('jc-res').style.display = 'block';
-        document.getElementById('jc-total').innerText = 'R$ ' + total.toFixed(2).replace('.',',');
-        document.getElementById('jc-juros').innerText = 'Total Investido: R$ ' + investido.toFixed(2).replace('.',',') + ' | Rendimento: R$ ' + juros.toFixed(2).replace('.',',');
-    };
-
+            setTimeout(() => {
+                window.calc503020();
+                window.diagnoseHealth();
+            }, 200);
         }
     },
     {
-        id: 'horas_extras',
-        category: 'trabalho',
-        icon: 'fa-solid fa-clock color-blue',
-        title: 'Horas Extras',
-        desc: 'Saiba exatamente quanto vale sua hora adicional.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Salário Bruto (R$)</label><input type="number" id="he-sal" class="form-control-flat" value="3000"></div>
-<div class="form-group-flat"><label>Jornada Mensal (Horas)</label><input type="number" id="he-jorn" class="form-control-flat" value="220"></div>
-<div class="form-group-flat"><label>Qtd. Horas Extras Feitas</label><input type="number" id="he-qtd" class="form-control-flat" value="10"></div>
-<div class="form-group-flat"><label>Adicional (%)</label><select id="he-pct" class="form-control-flat"><option value="50">50% (Normal)</option><option value="100">100% (Dom/Feriado)</option></select></div>
-<button class="btn btn-primary" onclick="window.calcHE()" style="width:100%; margin-bottom:1rem;">Calcular Horas Extras</button>
-<div id="he-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px; color:#fff;"></div>
-`;
-            
-    window.calcHE = () => {
-        let sal = parseFloat(document.getElementById('he-sal').value) || 0;
-        let jorn = parseFloat(document.getElementById('he-jorn').value) || 1;
-        let qtd = parseFloat(document.getElementById('he-qtd').value) || 0;
-        let pct = parseFloat(document.getElementById('he-pct').value) || 50;
-        let horaNormal = sal / jorn;
-        let valorExtra = horaNormal * (1 + (pct/100));
-        let total = valorExtra * qtd;
-        document.getElementById('he-res').style.display = 'block';
-        document.getElementById('he-res').innerHTML = `Valor da Hora Normal: R$ ${horaNormal.toFixed(2)}<br>Valor da Hora Extra: R$ ${valorExtra.toFixed(2)}<br><strong style="color:#10b981; font-size:1.2rem;">Total a Receber: R$ ${total.toFixed(2)}</strong>`;
-    };
-
-        }
-    },
-    {
-        id: 'conv_moedas',
-        category: 'utilidades',
-        icon: 'fa-solid fa-coins color-blue',
-        title: 'Conversor de Moedas',
-        desc: 'Taxas de câmbio ao vivo (USD para BRL/EUR).',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Valor (USD)</label><input type="number" id="cm-val" class="form-control-flat" value="100"></div>
-<button class="btn btn-primary" onclick="window.convMoeda()" style="width:100%; margin-bottom:1rem;">Converter para BRL e EUR</button>
-<div id="cm-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px; color:#fff;">Aguarde...</div>
-`;
-            
-    window.convMoeda = async () => {
-        const val = parseFloat(document.getElementById('cm-val').value) || 0;
-        const resEl = document.getElementById('cm-res');
-        resEl.style.display = 'block'; resEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Consultando cotação ao vivo...';
-        try {
-            const res = await fetch('https://open.er-api.com/v6/latest/USD');
-            const data = await res.json();
-            const brl = (val * data.rates.BRL).toFixed(2);
-            const eur = (val * data.rates.EUR).toFixed(2);
-            resEl.innerHTML = `<strong style="color:#10b981; font-size:1.2rem;">R$ ${brl} BRL</strong><br><strong style="color:#38bdf8; font-size:1.2rem;">€ ${eur} EUR</strong><br><small>Cotação de hoje</small>`;
-        } catch(e) { resEl.innerHTML = 'Erro ao buscar cotações offline.'; }
-    };
-
-        }
-    },
-    {
-        id: 'desconto',
-        category: 'financas',
-        icon: 'fa-solid fa-tag color-green',
-        title: 'Descontos',
-        desc: 'Descubra o valor real após a promoção.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Preço Original (R$)</label><input type="number" id="desc-orig" class="form-control-flat" value="250"></div>
-<div class="form-group-flat"><label>Desconto (%)</label><input type="number" id="desc-pct" class="form-control-flat" value="15"></div>
-<button class="btn btn-primary" onclick="window.calcDesc()" style="width:100%; margin-bottom:1rem;">Calcular Preço Final</button>
-<div id="desc-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px; color:#fff;"></div>
-`;
-            
-    window.calcDesc = () => {
-        let orig = parseFloat(document.getElementById('desc-orig').value) || 0;
-        let pct = parseFloat(document.getElementById('desc-pct').value) || 0;
-        let final = orig - (orig * (pct/100));
-        let econ = orig - final;
-        document.getElementById('desc-res').style.display = 'block';
-        document.getElementById('desc-res').innerHTML = `Economia: R$ ${econ.toFixed(2)}<br><strong style="color:#10b981; font-size:1.2rem;">Preço Final: R$ ${final.toFixed(2)}</strong>`;
-    };
-
-        }
-    },
-    {
-        id: 'imc',
-        category: 'saude',
-        icon: 'fa-solid fa-heart-pulse color-red',
-        title: 'Calculadora IMC',
-        desc: 'Monitore seu Índice de Massa Corporal.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Peso (KG)</label><input type="number" id="imc-peso" class="form-control-flat" value="75"></div>
-<div class="form-group-flat"><label>Altura (M)</label><input type="number" id="imc-alt" class="form-control-flat" value="1.75" step="0.01"></div>
-<button class="btn btn-primary" onclick="window.calcIMC()" style="width:100%; margin-bottom:1rem;">Calcular IMC</button>
-<div id="imc-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px; color:#fff;"></div>
-`;
-            
-    window.calcIMC = () => {
-        let peso = parseFloat(document.getElementById('imc-peso').value) || 0;
-        let alt = parseFloat(document.getElementById('imc-alt').value) || 1;
-        let imc = peso / (alt * alt);
-        let classif = '';
-        if(imc < 18.5) classif = 'Abaixo do Peso';
-        else if(imc < 24.9) classif = 'Peso Normal';
-        else if(imc < 29.9) classif = 'Sobrepeso';
-        else classif = 'Obesidade';
-        document.getElementById('imc-res').style.display = 'block';
-        document.getElementById('imc-res').innerHTML = `Seu IMC: <strong style="color:#38bdf8; font-size:1.2rem;">${imc.toFixed(2)}</strong><br>Classificação: <strong style="color:#10b981;">${classif}</strong>`;
-    };
-
-        }
-    },
-    {
-        id: 'qrcode',
-        category: 'utilidades',
-        icon: 'fa-solid fa-qrcode color-blue',
-        title: 'Gerador de QR Code',
-        desc: 'Gere QR codes instantaneamente.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Texto ou Link (URL)</label><input type="text" id="qr-text" class="form-control-flat" value="https://google.com"></div>
-<button class="btn btn-primary" onclick="window.genQR()" style="width:100%; margin-bottom:1rem;">Gerar QR Code</button>
-<div id="qr-res" style="display:none; text-align:center; padding:1rem; background:#fff; border-radius:8px;">
-    <img id="qr-img" src="" style="width:200px; height:200px; object-fit:contain;">
-</div>
-`;
-            
-    window.genQR = () => {
-        let txt = document.getElementById('qr-text').value;
-        if(!txt) return;
-        document.getElementById('qr-res').style.display = 'block';
-        document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(txt)}`;
-    };
-
-        }
-    },
-    {
-        id: 'gorjeta',
-        category: 'financas',
-        icon: 'fa-solid fa-percent color-green',
-        title: 'Calculadora Gorjeta',
-        desc: 'Divida a conta do bar facilmente.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Valor da Conta (R$)</label><input type="number" id="gor-conta" class="form-control-flat" value="150"></div>
-<div class="form-group-flat"><label>Porcentagem (%)</label><input type="number" id="gor-pct" class="form-control-flat" value="10"></div>
-<div class="form-group-flat"><label>Dividir por (Pessoas)</label><input type="number" id="gor-pes" class="form-control-flat" value="3"></div>
-<button class="btn btn-primary" onclick="window.calcGor()" style="width:100%; margin-bottom:1rem;">Calcular</button>
-<div id="gor-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px; color:#fff;"></div>
-`;
-            
-    window.calcGor = () => {
-        let conta = parseFloat(document.getElementById('gor-conta').value) || 0;
-        let pct = parseFloat(document.getElementById('gor-pct').value) || 0;
-        let pes = parseInt(document.getElementById('gor-pes').value) || 1;
-        let gorjeta = conta * (pct/100);
-        let total = conta + gorjeta;
-        let porPessoa = total / pes;
-        document.getElementById('gor-res').style.display = 'block';
-        document.getElementById('gor-res').innerHTML = `Gorjeta Total: R$ ${gorjeta.toFixed(2)}<br>Total com Gorjeta: R$ ${total.toFixed(2)}<br><strong style="color:#10b981; font-size:1.2rem;">R$ ${porPessoa.toFixed(2)} por pessoa</strong>`;
-    };
-
-        }
-    },
-    {
-        id: 'regra3',
-        category: 'utilidades',
-        icon: 'fa-solid fa-calculator color-blue',
-        title: 'Regra de Três',
-        desc: 'Proporção rápida e fácil.',
-        render: (container) => {
-            container.innerHTML = `
-<div style="display:flex; gap:1rem; margin-bottom:1rem;">
-    <div class="form-group-flat"><label>A</label><input type="number" id="r3-a" class="form-control-flat" value="100"></div>
-    <div class="form-group-flat" style="display:flex; align-items:flex-end; padding-bottom:1rem;">está para</div>
-    <div class="form-group-flat"><label>B</label><input type="number" id="r3-b" class="form-control-flat" value="50"></div>
-</div>
-<div style="display:flex; gap:1rem; margin-bottom:1rem;">
-    <div class="form-group-flat"><label>C</label><input type="number" id="r3-c" class="form-control-flat" value="200"></div>
-    <div class="form-group-flat" style="display:flex; align-items:flex-end; padding-bottom:1rem;">está para</div>
-    <div class="form-group-flat"><label>X</label><input type="text" disabled class="form-control-flat" placeholder="?"></div>
-</div>
-<button class="btn btn-primary" onclick="window.calcR3()" style="width:100%; margin-bottom:1rem;">Encontrar X</button>
-<div id="r3-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px; color:#10b981; font-size:1.5rem; text-align:center; font-weight:bold;"></div>
-`;
-            
-    window.calcR3 = () => {
-        let a = parseFloat(document.getElementById('r3-a').value) || 0;
-        let b = parseFloat(document.getElementById('r3-b').value) || 0;
-        let c = parseFloat(document.getElementById('r3-c').value) || 0;
-        if(a === 0) return;
-        let x = (b * c) / a;
-        document.getElementById('r3-res').style.display = 'block';
-        document.getElementById('r3-res').innerText = `X = ${x}`;
-    };
-
-        }
-    },
-    {
-        id: 'sorteio',
-        category: 'utilidades',
-        icon: 'fa-solid fa-dice color-blue',
-        title: 'Sorteador',
-        desc: 'Número aleatório entre dois valores.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>De (Mínimo)</label><input type="number" id="sort-min" class="form-control-flat" value="1"></div>
-<div class="form-group-flat"><label>Até (Máximo)</label><input type="number" id="sort-max" class="form-control-flat" value="100"></div>
-<button class="btn btn-primary" onclick="window.calcSort()" style="width:100%; margin-bottom:1rem;">Sortear Número</button>
-<div id="sort-res" style="display:none; padding:2rem; background:#1e293b; border-radius:8px; color:#38bdf8; font-size:3rem; text-align:center; font-weight:bold;"></div>
-`;
-            
-    window.calcSort = () => {
-        let min = parseInt(document.getElementById('sort-min').value) || 0;
-        let max = parseInt(document.getElementById('sort-max').value) || 0;
-        if(min > max) { let temp=min; min=max; max=temp; }
-        let res = Math.floor(Math.random() * (max - min + 1)) + min;
-        document.getElementById('sort-res').style.display = 'block';
-        document.getElementById('sort-res').innerText = res;
-    };
-
-        }
-    },
-    {
-        id: 'dias',
-        category: 'utilidades',
-        icon: 'fa-solid fa-calendar-days color-blue',
-        title: 'Contador de Dias',
-        desc: 'Diferença exata entre duas datas.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Data Inicial</label><input type="date" id="dias-ini" class="form-control-flat"></div>
-<div class="form-group-flat"><label>Data Final</label><input type="date" id="dias-fim" class="form-control-flat"></div>
-<button class="btn btn-primary" onclick="window.calcDias()" style="width:100%; margin-bottom:1rem;">Calcular Dias</button>
-<div id="dias-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px; color:#10b981; font-size:1.5rem; text-align:center; font-weight:bold;"></div>
-`;
-            
-    document.getElementById('dias-ini').value = new Date().toISOString().split('T')[0];
-    window.calcDias = () => {
-        let d1 = new Date(document.getElementById('dias-ini').value);
-        let d2 = new Date(document.getElementById('dias-fim').value);
-        let diff = Math.abs(d2 - d1);
-        let days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        document.getElementById('dias-res').style.display = 'block';
-        document.getElementById('dias-res').innerText = `${days} dias de diferença`;
-    };
-
-        }
-    },
-    {
-        id: 'freela',
-        category: 'trabalho',
-        icon: 'fa-solid fa-briefcase color-blue',
-        title: 'Valor Freela',
-        desc: 'Quanto cobrar por hora nos projetos.',
-        render: (container) => {
-            container.innerHTML = `
-<div class="form-group-flat"><label>Salário Mensal Desejado (R$)</label><input type="number" id="fr-sal" class="form-control-flat" value="5000"></div>
-<div class="form-group-flat"><label>Horas trabalhadas por dia</label><input type="number" id="fr-hdia" class="form-control-flat" value="6"></div>
-<div class="form-group-flat"><label>Dias trabalhados por semana</label><input type="number" id="fr-dsem" class="form-control-flat" value="5"></div>
-<div class="form-group-flat"><label>Custos Mensais (Luz, Net) (R$)</label><input type="number" id="fr-cust" class="form-control-flat" value="500"></div>
-<button class="btn btn-primary" onclick="window.calcFr()" style="width:100%; margin-bottom:1rem;">Calcular Valor Hora</button>
-<div id="fr-res" style="display:none; padding:1rem; background:#1e293b; border-radius:8px; color:#fff;"></div>
-`;
-            
-    window.calcFr = () => {
-        let sal = parseFloat(document.getElementById('fr-sal').value) || 0;
-        let hdia = parseFloat(document.getElementById('fr-hdia').value) || 0;
-        let dsem = parseFloat(document.getElementById('fr-dsem').value) || 0;
-        let cust = parseFloat(document.getElementById('fr-cust').value) || 0;
-        let horasMes = hdia * dsem * 4;
-        if(horasMes===0)return;
-        let valorHora = (sal + cust) / horasMes;
-        document.getElementById('fr-res').style.display = 'block';
-        document.getElementById('fr-res').innerHTML = `Seu valor ideal é de: <strong style="color:#10b981; font-size:1.5rem;">R$ ${valorHora.toFixed(2)}/h</strong>`;
-    };
-
-        }
-    },
-    {
-        id: 'cronometro',
-        category: 'produtividade',
-        icon: 'fa-solid fa-stopwatch-20 color-blue',
-        title: 'Cronômetro',
-        desc: 'Cronômetro clássico.',
-        render: (container) => {
-            container.innerHTML = `<div style="text-align:center"><h2 id="cron-d" style="font-size:3rem;color:#fff;">0.0s</h2><button class="btn btn-primary" onclick="window.togCron()">Inic/Pause</button> <button class="btn btn-secondary" onclick="window.resCron()">Reset</button></div>`;
-            window.cTimer=null; window.cTime=0; window.togCron=()=>{if(window.cTimer){clearInterval(window.cTimer);window.cTimer=null;}else{window.cTimer=setInterval(()=>{window.cTime+=0.1;document.getElementById("cron-d").innerText=window.cTime.toFixed(1)+"s";},100);}}; window.resCron=()=>{clearInterval(window.cTimer);window.cTimer=null;window.cTime=0;document.getElementById("cron-d").innerText="0.0s";}
-        }
-    },
-    {
-        id: 'margem_lucro',
+        id: 'cripto_trade_tax',
         category: 'financas',
         icon: 'fa-solid fa-chart-line color-green',
-        title: 'Margem de Lucro',
-        desc: 'Lucro real sobre produtos.',
+        title: 'Calculadora Day Trade & Cripto',
+        desc: 'Apurador tributário para cálculo de imposto devido em operações swing/day trade e criptoativos.',
         render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Custo</label><input type="number" id="ml-custo" class="form-control-flat" value="50"></div><div class="form-group-flat"><label>Venda</label><input type="number" id="ml-venda" class="form-control-flat" value="100"></div><button class="btn btn-primary" onclick="window.calcMl()" style="width:100%">Calc</button><div id="ml-r" style="margin-top:1rem;color:#10b981;font-weight:bold;font-size:1.5rem"></div>`;
-            window.calcMl=()=>{let c=parseFloat(document.getElementById("ml-custo").value)||0;let v=parseFloat(document.getElementById("ml-venda").value)||0;if(v===0)return;let p=((v-c)/v)*100;document.getElementById("ml-r").innerText=`Margem: ${p.toFixed(2)}%`;}
+            container.innerHTML = `
+                <div class="st-tabs-nav">
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'ctt-sim')">Apuração</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'ctt-info')">Guia DARF</button>
+                </div>
+                
+                <div id="ctt-sim" class="st-tab-content">
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Volume Total de Vendas no Mês (R$)</label>
+                            <input type="number" id="ctt-venda" class="form-control-flat" value="32000">
+                        </div>
+                        <div class="form-group-flat">
+                            <label>Lucro Líquido Apurado (R$)</label>
+                            <input type="number" id="ctt-lucro" class="form-control-flat" value="4500">
+                        </div>
+                    </div>
+                    <div class="st-form-row">
+                        <div class="form-group-flat">
+                            <label>Tipo de Ativo / Mercado</label>
+                            <select id="ctt-type" class="form-control-flat" onchange="window.calcCriptoTax()">
+                                <option value="CRIPTO">Criptoativos (Swing Trade)</option>
+                                <option value="SWING_TRADE">Ações Comuns (Swing Trade)</option>
+                                <option value="DAY_TRADE">Ações / Futuros (Day Trade)</option>
+                            </select>
+                        </div>
+                        <div class="form-group-flat" style="display:flex; align-items:flex-end;">
+                            <button class="btn btn-primary" onclick="window.calcCriptoTax()" style="width:100%;">Calcular Imposto</button>
+                        </div>
+                    </div>
+                    
+                    <div id="ctt-results" style="margin-top: 1.25rem; display: none; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Alíquota Nominal</span>
+                                <div class="st-metric-val" id="ctt-val-aliq" style="color: #fff;">0%</div>
+                            </div>
+                            <div class="st-card-metric">
+                                <span style="font-size: 0.75rem; color: var(--text-secondary)">Imposto a Pagar</span>
+                                <div class="st-metric-val" id="ctt-val-tax" style="color: #ef4444;">R$ 0,00</div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card" style="padding: 1rem; font-size: 0.8rem; line-height: 1.4;" id="ctt-box-status">
+                            <strong style="color: #fff; font-size: 0.85rem;" id="ctt-status-title">Isento de Imposto</strong>
+                            <p style="color: var(--text-secondary); margin-top: 0.25rem;" id="ctt-status-desc"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="ctt-info" class="st-tab-content" style="display: none;">
+                    <div class="glass-card" style="padding: 1.25rem; font-size: 0.8rem; line-height: 1.45;">
+                        <h4 style="color:#fff; font-size:0.9rem; margin-bottom: 0.5rem;">Como recolher seu DARF:</h4>
+                        <p style="color: var(--text-secondary);">
+                            <strong>Código de Receita (DARF):</strong><br>
+                            - Ações / Day Trade: <strong>6015</strong> (Pessoa Física)<br>
+                            - Criptoativos: <strong>4600</strong> (Ganhos de capital no exterior)<br><br>
+                            <strong>Prazo legal:</strong> Até o último dia útil do mês subsequente ao das operações.<br>
+                            <strong>Isenção legal Cripto:</strong> Operações Swing Trade até R$ 35.000 em alienações mensais são isentas de IRPF.
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            window.calcCriptoTax = () => {
+                const venda = parseFloat(document.getElementById('ctt-venda').value) || 0;
+                const lucro = parseFloat(document.getElementById('ctt-lucro').value) || 0;
+                const type = document.getElementById('ctt-type').value;
+                
+                let aliq = 0;
+                let imposto = 0;
+                let isento = false;
+                let desc = '';
+                
+                if (type === 'CRIPTO') {
+                    aliq = 15;
+                    if (venda <= 35000) {
+                        isento = true;
+                        imposto = 0;
+                        desc = 'Volume total de alienações abaixo do limite de isenção de R$ 35.000. Declare o ganho na ficha de Rendimentos Isentos e Não Tributáveis no IRPF Anual.';
+                    } else {
+                        imposto = lucro * 0.15;
+                        desc = 'Alienação acima do limite mensal de R$ 35.000. Recolha o imposto através do DARF código 4600.';
+                    }
+                } else if (type === 'SWING_TRADE') {
+                    aliq = 15;
+                    if (venda <= 20000) {
+                        isento = true;
+                        imposto = 0;
+                        desc = 'Isenção de IR para venda de ações comuns abaixo do limite mensal de R$ 20.000. Declare como rendimento isento no IRPF Anual.';
+                    } else {
+                        imposto = lucro * 0.15;
+                        desc = 'Alienações de ações superaram R$ 20.000 no mês. Imposto devido de 15% incidente sobre o lucro líquido.';
+                    }
+                } else if (type === 'DAY_TRADE') {
+                    aliq = 20;
+                    isento = false; // Sem isenção para day trade
+                    imposto = lucro > 0 ? lucro * 0.20 : 0;
+                    desc = 'Operações do tipo Day Trade não possuem limites de isenção de faturamento. Alíquota de 20% incidente sobre todo lucro líquido.';
+                }
+                
+                document.getElementById('ctt-results').style.display = 'flex';
+                document.getElementById('ctt-val-aliq').innerText = `${aliq}%`;
+                document.getElementById('ctt-val-tax').innerText = 'R$ ' + Math.max(0, imposto).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                
+                const box = document.getElementById('ctt-box-status');
+                const title = document.getElementById('ctt-status-title');
+                const descEl = document.getElementById('ctt-status-desc');
+                
+                if(isento) {
+                    box.style.borderLeft = '4px solid #10b981';
+                    box.style.background = 'rgba(16, 185, 129, 0.05)';
+                    title.innerText = 'Operação Isenta de IRPF';
+                    title.style.color = '#10b981';
+                } else {
+                    box.style.borderLeft = '4px solid #ef4444';
+                    box.style.background = 'rgba(239, 68, 68, 0.05)';
+                    title.innerText = 'Operação Tributada';
+                    title.style.color = '#ef4444';
+                }
+                descEl.innerText = desc;
+            };
+            
+            setTimeout(() => window.calcCriptoTax(), 200);
         }
-    },
-    {
-        id: 'ferias',
-        category: 'trabalho',
-        icon: 'fa-solid fa-umbrella-beach color-blue',
-        title: 'Calculadora de Férias',
-        desc: '1/3 constitucional.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Salário Bruto</label><input type="number" id="fer-sal" class="form-control-flat" value="3000"></div><button class="btn btn-primary" onclick="window.calcFer()" style="width:100%">Calc</button><div id="fer-r" style="margin-top:1rem;color:#10b981;font-weight:bold;font-size:1.2rem"></div>`;
-            window.calcFer=()=>{let s=parseFloat(document.getElementById("fer-sal").value)||0;let f=s+(s/3);document.getElementById("fer-r").innerText=`A receber (Bruto): R$ ${f.toFixed(2)}`;}
-        }
-    },
-    {
-        id: 'checklist',
-        category: 'produtividade',
-        icon: 'fa-solid fa-list-check color-blue',
-        title: 'Checklist Diário',
-        desc: 'To-do list em LocalStorage.',
-        render: (container) => {
-            container.innerHTML = `<div style="display:flex;gap:0.5rem"><input type="text" id="chk-in" class="form-control-flat" placeholder="Nova tarefa..."><button class="btn btn-primary" onclick="window.addChk()">Add</button></div><ul id="chk-list" style="list-style:none;padding:0;color:#fff;margin-top:1rem;"></ul>`;
-            window.addChk=()=>{let v=document.getElementById("chk-in").value;if(!v)return;let li=document.createElement("li");li.innerHTML=`<input type="checkbox" onchange="this.parentNode.style.textDecoration=this.checked?'line-through':'none'"> ${v}`;document.getElementById("chk-list").appendChild(li);document.getElementById("chk-in").value="";}
-        }
-    },
-    {
-        id: 'roi',
-        category: 'financas',
-        icon: 'fa-solid fa-arrow-trend-up color-green',
-        title: 'ROI',
-        desc: 'Retorno sobre investimento.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Investido</label><input type="number" id="roi-inv" class="form-control-flat" value="1000"></div><div class="form-group-flat"><label>Recebido</label><input type="number" id="roi-rec" class="form-control-flat" value="1500"></div><button class="btn btn-primary" onclick="window.calcRoi()" style="width:100%">Calc</button><div id="roi-r" style="margin-top:1rem;color:#10b981;font-weight:bold;font-size:1.5rem"></div>`;
-            window.calcRoi=()=>{let i=parseFloat(document.getElementById("roi-inv").value)||1;let r=parseFloat(document.getElementById("roi-rec").value)||0;let roi=((r-i)/i)*100;document.getElementById("roi-r").innerText=`ROI: ${roi.toFixed(2)}%`;}
-        }
-    },
-    {
-        id: 'combustivel',
-        category: 'utilidades',
-        icon: 'fa-solid fa-gas-pump color-blue',
-        title: 'Combustível',
-        desc: 'Álcool ou Gasolina?',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Preço Álcool</label><input type="number" id="cb-a" class="form-control-flat" value="3.50"></div><div class="form-group-flat"><label>Preço Gasolina</label><input type="number" id="cb-g" class="form-control-flat" value="5.50"></div><button class="btn btn-primary" onclick="window.calcCb()" style="width:100%">Calc</button><div id="cb-r" style="margin-top:1rem;color:#fff;font-weight:bold;font-size:1.2rem"></div>`;
-            window.calcCb=()=>{let a=parseFloat(document.getElementById("cb-a").value)||0;let g=parseFloat(document.getElementById("cb-g").value)||1;let p=a/g;let r=(p<0.7)?"Abasteça com ÁLCOOL":"Abasteça com GASOLINA";document.getElementById("cb-r").innerHTML=`Razão: ${(p*100).toFixed(1)}%<br><strong style="color:#10b981">${r}</strong>`;}
-        }
-    },
-    {
-        id: 'bloco_notas',
-        category: 'produtividade',
-        icon: 'fa-solid fa-note-sticky color-blue',
-        title: 'Bloco de Notas',
-        desc: 'Anotações rápidas salvas.',
-        render: (container) => {
-            container.innerHTML = `<textarea id="bn-txt" class="form-control-flat" rows="8" placeholder="Escreva aqui..." oninput="localStorage.setItem('bn_data', this.value)"></textarea>`;
-            document.getElementById("bn-txt").value=localStorage.getItem("bn_data")||"";
-        }
-    },
-    {
-        id: 'poupanca',
-        category: 'financas',
-        icon: 'fa-solid fa-bullseye color-green',
-        title: 'Poupança Alvo',
-        desc: 'Meta de economia.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Meta (R$)</label><input type="number" id="pa-m" class="form-control-flat" value="10000"></div><div class="form-group-flat"><label>Meses</label><input type="number" id="pa-t" class="form-control-flat" value="12"></div><button class="btn btn-primary" onclick="window.calcPa()" style="width:100%">Calc</button><div id="pa-r" style="margin-top:1rem;color:#10b981;font-weight:bold;font-size:1.2rem"></div>`;
-            window.calcPa=()=>{let m=parseFloat(document.getElementById("pa-m").value)||0;let t=parseFloat(document.getElementById("pa-t").value)||1;let r=m/t;document.getElementById("pa-r").innerText=`Guarde R$ ${r.toFixed(2)} por mês`;}
-        }
-    },
-    {
-        id: 'fuso_horario',
-        category: 'utilidades',
-        icon: 'fa-solid fa-globe color-blue',
-        title: 'Fuso Horário',
-        desc: 'Hora em outros locais.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Fuso (Ex: America/New_York)</label><input type="text" id="fz-t" class="form-control-flat" value="Europe/London"></div><button class="btn btn-primary" onclick="window.calcFz()" style="width:100%">Ver Hora</button><div id="fz-r" style="margin-top:1rem;color:#38bdf8;font-weight:bold;font-size:1.5rem"></div>`;
-            window.calcFz=async()=>{try{let f=document.getElementById("fz-t").value;let res=await fetch(`https://worldtimeapi.org/api/timezone/${f}`);let d=await res.json();document.getElementById("fz-r").innerText=new Date(d.datetime).toLocaleString("pt-BR");}catch(e){document.getElementById("fz-r").innerText="Fuso não encontrado";}}
-        }
-    },
-    {
-        id: 'idade_exata',
-        category: 'utilidades',
-        icon: 'fa-solid fa-cake-candles color-blue',
-        title: 'Idade Exata',
-        desc: 'Anos, meses e dias.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Data Nascimento</label><input type="date" id="ie-d" class="form-control-flat"></div><button class="btn btn-primary" onclick="window.calcIe()" style="width:100%">Calc</button><div id="ie-r" style="margin-top:1rem;color:#10b981;font-weight:bold;"></div>`;
-            window.calcIe=()=>{let dn=new Date(document.getElementById("ie-d").value);let hj=new Date();let diff=hj-dn;let a=Math.floor(diff/(1000*60*60*24*365.25));document.getElementById("ie-r").innerText=`Você tem ${a} anos completos.`;}
-        }
-    },
-    {
-        id: 'temperatura',
-        category: 'utilidades',
-        icon: 'fa-solid fa-temperature-half color-blue',
-        title: 'Temperatura',
-        desc: 'C para F.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Celsius</label><input type="number" id="tp-c" class="form-control-flat" value="30" oninput="window.calcTp()"></div><div id="tp-r" style="margin-top:1rem;color:#38bdf8;font-weight:bold;font-size:1.5rem"></div>`;
-            window.calcTp=()=>{let c=parseFloat(document.getElementById("tp-c").value)||0;let f=(c*9/5)+32;document.getElementById("tp-r").innerText=`${f.toFixed(1)} °F`;}; window.calcTp();
-        }
-    },
-    {
-        id: 'comprimento',
-        category: 'utilidades',
-        icon: 'fa-solid fa-ruler color-blue',
-        title: 'Comprimento',
-        desc: 'Metros para Pés/Milhas.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Metros</label><input type="number" id="cp-m" class="form-control-flat" value="100" oninput="window.calcCp()"></div><div id="cp-r" style="margin-top:1rem;color:#fff;font-weight:bold;font-size:1.2rem"></div>`;
-            window.calcCp=()=>{let m=parseFloat(document.getElementById("cp-m").value)||0;let p=m*3.28084;let mi=m*0.000621371;document.getElementById("cp-r").innerHTML=`Pés: ${p.toFixed(2)}<br>Milhas: ${mi.toFixed(4)}`;}; window.calcCp();
-        }
-    },
-    {
-        id: 'peso',
-        category: 'utilidades',
-        icon: 'fa-solid fa-weight-scale color-blue',
-        title: 'Pesos',
-        desc: 'KG para Libras.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Quilos (KG)</label><input type="number" id="ps-k" class="form-control-flat" value="70" oninput="window.calcPs()"></div><div id="ps-r" style="margin-top:1rem;color:#10b981;font-weight:bold;font-size:1.5rem"></div>`;
-            window.calcPs=()=>{let k=parseFloat(document.getElementById("ps-k").value)||0;let l=k*2.20462;document.getElementById("ps-r").innerText=`Libras (lb): ${l.toFixed(2)}`;}; window.calcPs();
-        }
-    },
-    {
-        id: 'rescisao',
-        category: 'trabalho',
-        icon: 'fa-solid fa-file-contract color-blue',
-        title: 'Rescisão Base',
-        desc: 'Estime seu acerto.',
-        render: (container) => {
-            container.innerHTML = `<div class="form-group-flat"><label>Salário</label><input type="number" id="rs-s" class="form-control-flat" value="3000"></div><button class="btn btn-primary" onclick="window.calcRs()" style="width:100%">Aviso Prévio 30d</button><div id="rs-r" style="margin-top:1rem;color:#10b981;font-weight:bold;font-size:1.2rem"></div>`;
-            window.calcRs=()=>{let s=parseFloat(document.getElementById("rs-s").value)||0;let r=s+(s/3)+(s*(8/100)*1.4);document.getElementById("rs-r").innerText=`Valor Aprox: R$ ${r.toFixed(2)}`;}
-        }
-    },
-    {
-        id: 'lero',
-        category: 'utilidades',
-        icon: 'fa-solid fa-align-left color-blue',
-        title: 'Gerador Lero-Lero',
-        desc: 'Textos Lorem Ipsum.',
-        render: (container) => {
-            container.innerHTML = `<button class="btn btn-primary" onclick="window.calcLr()" style="width:100%;margin-bottom:1rem;">Gerar Texto</button><p id="lr-r" style="color:var(--text-secondary);"></p>`;
-            window.calcLr=()=>{document.getElementById("lr-r").innerText="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";}
-        }
-    }];
+    }
+];
 
+// Inicialização da Grade de Ferramentas
 function initSuperToolsStore() {
     const grid = document.getElementById('super-tools-grid');
     const searchInput = document.getElementById('search-super-tools');
@@ -699,6 +1663,7 @@ function initSuperToolsStore() {
 
 function renderSuperToolsGrid(category, query) {
     const grid = document.getElementById('super-tools-grid');
+    if(!grid) return;
     grid.innerHTML = '';
 
     const filtered = SUPER_TOOLS_DB.filter(tool => {
@@ -708,15 +1673,23 @@ function renderSuperToolsGrid(category, query) {
     });
 
     if (filtered.length === 0) {
-        grid.innerHTML = `<div style="text-align:center; color:var(--text-secondary); grid-column: 1 / -1; padding: 2rem;"><i class="fa-solid fa-ghost" style="font-size: 2rem; margin-bottom: 1rem;"></i><p>Nenhuma ferramenta encontrada para essa busca.</p></div>`;
+        grid.innerHTML = `
+            <div style="text-align:center; color:var(--text-secondary); grid-column: 1 / -1; padding: 2rem;">
+                <i class="fa-solid fa-ghost" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                <p>Nenhuma ferramenta de elite encontrada.</p>
+            </div>`;
         return;
     }
 
     filtered.forEach(tool => {
         const card = document.createElement('div');
         card.className = 'glass-card ripple';
-        card.style.cssText = 'padding: 1.25rem; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s;';
-        card.innerHTML = `<i class="${tool.icon}" style="font-size: 1.8rem; margin-bottom: 0.75rem;"></i><h4 style="font-size: 0.95rem; font-weight: 600; margin: 0 0 0.5rem 0; color: #fff;">${tool.title}</h4><p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; line-height: 1.4; flex-grow: 1;">${tool.desc}</p>`;
+        card.style.cssText = 'padding: 1.25rem; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s; border: 1px solid rgba(255,255,255,0.04);';
+        card.innerHTML = `
+            <i class="${tool.icon}" style="font-size: 1.8rem; margin-bottom: 0.75rem;"></i>
+            <h4 style="font-size: 0.95rem; font-weight: 600; margin: 0 0 0.5rem 0; color: #fff;">${tool.title}</h4>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; line-height: 1.4; flex-grow: 1;">${tool.desc}</p>
+        `;
         card.onclick = () => openSuperToolModal(tool.id);
         grid.appendChild(card);
     });
@@ -729,20 +1702,34 @@ function openSuperToolModal(toolId) {
     const title = document.getElementById('st-modal-title');
     const body = document.getElementById('st-modal-body');
     const footer = document.getElementById('st-modal-footer');
+    
+    // Parar qualquer áudio tocando anteriormente ao abrir/trocar ferramenta
+    if (window.stopNoiseAudio) window.stopNoiseAudio();
+    
     title.innerHTML = `<i class="${tool.icon}"></i> ${tool.title}`;
     body.innerHTML = '';
     footer.style.display = 'none';
+    
     tool.render(body);
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
 }
 
+// Configurar ouvintes de carregamento da página
 document.addEventListener('DOMContentLoaded', () => {
     initSuperToolsStore();
     const btnCloseSt = document.getElementById('btn-close-st-modal');
     const stModal = document.getElementById('super-tools-modal');
     if(btnCloseSt && stModal) {
-        btnCloseSt.addEventListener('click', () => stModal.classList.add('hidden'));
-        stModal.addEventListener('click', (e) => { if (e.target === stModal) stModal.classList.add('hidden'); });
+        btnCloseSt.addEventListener('click', () => {
+            stModal.classList.add('hidden');
+            if (window.stopNoiseAudio) window.stopNoiseAudio();
+        });
+        stModal.addEventListener('click', (e) => {
+            if (e.target === stModal) {
+                stModal.classList.add('hidden');
+                if (window.stopNoiseAudio) window.stopNoiseAudio();
+            }
+        });
     }
 });
