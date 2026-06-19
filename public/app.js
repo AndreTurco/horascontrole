@@ -6549,10 +6549,8 @@ function initAllNewFeatures() {
 }
 
 // Hook into applyFilters to render new dashboard sections
-const _origApplyFilters = applyFilters;
-// We override the render calls by extending renderDashboard
 const _origRenderDashboard = renderDashboard;
-function renderDashboard() {
+renderDashboard = function() {
     _origRenderDashboard();
     // New dashboard features
     renderExtraKPIs();
@@ -6560,15 +6558,15 @@ function renderDashboard() {
     renderDayIntensity();
     renderAchievements();
     updateLiveWorkTimer();
-}
+};
 
 const _origRenderFinance = renderFinance;
-function renderFinance() {
+renderFinance = function() {
     _origRenderFinance();
     renderWeeklyExpensesBreakdown();
     renderMonthComparison();
     renderDueItems();
-}
+};
 
 // ====== FEAT: Dynamic Color System ======
 function initColorSystem() {

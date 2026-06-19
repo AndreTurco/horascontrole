@@ -8,7 +8,8 @@ const ASSETS = [
   'manifest.json',
   'chart.js',
   'exceljs.min.js',
-  'tools_30.js'
+  'tools_30.js',
+  'prefilled_data.js'
 ];
 
 // Instalar: cachear todos os assets
@@ -57,7 +58,7 @@ self.addEventListener('fetch', e => {
   // Para requisições de mesma origem (app) ou localhost: Cache-First
   if (url.origin === self.location.origin || url.hostname === 'localhost') {
     e.respondWith(
-      caches.match(e.request).then(cached => {
+      caches.match(e.request, { ignoreSearch: true }).then(cached => {
         if (cached) {
           // Servir do cache, atualizar em background (stale-while-revalidate)
           const networkUpdate = fetch(e.request).then(response => {
