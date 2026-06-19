@@ -1856,562 +1856,390 @@ Data de Emissão: ${today}`;
             setTimeout(() => window.calcCriptoTax(), 200);
         }
     },
-    {
-        id: 'sec_virtual',
-        category: 'produtividade',
-        icon: 'fa-solid fa-user-tie color-green',
-        title: 'Secretária Virtual Inteligente',
-        desc: 'Interaja com uma assistente virtual de inteligência artificial integrada para gerenciar lembretes, finanças e metas por voz ou texto.',
-        render: (container) => {
-            if (Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
-            
-            container.innerHTML = `
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size: 0.75rem; color: var(--text-secondary);">Secretária Inteligente (Gemini AI)</span>
-                        <span class="st-badge st-badge-success" style="font-size: 0.65rem;">gemini-2.5-flash</span>
-                    </div>
-                    
-                    <div id="sec-chat-box" style="height: 180px; overflow-y: auto; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; border: 1px solid rgba(255,255,255,0.03); scroll-behavior: smooth;">
-                        <div style="background: rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem 0.75rem; max-width: 85%; align-self: flex-start;">
-                            <p style="margin:0; font-size:0.7rem; font-weight:bold; color: var(--accent-green);">Secretária:</p>
-                            <p style="margin:0.25rem 0 0 0; font-size:0.75rem; color: var(--text-secondary); line-height: 1.4;">Olá! Sou sua assistente virtual de produtividade e finanças. Peça-me para agendar lembretes ou definir alarmes, ex: "Me lembre de cobrar o cliente X amanhã às 14:00" ou "Marque um alarme para daqui a 10 minutos". Como posso ajudar?</p>
-                        </div>
-                    </div>
-                    
-                    <div style="display:flex; gap:0.5rem; align-items:center;">
-                        <input type="text" id="sec-chat-input" class="form-control-flat" style="flex-grow:1; font-size: 0.8rem;" placeholder="Ex: Me lembre de enviar orçamento hoje às 17:30" onkeydown="if(event.key === 'Enter') sendSecretaryChatMessage()">
-                        <button class="btn btn-primary" onclick="sendSecretaryChatMessage()" style="background: linear-gradient(135deg, #10b981, #059669); border:none; height:36px; padding: 0 1rem; display:flex; align-items:center; justify-content:center; border-radius:6px;">
-                            <i class="fa-solid fa-paper-plane"></i>
-                        </button>
-                    </div>
-                    
-                    <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; margin-top: 0.25rem;">
-                        <h5 style="margin:0 0 0.5rem 0; font-size:0.75rem; color:#fff; display:flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-clock"></i> Compromissos & Lembretes Ativos</h5>
-                        <div id="sec-reminders-list" style="display:flex; flex-direction:column; gap:0.4rem; max-height:90px; overflow-y:auto;"></div>
-                    </div>
-                </div>
-            `;
-            setTimeout(() => { renderSecretaryRemindersList(); }, 100);
-        }
-    }
 ];
 
-// 39 configurações de ferramentas de IA modularizadas
-const NEW_AI_TOOLS_CONFIGS = [
+// ==========================================================================
+// DOCUMENTAÇÃO E FÓRMULAS DAS SUPER FERRAMENTAS
+// ==========================================================================
+const TOOL_DOCUMENTATION = {
+    sec_financ: {
+        formula: "Custo Total = Custos Fixos + Custos Variáveis + Custos Operacionais",
+        explanation: "Analisa a viabilidade financeira do seu negócio somando os gastos invariáveis (fixos) com os proporcionais (variáveis) para obter o ponto de equilíbrio.",
+        examples: "Se os seus custos fixos mensais são de R$ 5.000 e seu custo unitário é R$ 20, vendendo a R$ 50 você precisa de 167 vendas para empatar.",
+        presets: ["Como diminuir custos fixos?", "Diferença de custo fixo vs variável", "O que é margem de contribuição?"]
+    },
+    calculadora_hora: {
+        formula: "Valor Hora PJ = Valor Hora CLT * 1.5 + Custos Operacionais",
+        explanation: "Compara a remuneração CLT versus contratos PJ levando em consideração encargos trabalhistas, impostos, férias, 13º salário e benefícios.",
+        examples: "Um salário CLT de R$ 5.000 equivale a aproximadamente R$ 7.500 no modelo PJ para compensar a ausência de FGTS, férias remuneradas e plano de saúde.",
+        presets: ["Qual taxa de imposto PJ no Simples?", "Compensa mais PJ ou CLT para R$ 10.000?", "Como funciona o Fator R?"]
+    },
+    calculadora_ferias: {
+        formula: "Total Férias = (Salário Base * Dias Gozo / 30) + 1/3 Constitucional + Abono Pecuniário",
+        explanation: "Calcula o valor líquido a receber no período de férias, incluindo a opção de venda de 10 dias (abono pecuniário) e o terço constitucional.",
+        examples: "Com salário de R$ 3.000, tirar 20 dias e vender 10 dias gera um abono de R$ 1.000 mais o salário dos 20 dias (R$ 2.000) e o terço constitucional (R$ 1.333).",
+        presets: ["O que é abono pecuniário?", "Quando posso vender minhas férias?", "Como é calculado o terço constitucional?"]
+    },
+    calculadora_horas_ext: {
+        formula: "Valor Hora Extra = Valor Hora Normal * (1 + Adicional/100) + Reflexo DSR",
+        explanation: "Calcula o valor devido por horas trabalhadas além da jornada normal (adicional de 50% ou 100%) e o reflexo correspondente no Descanso Semanal Remunerado (DSR).",
+        examples: "Se o valor hora normal é R$ 20, a hora extra 50% vale R$ 30. Trabalhando 10 horas extras num mês com 25 dias úteis e 5 domingos, o DSR soma R$ 60.",
+        presets: ["Como funciona o cálculo do DSR?", "Quando a hora extra é de 100%?", "Qual o limite diário de horas extras?"]
+    },
+    sec_fret: {
+        formula: "Custo Viagem = (Distância * Custo por Km) + Pedágios + Diárias",
+        explanation: "Simulador de custos logísticos para cálculo de frete, considerando preço de combustível, pedágios, alimentação e margem de lucro sugerida.",
+        examples: "Uma rota de 200km com veículo de custo R$ 1,50/km e R$ 50 de pedágio custa R$ 350. Adicionando margem de 30%, o frete mínimo é R$ 455.",
+        presets: ["Como calcular o preço por km do veículo?", "O que colocar no custo operacional de frete?", "Dicas para negociar fretes melhores"]
+    },
+    calc_combust: {
+        formula: "Relação de Eficiência = Preço do Etanol / Preço da Gasolina (Comparar com 0.7)",
+        explanation: "Decide se compensa abastecer com Etanol ou Gasolina com base no preço relativo e autonomia típica do motor flex.",
+        examples: "Se a Gasolina custa R$ 5.80 e o Etanol R$ 3.90, a relação é 0.67. Como é menor que 0.7, o Etanol é mais econômico para este veículo.",
+        presets: ["Por que a relação padrão é 70%?", "Como medir a autonomia real do meu carro?", "Etanol estraga o motor flex?"]
+    },
+    calc_desgaste: {
+        formula: "Depreciação por Km = (Valor Compra - Valor Revenda) / Km Rodados",
+        explanation: "Mapeia o custo invisível do veículo ao longo do tempo, dividindo a depreciação e manutenção preventiva pelos quilômetros rodados.",
+        examples: "Um carro comprado por R$ 60.000 que desvaloriza R$ 5.000 por ano e roda 20.000 km tem custo de depreciação de R$ 0,25 por km.",
+        presets: ["Como calcular depreciação de veículo?", "Tabela de manutenção preventiva por km", "O que é o custo invisível do carro?"]
+    },
+    sec_comis: {
+        formula: "Comissão = Faturamento Realizado * Alíquota Base + Bônus de Superação",
+        explanation: "Projeta ganhos variáveis de vendas baseados em comissões por faixa de faturamento e prêmios de alcance de metas.",
+        examples: "Se você recebe 5% de comissão e bate a meta de R$ 50.000, ganha R$ 2.500. Se houver acelerador de 2% extra para superação, ganha R$ 3.500.",
+        presets: ["Como estruturar metas de vendas?", "O que é acelerador de comissão?", "Qual comissão média para serviços de tecnologia?"]
+    },
+    sec_rescis: {
+        formula: "Total Rescisão = Saldo Salário + Proporcionais (13º e Férias) + Multa FGTS (se demissão sem justa causa)",
+        explanation: "Simula o encerramento do contrato de trabalho CLT sob diversas modalidades: demissão sem justa causa, pedido de demissão ou rescisão amigável.",
+        examples: "Um funcionário demitido sem justa causa após 1 ano com salário de R$ 3.000 recebe saldo de salário, 13º proporcional, férias vencidas/proporcionais e 40% do saldo do FGTS.",
+        presets: ["Qual a diferença entre demissão com e sem justa causa?", "Como calcular o aviso prévio indenizado?", "Qual a porcentagem da multa do FGTS?"]
+    },
+    calc_cripto_tax: {
+        formula: "Imposto DARF = Lucro Líquido * Alíquota Correspondente (Isento se vendas abaixo de limite)",
+        explanation: "Calcula a alíquota de ganho de capital para operações financeiras (Cripto e Ações) e verifica limites legais de isenção de faturamento mensal.",
+        examples: "Se vendeu R$ 30.000 em criptomoedas num mês com R$ 5.000 de lucro, está isento. Se vendeu R$ 40.000, paga 15% de imposto (R$ 750) via DARF.",
+        presets: ["Qual o limite de isenção para Swing Trade?", "Como declarar perdas para abater imposto?", "Como emitir o DARF de operações?"]
+    }
+};
+
+// ==========================================================================
+// CONFIGURAÇÕES DOS 20 ASSISTENTES DE IA ESPECIALIZADOS
+// ==========================================================================
+const AI_TOOLS_CONFIGS = [
     {
         id: 'fluxo_caixa_analise',
         category: 'financas',
         icon: 'fa-solid fa-chart-pie color-green',
         title: 'IA Analista de Fluxo de Caixa',
-        desc: 'Obtenha relatórios e análises de saúde financeira sobre seus faturamentos mensais com sugestões de corte de custos.',
-        intro: 'Preencha seus totais mensais para receber uma auditoria e metas recomendadas pelo Gemini.',
+        desc: 'Obtenha relatórios de saúde financeira com sugestões de corte de custos.',
+        intro: 'Preencha seus totais mensais para receber uma auditoria e metas recomendadas.',
         fields: [
-            { id: 'mes', label: 'Mês de Análise', type: 'text', value: 'Junho' },
-            { id: 'rec', label: 'Receitas Consolidadas (R$)', type: 'number', value: '8200' },
-            { id: 'desp', label: 'Despesas Consolidadas (R$)', type: 'number', value: '3900' },
-            { id: 'notas', label: 'Notas de Despesa', type: 'text', placeholder: 'Softwares, marketing, aluguel' }
+            { id: 'mes', label: 'Mês', type: 'text', value: 'Junho' },
+            { id: 'rec', label: 'Receitas (R$)', type: 'number', value: '8200' },
+            { id: 'desp', label: 'Despesas (R$)', type: 'number', value: '3900' }
         ],
-        promptBuilder: (f) => `Analise a saúde financeira mensal para ${f.mes}. Faturamento total: R$ ${f.rec}. Despesas totais: R$ ${f.desp}. Principais custos: ${f.notas}. Calcule a margem líquida e forneça 3 conselhos de otimização de fluxo de caixa e um plano de ação estruturado.`
+        promptBuilder: (f) => `Analise a saúde financeira para ${f.mes}. Receita: R$ ${f.rec}. Despesa: R$ ${f.desp}. Forneça conselhos de otimização de fluxo de caixa e plano de ação.`,
+        presets: ["Como melhorar minha margem líquida?", "Quais despesas cortar primeiro?"]
     },
     {
         id: 'analise_contratos_ia',
-        category: 'financas',
+        category: 'trabalho',
         icon: 'fa-solid fa-file-contract color-blue',
         title: 'IA Revisora de Contratos',
-        desc: 'Encontre cláusulas perigosas e riscos jurídicos ocultos em minutos copiando e colando textos contratuais.',
-        intro: 'Cole cláusulas do contrato para a IA examinar responsabilidades, prazos e multas de rescisão.',
+        desc: 'Encontre cláusulas perigosas e riscos jurídicos em contratos.',
+        intro: 'Cole cláusulas do contrato para a IA examinar responsabilidades e prazos.',
         fields: [
-            { id: 'texto', label: 'Cláusulas Contratuais', type: 'textarea', placeholder: 'Cole aqui o texto do contrato...' },
-            { id: 'lado', label: 'Ponto de Vista', type: 'select', options: [{value: 'prestador', label: 'Contratado (Prestador)'}, {value: 'cliente', label: 'Contratante (Cliente)'}] }
+            { id: 'texto', label: 'Cláusulas', type: 'textarea', placeholder: 'Cole o contrato...' },
+            { id: 'lado', label: 'Ponto de Vista', type: 'select', options: [{value: 'prestador', label: 'Prestador'}, {value: 'cliente', label: 'Cliente'}] }
         ],
-        promptBuilder: (f) => `Analise as seguintes cláusulas contratuais do ponto de vista do ${f.lado}. Diga se há cláusulas abusivas, prazos indefinidos, multas desproporcionais ou riscos de responsabilidade civil. Sugira uma revisão amigável para as cláusulas de risco.\n\nContrato:\n${f.texto}`
+        promptBuilder: (f) => `Analise este contrato sob a ótica do ${f.lado}: ${f.texto}. Diga se há cláusulas abusivas ou riscos.`,
+        presets: ["O que é cláusula abusiva?", "Como limitar responsabilidade civil?"]
     },
     {
         id: 'plano_negocios_ia',
-        category: 'financas',
+        category: 'produtividade',
         icon: 'fa-solid fa-lightbulb color-yellow',
-        title: 'IA Business Plan 1-Page',
-        desc: 'Crie um modelo de plano de negócios compacto de uma página baseado na metodologia Lean Canvas.',
-        intro: 'Descreva resumidamente sua ideia ou serviço para a IA organizar sua estratégia.',
+        title: 'IA Business Plan',
+        desc: 'Crie um modelo de plano de negócios Lean Canvas.',
+        intro: 'Descreva sua ideia para a IA organizar sua estratégia.',
         fields: [
-            { id: 'ideia', label: 'Descrição da Ideia/Serviço', type: 'textarea', placeholder: 'Ex: Desenvolvimento de software para consultórios odontológicos...' },
-            { id: 'publico', label: 'Público Alvo', type: 'text', placeholder: 'Ex: Pequenas clínicas e dentistas autônomos' }
+            { id: 'ideia', label: 'Ideia', type: 'textarea', placeholder: 'Ex: App para dentistas...' },
+            { id: 'publico', label: 'Público', type: 'text', placeholder: 'Ex: Clínicas odontológicas' }
         ],
-        promptBuilder: (f) => `Monte um Lean Canvas completo de 1 página para a seguinte ideia de negócio: "${f.ideia}". Público alvo: "${f.publico}". Estruture em: Proposta de Valor, Segmentos de Clientes, Canais, Fontes de Receita, Estrutura de Custos, e Métricas Chave.`
+        promptBuilder: (f) => `Monte um Lean Canvas de 1 página para a ideia: ${f.ideia}. Público: ${f.publico}. Estruture em: Valor, Clientes, Canais, Receitas, Custos.`,
+        presets: ["O que é Lean Canvas?", "Como definir minha Proposta de Valor?"]
     },
     {
         id: 'calculadora_roi_ia',
         category: 'financas',
         icon: 'fa-solid fa-calculator color-purple',
-        title: 'Calculadora de ROI Inteligente',
-        desc: 'Calcule o retorno sobre investimento e o período de payback de projetos com simulação inteligente.',
-        intro: 'Forneça o valor de investimento e o ganho previsto para analisar o retorno e o payback do capital.',
+        title: 'Calculadora ROI Inteligente',
+        desc: 'Calcule retorno sobre investimento e período de payback.',
+        intro: 'Forneça investimento e ganho previsto para analisar o retorno.',
         fields: [
-            { id: 'invest', label: 'Investimento Inicial (R$)', type: 'number', value: '15000' },
-            { id: 'ganho', label: 'Retorno Mensal Previsto (R$)', type: 'number', value: '1800' }
+            { id: 'invest', label: 'Investimento (R$)', type: 'number', value: '15000' },
+            { id: 'ganho', label: 'Retorno Mensal (R$)', type: 'number', value: '1800' }
         ],
-        promptBuilder: (f) => `Calcule o ROI (Retorno sobre Investimento) percentual anual e o Payback (tempo de recuperação do capital) para um projeto com investimento inicial de R$ ${f.invest} e rendimento previsto de R$ ${f.ganho} por mês. Analise brevemente os riscos comuns desses cenários.`
+        promptBuilder: (f) => `Calcule ROI anual e Payback para investimento de R$ ${f.invest} e retorno de R$ ${f.ganho}/mês. Analise riscos.`,
+        presets: ["Qual o payback ideal?", "O que é ROI?"]
     },
     {
         id: 'simulador_preco_venda',
         category: 'financas',
         icon: 'fa-solid fa-tags color-green',
-        title: 'Simulador de Margem & Markup',
-        desc: 'Calcule o preço de venda ideal com base em custos diretos, impostos e margem de lucro desejada.',
-        intro: 'Forneça os custos do serviço/produto e impostos para obter o preço final sugerido.',
+        title: 'Simulador Margem & Markup',
+        desc: 'Calcule o preço de venda ideal com base em custos e margem.',
+        intro: 'Forneça custos e impostos para obter o preço final sugerido.',
         fields: [
-            { id: 'custo', label: 'Custos Diretos (R$)', type: 'number', value: '100' },
-            { id: 'imposto', label: 'Impostos e Taxas (%)', type: 'number', value: '6' },
-            { id: 'lucro', label: 'Margem de Lucro Desejada (%)', type: 'number', value: '30' }
+            { id: 'custo', label: 'Custo Direto (R$)', type: 'number', value: '100' },
+            { id: 'lucro', label: 'Margem Desejada (%)', type: 'number', value: '30' }
         ],
-        promptBuilder: (f) => `Calcule o Preço de Venda Sugerido usando Markup para um item com custo direto de R$ ${f.custo}, impostos/taxas de ${f.imposto}% e margem líquida de lucro desejada de ${f.lucro}%. Mostre os passos do cálculo (markup multiplicador) e o preço final.`
+        promptBuilder: (f) => `Calcule Preço de Venda com markup para custo de R$ ${f.custo} e margem de ${f.lucro}%.`,
+        presets: ["Diferença de Markup vs Margem", "Como calcular margem de serviço?"]
     },
     {
         id: 'auditoria_faturas',
         category: 'financas',
         icon: 'fa-solid fa-magnifying-glass-dollar color-red',
-        title: 'IA Auditora de Notas & Recebíveis',
-        desc: 'Verifique se há erros de cálculo, alíquotas de impostos incorretas ou dados ausentes em faturas.',
-        intro: 'Cole os detalhes textuais da nota fiscal ou fatura para que a IA faça a auditoria fiscal.',
+        title: 'IA Auditora de Notas',
+        desc: 'Verifique erros em notas fiscais e alíquotas.',
+        intro: 'Cole detalhes da fatura para auditoria fiscal.',
         fields: [
-            { id: 'fatura', label: 'Detalhes da Fatura/Nota', type: 'textarea', placeholder: 'Ex: Serviço de TI - R$ 5.000,00, ISS 5%, Retenção de PIS...' }
+            { id: 'fatura', label: 'Dados', type: 'textarea', placeholder: 'Ex: Serviço TI R$ 5000...' }
         ],
-        promptBuilder: (f) => `Audite a seguinte fatura/detalhes fiscais. Procure por divergências em alíquotas comuns do Simples Nacional ou ISS, inconsistências matemáticas entre valor bruto e líquido após retenções na fonte de impostos federais (PIS, COFINS, CSLL, IRRF).\n\nDados:\n${f.fatura}`
+        promptBuilder: (f) => `Audite esta fatura: ${f.fatura}. Verifique divergências de impostos e consistência matemática.`,
+        presets: ["O que é retenção na fonte?", "Como conferir impostos de nota?"]
     },
     {
         id: 'planejamento_tributario',
         category: 'financas',
         icon: 'fa-solid fa-building-columns color-blue',
-        title: 'Otimizador de Regimes Tributários',
-        desc: 'Simule e compare o Simples Nacional vs Lucro Presumido para escolher o menor imposto legal.',
-        intro: 'Forneça seu faturamento e folha de pagamento previstos para analisar a tributação ideal.',
+        title: 'Otimizador de Regimes',
+        desc: 'Compare Simples Nacional vs Lucro Presumido.',
+        intro: 'Forneça faturamento e folha para analisar tributação.',
         fields: [
-            { id: 'faturamento', label: 'Faturamento Anual Previsto (R$)', type: 'number', value: '120000' },
-            { id: 'folha', label: 'Folha de Pagamento/Pró-Labore Anual (R$)', type: 'number', value: '33600' }
+            { id: 'fat', label: 'Faturamento Anual (R$)', type: 'number', value: '120000' },
+            { id: 'folha', label: 'Folha Anual (R$)', type: 'number', value: '33600' }
         ],
-        promptBuilder: (f) => `Compare a tributação estimada para um CNPJ de serviços no Brasil com Faturamento Anual de R$ ${f.faturamento} e Folha/Pró-labore de R$ ${f.folha} (Anexo III vs Anexo V do Simples Nacional via Fator R, e comparação básica com o Lucro Presumido). Recomende a melhor opção.`
-    },
-    {
-        id: 'simulador_capital_giro',
-        category: 'financas',
-        icon: 'fa-solid fa-scale-balanced color-yellow',
-        title: 'Calculadora de Capital de Giro',
-        desc: 'Calcule o montante necessário para manter suas operações baseado nos prazos médios de recebimento.',
-        intro: 'Insira os prazos e despesas para obter o capital de giro mínimo necessário de segurança.',
-        fields: [
-            { id: 'despmes', label: 'Despesa Operacional Mensal (R$)', type: 'number', value: '5000' },
-            { id: 'prazorec', label: 'Prazo Médio de Recebimento (Dias)', type: 'number', value: '30' },
-            { id: 'prazopag', label: 'Prazo Médio de Pagamento (Dias)', type: 'number', value: '10' }
-        ],
-        promptBuilder: (f) => `Calcule a necessidade de Capital de Giro (NCG) com despesa mensal de R$ ${f.despmes}, prazo médio de recebimento de ${f.prazorec} dias e prazo médio de pagamento a fornecedores/contas de ${f.prazopag} dias. Explique o ciclo financeiro.`
-    },
-    {
-        id: 'analise_ponto_equilibrio',
-        category: 'financas',
-        icon: 'fa-solid fa-chart-line color-purple',
-        title: 'Localizador de Ponto de Equilíbrio',
-        desc: 'Descubra a receita mensal exata que você precisa atingir para cobrir todos os custos operacionais.',
-        intro: 'Informe seus custos fixos e a margem de contribuição média para achar o ponto de equilíbrio.',
-        fields: [
-            { id: 'fixos', label: 'Custos Fixos Mensais (R$)', type: 'number', value: '3500' },
-            { id: 'margem', label: 'Margem de Contribuição Média (%)', type: 'number', value: '60' }
-        ],
-        promptBuilder: (f) => `Calcule o Ponto de Equilíbrio Financeiro (Break-Even Point) para custos fixos de R$ ${f.fixos} por mês e margem de contribuição média de ${f.margem}%. Explique graficamente ou textualmente o que esse número representa e sugira estratégias para atingi-lo.`
-    },
-    {
-        id: 'orcamento_base_zero',
-        category: 'financas',
-        icon: 'fa-solid fa-eraser color-red',
-        title: 'Planejador de Orçamento Base Zero',
-        desc: 'Reavalie todos os seus gastos mensais partindo do absoluto zero para evitar desperdícios crônicos.',
-        intro: 'Liste suas fontes de despesas para justificar e reconstruir o orçamento do zero.',
-        fields: [
-            { id: 'despesas', label: 'Liste suas Despesas Atuais', type: 'textarea', placeholder: 'Ex:\nAssinatura Cloud R$ 150\nMarketing R$ 300\nSoftwares R$ 250\nEscritório R$ 500' }
-        ],
-        promptBuilder: (f) => `Aplique o método do Orçamento Base Zero (OBZ) na seguinte lista de despesas. Justifique o corte ou redução de cada despesa descrita com foco em máxima eficiência de caixa para prestadores de serviços:\n\n${f.despesas}`
+        promptBuilder: (f) => `Compare Simples Nacional (Anexo III vs V) e Lucro Presumido para fat: ${f.fat} e folha: ${f.folha}. Recomende.`,
+        presets: ["Como funciona o Fator R?", "Quando Lucro Presumido compensa?"]
     },
     {
         id: 'cronograma_gerador',
         category: 'produtividade',
         icon: 'fa-solid fa-calendar-days color-blue',
-        title: 'Criador de Cronogramas de Projetos',
-        desc: 'Gere cronogramas detalhados de desenvolvimento de projetos baseados no escopo informado.',
-        intro: 'Descreva o escopo e o prazo do projeto para a IA estruturar as fases e prazos das tarefas.',
+        title: 'Criador de Cronogramas',
+        desc: 'Gere cronogramas detalhados de projetos.',
+        intro: 'Descreva escopo e prazo do projeto.',
         fields: [
-            { id: 'escopo', label: 'Escopo do Projeto', type: 'textarea', placeholder: 'Ex: Criar um aplicativo de entregas em 6 semanas...' },
-            { id: 'prazo', label: 'Prazo Total (Semanas/Meses)', type: 'text', value: '6 semanas' }
+            { id: 'escopo', label: 'Escopo', type: 'textarea', placeholder: 'Ex: Site em 6 semanas...' },
+            { id: 'prazo', label: 'Prazo', type: 'text', value: '6 semanas' }
         ],
-        promptBuilder: (f) => `Gere um cronograma detalhado de entregas (WBS) para o projeto: "${f.escopo}". Prazo total: ${f.prazo}. Divida em marcos semanais com tarefas chaves, entregáveis e estimativas de esforço de forma organizada.`
+        promptBuilder: (f) => `Crie WBS (cronograma) para: ${f.escopo}. Prazo: ${f.prazo}. Divida em marcos semanais.`,
+        presets: ["Como estimar esforço?", "Dicas para não atrasar cronograma"]
     },
     {
         id: 'matriz_eisenhower',
         category: 'produtividade',
         icon: 'fa-solid fa-arrows-up-down-left-right color-red',
-        title: 'Matriz Eisenhower Dinâmica',
-        desc: 'Organize suas tarefas em Urgente/Importante para focar no que realmente gera receita.',
-        intro: 'Cole sua lista de tarefas para a IA classificar de acordo com a matriz clássica.',
+        title: 'Matriz Eisenhower',
+        desc: 'Organize tarefas por Urgência e Importância.',
+        intro: 'Cole sua lista para IA classificar.',
         fields: [
-            { id: 'tarefas', label: 'Lista de Tarefas Desorganizada', type: 'textarea', placeholder: 'Ex: Responder email do João, fazer café, subir código para produção, pagar DAS...' }
+            { id: 'tarefas', label: 'Tarefas', type: 'textarea', placeholder: 'Ex: Responder email, pagar DAS...' }
         ],
-        promptBuilder: (f) => `Organize as tarefas fornecidas na Matriz de Eisenhower (1. Fazer Agora - Urgente e Importante, 2. Agendar - Importante mas Não Urgente, 3. Delegar - Urgente mas Não Importante, 4. Eliminar). Tarefas:\n${f.tarefas}`
+        promptBuilder: (f) => `Classifique na Matriz Eisenhower: ${f.tarefas}.`,
+        presets: ["Como delegar tarefas?", "Urgente vs Importante"]
     },
     {
         id: 'delegar_tarefas_ia',
         category: 'produtividade',
         icon: 'fa-solid fa-people-arrows color-green',
         title: 'IA Divisora de Entregas',
-        desc: 'Esboce a melhor divisão de responsabilidade e entregáveis de um projeto entre integrantes.',
-        intro: 'Descreva a tarefa e a equipe para obter um plano de delegação inteligente.',
+        desc: 'Plano de delegação de projetos.',
+        intro: 'Descreva tarefa e equipe para plano de divisão.',
         fields: [
-            { id: 'tarefa', label: 'Tarefa ou Projeto Principal', type: 'textarea', placeholder: 'Criar documentação e design system da marca...' },
-            { id: 'equipe', label: 'Equipe e Habilidades', type: 'text', placeholder: 'Ex: Ana (Designer UI), Pedro (Desenvolvedor Front), Eu (Back-end)' }
+            { id: 'tarefa', label: 'Tarefa', type: 'textarea' },
+            { id: 'equipe', label: 'Equipe', type: 'text' }
         ],
-        promptBuilder: (f) => `Crie um plano de delegação detalhado para a tarefa "${f.tarefa}". Equipe disponível: ${f.equipe}. Divida as sub-tarefas por responsável focando no uso ideal das habilidades de cada membro.`
-    },
-    {
-        id: 'rastreador_habitos',
-        category: 'produtividade',
-        icon: 'fa-solid fa-list-check color-yellow',
-        title: 'Otimizador de Hábitos Diários',
-        desc: 'Desenvolva rotinas produtivas saudáveis baseadas em gatilho, rotina e recompensa.',
-        intro: 'Forneça hábitos que deseja implementar para a IA desenhar um ciclo neurológico favorável.',
-        fields: [
-            { id: 'habito', label: 'Hábito para Criar ou Otimizar', type: 'text', placeholder: 'Ex: Fazer exercícios logo pela manhã, estudar programação diariamente...' }
-        ],
-        promptBuilder: (f) => `Construa um ciclo do hábito completo (Gatilho, Rotina, Recompensa) baseado na ciência de "Hábitos Atômicos" para implementar o seguinte hábito: "${f.habito}". Inclua 3 dicas práticas para evitar a procrastinação.`
-    },
-    {
-        id: 'gerador_atas',
-        category: 'produtividade',
-        icon: 'fa-solid fa-pen-nib color-purple',
-        title: 'IA Redatora de Atas de Reunião',
-        desc: 'Cole anotações soltas ou áudios transcritos de reuniões para gerar atas organizadas instantaneamente.',
-        intro: 'Cole as notas desestruturadas e tópicos discutidos na reunião para gerar a ata oficial.',
-        fields: [
-            { id: 'anotacoes', label: 'Notas Soltas da Reunião', type: 'textarea', placeholder: 'Ex: Reunião com cliente Y. Decidido usar React. Prazo final dia 30. Aprovado design...' }
-        ],
-        promptBuilder: (f) => `Redija uma ata de reunião executiva, limpa e profissional com base nas seguintes anotações desorganizadas. Estruture em: Tópicos Discutidos, Decisões Tomadas, Planos de Ação (Quem faz o que, e até quando) e Próximos Passos:\n\n${f.anotacoes}`
-    },
-    {
-        id: 'analise_produtividade',
-        category: 'produtividade',
-        icon: 'fa-solid fa-hourglass-half color-red',
-        title: 'Auditor de Desperdício de Tempo',
-        desc: 'Identifique gargalos de foco no seu dia de trabalho e otimize seu fluxo de atenção.',
-        intro: 'Descreva sua rotina típica diária de trabalho para a IA avaliar distrações e tempos mortos.',
-        fields: [
-            { id: 'rotina', label: 'Como é seu dia típico?', type: 'textarea', placeholder: 'Ex: Acordo às 8h, olho celular por 40 min, trabalho até 12h, respondo whats toda hora, paro às 18h...' }
-        ],
-        promptBuilder: (f) => `Audite e dê feedback sobre a seguinte rotina de trabalho. Aponte os 3 maiores desperdícios de energia/foco e redesenhe essa agenda diária em blocos de tempo (Timeblocking) focando em máxima produtividade:\n\n${f.rotina}`
-    },
-    {
-        id: 'estimador_prazos',
-        category: 'produtividade',
-        icon: 'fa-solid fa-stopwatch color-blue',
-        title: 'Estimador de Prazos Inteligente',
-        desc: 'Estime horas de trabalho necessárias para demandas complexas com margem de segurança.',
-        intro: 'Descreva as telas ou funcionalidades a desenvolver para calcular a estimativa de tempo.',
-        fields: [
-            { id: 'func', label: 'Funcionalidades a Criar', type: 'textarea', placeholder: 'Ex: Tela de login, painel administrativo, integração de pagamento com PIX...' },
-            { id: 'nivel', label: 'Nível de Experiência', type: 'select', options: [{value: 'junior', label: 'Júnior'}, {value: 'pleno', label: 'Pleno'}, {value: 'senior', label: 'Sênior'}] }
-        ],
-        promptBuilder: (f) => `Como programador/designer ${f.nivel}, faça uma estimativa técnica realista de horas para desenvolver as seguintes tarefas: "${f.func}". Aplique uma margem de segurança de amortecimento de atrasos e mostre a divisão das horas estimadas por tela/funcionalidade.`
-    },
-    {
-        id: 'checklist_auditoria',
-        category: 'produtividade',
-        icon: 'fa-solid fa-clipboard-check color-green',
-        title: 'Gerador de Checklists de Entrega',
-        desc: 'Crie uma lista detalhada de checagem técnica antes de entregar o projeto ao cliente final.',
-        intro: 'Informe a natureza do projeto para a IA elencar os pontos cruciais de controle de qualidade.',
-        fields: [
-            { id: 'tipo', label: 'Tipo de Projeto', type: 'text', value: 'Website institucional' }
-        ],
-        promptBuilder: (f) => `Gere um checklist profissional de auditoria de controle de qualidade com 15 itens antes de entregar um projeto do tipo: "${f.tipo}". Organize em categorias como: Performance, Segurança, Usabilidade e Acessibilidade.`
-    },
-    {
-        id: 'gerenciador_energia',
-        category: 'produtividade',
-        icon: 'fa-solid fa-bolt color-yellow',
-        title: 'Otimizador de Ritmo Circadiano',
-        desc: 'Agende suas tarefas mais pesadas nos horários de pico de foco cognitivo e evite o cansaço.',
-        intro: 'Selecione seu cronotipo para a IA desenhar sua grade de tarefas ideal diária.',
-        fields: [
-            { id: 'crono', label: 'Seu Perfil/Cronotipo', type: 'select', options: [{value: 'matutino', label: 'Leão (Acorda cedo, produtivo de manhã)'}, {value: 'vespertino', label: 'Urso (Produtivo no meio do dia)'}, {value: 'noturno', label: 'Lobo (Foco à noite, acorda tarde)'}] }
-        ],
-        promptBuilder: (f) => `Monte uma agenda ideal de trabalho baseada no cronotipo "${f.crono}". Indique em quais horários do dia devem ser colocadas tarefas de foco profundo (deep work), tarefas administrativas/reuniões e momentos de descanso.`
+        promptBuilder: (f) => `Crie plano de delegação para: ${f.tarefa}. Equipe: ${f.equipe}. Foque em habilidades.`,
+        presets: ["Como medir progresso?", "Como motivar a equipe?"]
     },
     {
         id: 'proposta_comercial',
-        category: 'vendas',
+        category: 'trabalho',
         icon: 'fa-solid fa-paper-plane color-green',
-        title: 'Gerador de Propostas Irrecusáveis',
-        desc: 'Crie propostas de prestação de serviços comerciais persuasivas e profissionais prontas para enviar.',
-        intro: 'Preencha os termos de escopo e valor da proposta para obter a redação final da carta comercial.',
+        title: 'Gerador de Propostas',
+        desc: 'Crie propostas comerciais persuasivas.',
+        intro: 'Insira termos da proposta.',
         fields: [
-            { id: 'cliente', label: 'Nome do Cliente', type: 'text', placeholder: 'Ex: Clinica Sorriso' },
-            { id: 'servico', label: 'Descrição dos Serviços', type: 'textarea', placeholder: 'Redesenho do site, suporte mensal e SEO...' },
-            { id: 'valor', label: 'Valor da Proposta (R$)', type: 'number', value: '3500' }
+            { id: 'cli', label: 'Cliente', type: 'text' },
+            { id: 'serv', label: 'Serviço', type: 'textarea' },
+            { id: 'val', label: 'Valor (R$)', type: 'number' }
         ],
-        promptBuilder: (f) => `Crie uma Proposta Comercial em formato de carta persuasiva para o cliente "${f.cliente}" vendendo o serviço: "${f.servico}". Valor: R$ ${f.valor}. Estruture com: 1. Dor Solucionada, 2. Escopo do Trabalho, 3. Prazos e Cronograma, 4. Investimento e Condições de Pagamento, 5. Chamada para Fechamento.`
+        promptBuilder: (f) => `Crie proposta comercial para ${f.cli} vendendo ${f.serv} por R$ ${f.val}. Estruture estilo persuasivo.`,
+        presets: ["Como estruturar pagamentos?", "O que compõe uma proposta?"]
     },
     {
         id: 'copywriting_sales',
-        category: 'vendas',
+        category: 'trabalho',
         icon: 'fa-solid fa-message-captions color-blue',
-        title: 'IA Copywriter: Script de Vendas',
-        desc: 'Escreva textos persuasivos para anúncios, posts ou páginas de vendas usando frameworks como AIDA.',
-        intro: 'Descreva seu produto ou serviço e o ganho chave para a IA redigir a cópia persuasiva.',
+        title: 'IA Copywriter',
+        desc: 'Script de vendas persuasivo.',
+        intro: 'Descreva produto e benefício.',
         fields: [
-            { id: 'prod', label: 'Seu Produto/Serviço', type: 'text', placeholder: 'Desenvolvimento de Landing Pages Rápidas' },
-            { id: 'beneficio', label: 'Maior Benefício do Produto', type: 'text', placeholder: 'Aumentar a taxa de conversão em até 40%' }
+            { id: 'prod', label: 'Produto', type: 'text' },
+            { id: 'ben', label: 'Benefício', type: 'text' }
         ],
-        promptBuilder: (f) => `Escreva um texto de vendas altamente persuasivo usando a estrutura AIDA (Atenção, Interesse, Desejo, Ação) para promover: "${f.prod}". Benefício principal: "${f.beneficio}".`
+        promptBuilder: (f) => `Escreva texto de vendas (framework AIDA) para: ${f.prod}. Benefício: ${f.ben}.`,
+        presets: ["Gatilhos de escassez", "O que é CTA?"]
     },
     {
         id: 'negociador_ia',
-        category: 'vendas',
+        category: 'trabalho',
         icon: 'fa-solid fa-comments-dollar color-yellow',
-        title: 'Simulador e Treinador de Negociação',
-        desc: 'Treine como responder a objeções de preço do cliente, ex: "Está caro" ou "Vou ver com meu sócio".',
-        intro: 'Cole a objeção ou fala do cliente para a IA formular a melhor resposta argumentativa.',
+        title: 'Simulador Negociação',
+        desc: 'Treine resposta a objeções.',
+        intro: 'Cole a objeção do cliente.',
         fields: [
-            { id: 'obj', label: 'Objeção do Cliente', type: 'text', placeholder: 'Está muito caro, concorrente faz pela metade...' }
+            { id: 'obj', label: 'Objeção', type: 'text' }
         ],
-        promptBuilder: (f) => `Forneça 3 estratégias práticas e respostas elegantes para contornar a seguinte objeção de venda de serviço: "${f.obj}". Use técnicas clássicas de vendas consultivas.`
+        promptBuilder: (f) => `Dê 3 estratégias para responder a objeção: ${f.obj}.`,
+        presets: ["Como responder 'Está caro'?", "Como contornar 'Vou pensar'?"]
     },
     {
         id: 'gerador_briefing',
-        category: 'vendas',
+        category: 'trabalho',
         icon: 'fa-solid fa-folder-open color-purple',
-        title: 'Gerador de Briefings de Projetos',
-        desc: 'Crie um roteiro de perguntas para fazer ao cliente na reunião de alinhamento inicial.',
-        intro: 'Digite a categoria do projeto para gerar o roteiro de alinhamento ideal.',
+        title: 'Gerador de Briefing',
+        desc: 'Roteiro de perguntas para reunião.',
+        intro: 'Digite a categoria do projeto.',
         fields: [
-            { id: 'proj', label: 'Categoria do Projeto', type: 'text', value: 'Aplicativo Mobile' }
+            { id: 'cat', label: 'Categoria', type: 'text' }
         ],
-        promptBuilder: (f) => `Gere um formulário de briefing de projeto estruturado com 12 perguntas essenciais de alinhamento que preciso fazer ao cliente para o projeto do tipo: "${f.proj}".`
-    },
-    {
-        id: 'persona_creator',
-        category: 'vendas',
-        icon: 'fa-solid fa-users-viewfinder color-red',
-        title: 'Criador de Persona Ideal',
-        desc: 'Desenhe o perfil demográfico e psicológico detalhado do cliente que mais compra de você.',
-        intro: 'Descreva seu nicho para obter a ficha da persona ideal do seu negócio.',
-        fields: [
-            { id: 'nicho', label: 'Seu Nicho de Mercado', type: 'text', value: 'Consultoria de TI para Escritórios de Advocacia' }
-        ],
-        promptBuilder: (f) => `Desenhe o perfil de uma Persona Ideal (Avatar) detalhada para o nicho: "${f.nicho}". Inclua: Nome fictício, Idade, Profissão, Dores e Frustrações, Desejos Chave, Objeções de compra e Como abordá-lo com sucesso.`
-    },
-    {
-        id: 'pesquisa_satisfacao',
-        category: 'vendas',
-        icon: 'fa-solid fa-heart-circle-check color-green',
-        title: 'Gerador de Pesquisa NPS',
-        desc: 'Gere um formulário simples de avaliação de satisfação do cliente pós-entrega.',
-        intro: 'Insira o tipo de entrega efetuada para estruturar a pesquisa de satisfação.',
-        fields: [
-            { id: 'entrega', label: 'Serviço Entregue', type: 'text', value: 'Criação de Identidade Visual' }
-        ],
-        promptBuilder: (f) => `Gere um modelo pronto de pesquisa de satisfação pós-projeto com 5 perguntas baseadas em NPS (Net Promoter Score) e escala Likert, para ser enviado a um cliente de: "${f.entrega}".`
-    },
-    {
-        id: 'email_vendas_cold',
-        category: 'vendas',
-        icon: 'fa-solid fa-envelope-open-text color-blue',
-        title: 'IA Cold Emails de Alta Conversão',
-        desc: 'Escreva e-mails frios de prospecção com assuntos que chamam a atenção e alta taxa de resposta.',
-        intro: 'Forneça quem é o cliente e qual o serviço oferecido para escrever o email frio.',
-        fields: [
-            { id: 'alvo', label: 'Quem é o Cliente Alvo?', type: 'text', placeholder: 'Diretor de Marketing de E-commerce' },
-            { id: 'ganho', label: 'O que você vai entregar?', type: 'text', placeholder: 'Aumentar a velocidade do site e as vendas em 20%' }
-        ],
-        promptBuilder: (f) => `Escreva 2 modelos de Cold Email de prospecção comercial (um curto de 3 parágrafos e outro focado em agendar call) direcionado a: "${f.alvo}". Ganho principal ofertado: "${f.ganho}". Inclua sugestões de linhas de assunto persuasivas.`
-    },
-    {
-        id: 'politica_precos',
-        category: 'vendas',
-        icon: 'fa-solid fa-ticket color-yellow',
-        title: 'Formulador de Combos & Descontos',
-        desc: 'Crie estratégias de precificação de combos de serviços para aumentar o ticket médio por cliente.',
-        intro: 'Preencha seus serviços individuais para formular pacotes e combos atrativos.',
-        fields: [
-            { id: 'svcs', label: 'Seus Serviços Individuais e Valores', type: 'textarea', placeholder: 'Ex:\nCriação de post R$ 100\nGestão de tráfego R$ 1000' }
-        ],
-        promptBuilder: (f) => `Crie 3 opções de combos promocionais/recorrentes com base na lista de serviços a seguir. Forneça o desconto estratégico sugerido para cada pacote e explique por que essas ofertas estimulam o aumento de ticket médio:\n\n${f.svcs}`
-    },
-    {
-        id: 'script_captacao',
-        category: 'vendas',
-        icon: 'fa-solid fa-address-book color-purple',
-        title: 'Roteirizador de Abordagem Direct',
-        desc: 'Obtenha mensagens prontas para abordar potenciais clientes no WhatsApp ou LinkedIn sem ser chato.',
-        intro: 'Defina seu público e consiga scripts de contato para iniciar conversas de vendas.',
-        fields: [
-            { id: 'nicho', label: 'Público que deseja abordar', type: 'text', value: 'Proprietários de Agências de Viagem' }
-        ],
-        promptBuilder: (f) => `Escreva 2 roteiros de abordagem direta (um para LinkedIn e outro para WhatsApp) amigáveis e não invasivos para entrar em contato com "${f.nicho}". Foque em iniciar um relacionamento e oferecer valor gratuito no início, ao invés de vender de imediato.`
+        promptBuilder: (f) => `Gere 12 perguntas de briefing para: ${f.cat}.`,
+        presets: ["Perguntas de alinhamento", "Briefing de design"]
     },
     {
         id: 'pos_venda_fideliza',
-        category: 'vendas',
+        category: 'trabalho',
         icon: 'fa-solid fa-handshake color-red',
-        title: 'Planejador de Fidelização LTV',
-        desc: 'Gere estratégias para manter seus clientes pagando mensalidades por mais tempo (recorrência).',
-        intro: 'Descreva seu nicho para obter técnicas de retenção e upsell pós-projeto.',
+        title: 'Planejador de Fidelização',
+        desc: 'Estratégias para recorrência e LTV.',
+        intro: 'Área de atuação.',
         fields: [
-            { id: 'nicho', label: 'Sua área de atuação', type: 'text', value: 'Criação de Sites' }
+            { id: 'nicho', label: 'Área', type: 'text' }
         ],
-        promptBuilder: (f) => `Desenvolva 5 estratégias pós-venda específicas para fidelizar clientes e aumentar o LTV (Lifetime Value) no ramo de: "${f.nicho}". Sugira pacotes de manutenção, suporte ou acompanhamento mensal recorrente.`
+        promptBuilder: (f) => `Desenvolva 5 estratégias pós-venda para ${f.nicho}. Foque em upsell e recorrência.`,
+        presets: ["Idéias de manutenção recorrente", "O que é LTV?"]
     },
     {
         id: 'regex_helper',
-        category: 'utilitarios',
+        category: 'produtividade',
         icon: 'fa-solid fa-code color-blue',
-        title: 'Regex Helper Inteligente',
-        desc: 'Gere expressões regulares para validações em código apenas descrevendo a regra em texto.',
-        intro: 'Descreva a regra de validação que você precisa em seu código de programação.',
+        title: 'Regex Helper',
+        desc: 'Gere Regex via texto.',
+        intro: 'Descreva a regra de validação.',
         fields: [
-            { id: 'regra', label: 'O que a Regex deve validar?', type: 'text', placeholder: 'Ex: Validar placa de veículo no formato antigo e Mercosul...' }
+            { id: 'regra', label: 'Regex', type: 'text' }
         ],
-        promptBuilder: (f) => `Construa uma expressão regular (Regex) para validar o seguinte padrão: "${f.regra}". Mostre a expressão pronta, explique cada parte e forneça exemplos de strings que casam e que não casam com o padrão.`
+        promptBuilder: (f) => `Construa regex para validar: ${f.regra}. Explique cada parte.`,
+        presets: ["Regex para email", "Regex para telefone"]
     },
     {
         id: 'sql_query_generator',
-        category: 'utilitarios',
+        category: 'produtividade',
         icon: 'fa-solid fa-database color-green',
-        title: 'Tradutor de Linguagem Natural para SQL',
-        desc: 'Escreva consultas SQL complexas descrevendo o que deseja em português.',
-        intro: 'Explique quais tabelas possui e o que deseja selecionar ou atualizar no banco de dados.',
+        title: 'Tradutor Natural para SQL',
+        desc: 'Gere SQL descrevendo em português.',
+        intro: 'O que deseja selecionar?',
         fields: [
-            { id: 'pedido', label: 'O que deseja selecionar/fazer?', type: 'textarea', placeholder: 'Ex: Selecionar os 5 clientes que mais compraram no último mês trazendo o nome...' }
+            { id: 'ped', label: 'Pedido', type: 'textarea' }
         ],
-        promptBuilder: (f) => `Gere uma query SQL limpa para a seguinte solicitação: "${f.pedido}". Forneça o código formatado e explique brevemente as junções (JOINs) ou agrupamentos utilizados.`
+        promptBuilder: (f) => `Gere query SQL limpa para: ${f.ped}. Explique joins.`,
+        presets: ["SQL de contagem", "SQL JOIN simples"]
     },
     {
         id: 'markdown_documentation',
-        category: 'utilitarios',
+        category: 'produtividade',
         icon: 'fa-solid fa-file-code color-yellow',
-        title: 'Gerador de Documentação Markdown',
-        desc: 'Crie arquivos README.md ou documentação técnica estruturada a partir de anotações breves.',
-        intro: 'Insira o nome do sistema e os principais módulos para gerar a documentação em Markdown.',
+        title: 'Gerador Documentação README',
+        desc: 'README.md a partir de anotações.',
+        intro: 'Nome e módulos do sistema.',
         fields: [
-            { id: 'nome', label: 'Nome do Projeto', type: 'text', value: 'Controle de Horas PWA' },
-            { id: 'modulos', label: 'Módulos e Recursos', type: 'textarea', placeholder: 'Ex: Autenticação, banco local IndexedDB, exportação de ExcelJS...' }
+            { id: 'nome', label: 'Nome', type: 'text', value: 'Controle de Horas PWA' },
+            { id: 'mod', label: 'Módulos', type: 'textarea' }
         ],
-        promptBuilder: (f) => `Gere um arquivo de documentação técnica completo em formato Markdown (README.md) para o projeto "${f.nome}". Detalhes técnicos e módulos: ${f.modulos}. Inclua seções de Pré-requisitos, Como Instalar, Funcionalidades e Licença.`
-    },
-    {
-        id: 'json_parser_formatter',
-        category: 'utilitarios',
-        icon: 'fa-solid fa-terminal color-purple',
-        title: 'Formatador & Sanitizador de JSON',
-        desc: 'Valide, formate com recuo adequado e remova erros comuns de formatação de JSON bagunçados.',
-        intro: 'Cole seu JSON string desorganizado para a IA organizar e sanitizar estruturalmente.',
-        fields: [
-            { id: 'json', label: 'Cole o JSON aqui', type: 'textarea', placeholder: 'Ex: {nome: "joao", idade: 20}' }
-        ],
-        promptBuilder: (f) => `Corrija erros de sintaxe (como aspas simples incorretas, vírgulas sobressalentes ou falta de aspas nas chaves) e formate de forma identada o seguinte JSON:\n\n${f.json}`
-    },
-    {
-        id: 'cron_job_helper',
-        category: 'utilitarios',
-        icon: 'fa-solid fa-clock-rotate-left color-red',
-        title: 'Gerador de Expressões Cron',
-        desc: 'Construa expressões cron de agendamento de tarefas no Linux/Unix a partir de texto.',
-        intro: 'Explique a periodicidade em que deseja rodar sua rotina automática.',
-        fields: [
-            { id: 'periodo', label: 'Periodicidade do Agendamento', type: 'text', placeholder: 'Ex: Rodar toda segunda-feira às 4 da manhã' }
-        ],
-        promptBuilder: (f) => `Crie a expressão cron correta correspondente ao agendamento: "${f.periodo}". Forneça a expressão de 5 campos (minuto, hora, dia do mês, mês, dia da semana) e explique brevemente cada um.`
-    },
-    {
-        id: 'git_command_helper',
-        category: 'utilitarios',
-        icon: 'fa-solid fa-code-fork color-blue',
-        title: 'Gerador de Comandos Git',
-        desc: 'Descubra a sequência correta de comandos Git para resolver problemas comuns de conflitos.',
-        intro: 'Descreva a enrascada que você se meteu com commits ou branches para obter os comandos corretos.',
-        fields: [
-            { id: 'problema', label: 'Problema no Git', type: 'text', placeholder: 'Ex: Commitou na branch errada e deseja reverter sem perder arquivos...' }
-        ],
-        promptBuilder: (f) => `Escreva a sequência exata de comandos Git para resolver a seguinte situação: "${f.problema}". Explique brevemente o que cada comando faz.`
-    },
-    {
-        id: 'http_status_analyzer',
-        category: 'utilitarios',
-        icon: 'fa-solid fa-network-wired color-green',
-        title: 'Diagnosticador de Códigos HTTP',
-        desc: 'Identifique causas e possíveis correções para códigos de status HTTP (ex: 403, 502, 504).',
-        intro: 'Digite o código de erro HTTP retornado pelo servidor para obter caminhos de correção.',
-        fields: [
-            { id: 'codigo', label: 'Código HTTP', type: 'number', value: '502' }
-        ],
-        promptBuilder: (f) => `Explique o que significa o código de status HTTP ${f.codigo}, quais são as causas mais prováveis do erro no lado do cliente e do servidor, e forneça um checklist passo a passo de como depurar e corrigir.`
-    },
-    {
-        id: 'base64_converter',
-        category: 'utilitarios',
-        icon: 'fa-solid fa-arrow-right-arrow-left color-yellow',
-        title: 'Codificador & Conversor Base64',
-        desc: 'Gere códigos de conversão ou entenda o formato base64 de arquivos.',
-        intro: 'Descreva o arquivo ou texto e tire suas dúvidas sobre representações binárias Base64.',
-        fields: [
-            { id: 'dados', label: 'Dúvida ou texto para Base64', type: 'text', placeholder: 'Ex: Como codificar uma imagem PNG em base64 no Javascript...' }
-        ],
-        promptBuilder: (f) => `Explique como codificar/decodificar Base64 correspondente a: "${f.dados}". Apresente exemplos práticos em Javascript com funções nativas (btoa/atob, FileReader) ou Node.js (Buffer).`
+        promptBuilder: (f) => `Gere README.md completo para ${f.nome} com os módulos: ${f.mod}.`,
+        presets: [" README padrão GitHub", "Como formatar tabelas?"]
     },
     {
         id: 'html_component_generator',
-        category: 'utilitarios',
+        category: 'produtividade',
         icon: 'fa-brands fa-html5 color-purple',
-        title: 'HTML & CSS UI Component Maker',
-        desc: 'Gere trechos prontos de código HTML e CSS de elementos modernos com efeito Glassmorphism.',
-        intro: 'Descreva o componente visual que você precisa em sua interface web.',
+        title: 'HTML & CSS UI Maker',
+        desc: 'Componentes HTML/CSS Glassmorphism.',
+        intro: 'Descreva o componente visual.',
         fields: [
-            { id: 'comp', label: 'Componente Visual Desejado', type: 'text', placeholder: 'Card de preço, botão gradiente brilhante, input flutuante...' }
+            { id: 'comp', label: 'Componente', type: 'text' }
         ],
-        promptBuilder: (f) => `Crie os códigos de marcação HTML e os estilos CSS modernos para o seguinte componente visual: "${f.comp}". Use design de alto padrão com efeitos de vidro (Glassmorphism), sombras sutis, fontes modernas e transições CSS elegantes.`
+        promptBuilder: (f) => `Gere código HTML e CSS de um componente com efeito Glassmorphism: ${f.comp}.`,
+        presets: ["Card Glassmorphism", "Botão gradiente"]
     },
     {
         id: 'color_palette_ui',
-        category: 'utilitarios',
+        category: 'produtividade',
         icon: 'fa-solid fa-palette color-red',
-        title: 'Gerador de Paletas de Cores WCAG',
-        desc: 'Gere paletas de cores acessíveis com contrastes em conformidade com as regras da WCAG.',
-        intro: 'Forneça a cor base para a IA calcular cores complementares de alto contraste e tokens CSS.',
+        title: 'Paletas de Cores WCAG',
+        desc: 'Gere paletas acessíveis WCAG.',
+        intro: 'Cor base para a paleta.',
         fields: [
-            { id: 'cor', label: 'Cor de Base (Hex/HSL)', type: 'text', value: '#38bdf8' }
+            { id: 'cor', label: 'Cor Base (Hex/HSL)', type: 'text', value: '#38bdf8' }
         ],
-        promptBuilder: (f) => `Com base na cor principal "${f.cor}", sugira uma paleta de cores para interfaces (Cor Primária, Secundária, Sucesso, Perigo, Fundos claros e escuros). Verifique o contraste WCAG AA/AAA para texto grande e pequeno e retorne a paleta formatada em variáveis customizadas de CSS (:root).`
+        promptBuilder: (f) => `Gere paleta acessível WCAG para a cor: ${f.cor}. Mostre o contraste.`,
+        presets: ["O que é contraste WCAG?", "Paleta dark mode acessível"]
     }
 ];
 
-// Registrar dinamicamente as 39 novas ferramentas de IA no banco de dados principal
-NEW_AI_TOOLS_CONFIGS.forEach(cfg => {
+// Registrar as 20 ferramentas de IA dinamicamente no banco principal
+AI_TOOLS_CONFIGS.forEach(cfg => {
+    // Evitar duplicatas em SUPER_TOOLS_DB
+    const existingIndex = SUPER_TOOLS_DB.findIndex(t => t.id === cfg.id);
+    if (existingIndex !== -1) {
+        SUPER_TOOLS_DB.splice(existingIndex, 1);
+    }
     SUPER_TOOLS_DB.push({
         id: cfg.id,
         category: cfg.category,
         icon: cfg.icon,
         title: cfg.title,
         desc: cfg.desc,
+        intro: cfg.intro,
+        fields: cfg.fields,
+        promptBuilder: cfg.promptBuilder,
         render: (container) => {
             renderAIToolForm(container, cfg.id, cfg);
-        },
-        promptBuilder: cfg.promptBuilder
+        }
     });
+
+    // Registrar documentação dinâmica
+    TOOL_DOCUMENTATION[cfg.id] = {
+        formula: "Prompt Modelo IA: " + cfg.promptBuilder({}).slice(0, 80) + "...",
+        explanation: cfg.desc + " Este assistente usa a API do Gemini 2.5 Flash de forma client-side com as variáveis digitadas.",
+        examples: "Utilize o formulário inserindo os dados correspondentes e clique em 'Executar com Google Gemini' para obter o relatório completo.",
+        presets: cfg.presets
+    };
 });
 
 // ==========================================================================
-// FUNÇÕES GLOBAIS DE SUPORTE À IA E SECRETÁRIA (GEMINI AI & REMINDERS)
+// FUNÇÕES GLOBAIS DO COPILOTO IA (GEMINI API, SPEECH, FILE UPLOADS, IndexedDB COMMANDS)
 // ==========================================================================
+
 window.callGeminiAPI = async function(prompt) {
     if (!state.geminiKey) {
-        throw new Error('Chave API do Gemini não configurada! Vá nas Configurações do App e cole sua chave API gratuita do Google AI Studio.');
+        throw new Error('Chave API do Gemini não configurada! Vá nas Configurações do App e salve sua chave API do Google AI Studio para usar a IA.');
     }
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.geminiKey}`;
     const response = await fetch(url, {
@@ -2421,30 +2249,84 @@ window.callGeminiAPI = async function(prompt) {
     });
     if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error?.message || `HTTP ${response.status}`);
+        throw new Error(errJson.error?.message || `Erro HTTP ${response.status}`);
     }
     const data = await response.json();
     if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('Resposta vazia da IA Gemini.');
+        throw new Error('Resposta vazia da inteligência artificial.');
     }
     return data.candidates[0].content.parts[0].text;
 };
 
+// Aba 1: Renderizador de Formulário das Ferramentas de IA
+window.renderAIToolForm = function(container, toolId, config) {
+    let formHtml = `
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">\${config.intro}</p>
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+    `;
+    
+    config.fields.forEach(f => {
+        formHtml += `
+            <div class="form-group-flat" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <label style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 500;">\${f.label}</label>
+        `;
+        if (f.type === 'select') {
+            formHtml += `<select id="ai-field-\${toolId}-\${f.id}" class="form-control-flat" style="width: 100%; height: 32px; font-size: 0.75rem;">`;
+            f.options.forEach(o => {
+                formHtml += `<option value="\${o.value}">\${o.label}</option>`;
+            });
+            formHtml += `</select>`;
+        } else if (f.type === 'textarea') {
+            formHtml += `<textarea id="ai-field-\${toolId}-\${f.id}" class="form-control-flat" style="height: 60px; width: 100%; font-size: 0.75rem; resize: vertical;" placeholder="\${f.placeholder || ''}">\${f.value || ''}</textarea>`;
+        } else {
+            formHtml += `<input type="\${f.type || 'text'}" id="ai-field-\${toolId}-\${f.id}" class="form-control-flat" style="width: 100%; height: 32px; font-size: 0.75rem;" value="\${f.value || ''}" placeholder="\${f.placeholder || ''}">`;
+        }
+        formHtml += `</div>`;
+    });
+    
+    formHtml += `
+            </div>
+            <button class="btn btn-primary ripple" onclick="runAITool('\${toolId}')" style="width:100%; background: linear-gradient(135deg, #10b981, #059669); border:none; display:flex; justify-content:center; align-items:center; gap:0.5rem; height: 36px; font-size: 0.75rem; margin-top: 0.25rem; font-weight: 600;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Executar com Google Gemini
+            </button>
+        </div>
+        
+        <div id="ai-response-box-\${toolId}" style="display:none; flex-direction:column; gap:0.5rem; margin-top: 0.75rem;">
+            <div class="live-preview-box" style="background: rgba(16, 185, 129, 0.05); padding: 0.75rem; border-left: 3px solid var(--accent-green); border-radius: 6px; border-top: 1px solid rgba(16,185,129,0.1); border-right: 1px solid rgba(16,185,129,0.1); border-bottom: 1px solid rgba(16,185,129,0.1);">
+                <h4 style="margin: 0 0 0.4rem 0; font-size: 0.75rem; color: #fff; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-robot" style="color: var(--accent-green)"></i> Relatório de Resposta (IA)
+                </h4>
+                <div id="ai-response-text-\${toolId}" style="font-size: 0.75rem; line-height: 1.5; color: var(--text-secondary); white-space: pre-wrap; max-height: 180px; overflow-y: auto; padding-right: 0.5rem;"></div>
+            </div>
+            
+            <div style="display:flex; gap: 0.4rem; flex-wrap:wrap; margin-bottom: 0.25rem;">
+                <button class="btn btn-secondary btn-xs ripple" onclick="copyAIText('\${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-copy"></i> Copiar</button>
+                <button class="btn btn-secondary btn-xs ripple" onclick="scheduleAIReminder('\${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-bell"></i> Criar Lembrete</button>
+                <button class="btn btn-secondary btn-xs ripple" onclick="saveToFinanceFromAI('\${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-wallet"></i> Lançar Financeiro</button>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = formHtml;
+};
+
+// Execução da Ferramenta de IA via Gemini
 window.runAITool = async function(toolId) {
     const tool = SUPER_TOOLS_DB.find(t => t.id === toolId);
     if (!tool) return;
     
-    const responseBox = document.getElementById(`ai-response-box-${toolId}`);
-    const responseText = document.getElementById(`ai-response-text-${toolId}`);
+    const responseBox = document.getElementById(`ai-response-box-\${toolId}`);
+    const responseText = document.getElementById(`ai-response-text-\${toolId}`);
     if (!responseText || !responseBox) return;
     
-    responseText.innerHTML = `<span style="display:flex; align-items:center; gap:0.5rem; color:#fff;"><i class="fa-solid fa-circle-notch fa-spin"></i> Processando inteligência artificial do Gemini...</span>`;
+    responseText.innerHTML = `<span style="display:flex; align-items:center; gap:0.4rem; color:#fff; font-size:0.75rem;"><i class="fa-solid fa-circle-notch fa-spin"></i> Processando inteligência artificial do Gemini...</span>`;
     responseBox.style.display = 'flex';
     
     const fieldsData = {};
-    const inputs = document.querySelectorAll(`[id^="ai-field-"]`);
+    const inputs = document.querySelectorAll(`[id^="ai-field-\${toolId}-"]`);
     inputs.forEach(input => {
-        const key = input.id.replace('ai-field-', '');
+        const key = input.id.replace(`ai-field-\${toolId}-`, '');
         fieldsData[key] = input.value;
     });
     
@@ -2453,29 +2335,30 @@ window.runAITool = async function(toolId) {
     try {
         const res = await callGeminiAPI(prompt);
         responseText.innerText = res;
-        await parseAndScheduleSecretaryCommands(res);
+        await parseAndExecuteAICopilotCommands(res);
     } catch(e) {
         console.error(e);
-        responseText.innerText = `Erro de Execução:\n${e.message}`;
+        responseText.innerText = `Erro de Execução:\\n\${e.message}`;
     }
 };
 
+// Funções Utilitárias de Ação sob as respostas de IA
 window.copyAIText = function(toolId) {
-    const textEl = document.getElementById(`ai-response-text-${toolId}`);
+    const textEl = document.getElementById(`ai-response-text-\${toolId}`);
     if (!textEl) return;
     navigator.clipboard.writeText(textEl.innerText).then(() => {
         showToast('Texto copiado com sucesso!', 'success');
-    }).catch(e => {
-        showToast('Erro ao copiar texto.', 'error');
+    }).catch(() => {
+        showToast('Erro ao copiar text.', 'error');
     });
 };
 
 window.scheduleAIReminder = function(toolId) {
-    const textEl = document.getElementById(`ai-response-text-${toolId}`);
+    const textEl = document.getElementById(`ai-response-text-\${toolId}`);
     if (!textEl) return;
     const summary = textEl.innerText.slice(0, 50) + '...';
     
-    const title = prompt('Qual o título do lembrete?', `Revisar resultado do ${toolId}`);
+    const title = prompt('Qual o título do lembrete?', `Revisar resultado do \${toolId}`);
     if (!title) return;
     const minutesStr = prompt('Em quantos minutos deseja receber o alerta?', '30');
     const minutes = parseInt(minutesStr, 10);
@@ -2490,23 +2373,23 @@ window.scheduleAIReminder = function(toolId) {
         
     dbPut('reminders', {
         id: generateId(),
-        title: title + ` (${summary})`,
+        title: title + ` (\${summary})`,
         datetime: formatTime,
         type: 'reminder',
         triggered: false
     }).then(() => {
-        showToast('Lembrete agendado com sucesso!', 'success');
+        showToast('Lembrete agendado!', 'success');
         dbGetAll('reminders').then(res => { state.remindersEntries = res; });
     });
 };
 
 window.saveToFinanceFromAI = function(toolId) {
-    const amountStr = prompt('Qual o valor do lançamento financeiro (R$)?', '150.00');
+    const amountStr = prompt('Qual o valor do lançamento (R$)?', '150.00');
     if (!amountStr) return;
     const amount = parseFloat(amountStr);
     if (isNaN(amount)) return;
     
-    const desc = prompt('Qual a descrição do lançamento?', `Resultado IA: ${toolId}`);
+    const desc = prompt('Qual a descrição do lançamento?', `Resultado IA: \${toolId}`);
     if (!desc) return;
     
     const type = confirm('Clique OK para RECEITA ou CANCELAR para DESPESA') ? 'Receita' : 'Despesa Variável';
@@ -2521,39 +2404,696 @@ window.saveToFinanceFromAI = function(toolId) {
         category: 'Serviços'
     }).then(() => {
         showToast('Lançamento financeiro realizado!', 'success');
-        fetchData();
+        if (typeof fetchData === 'function') fetchData();
     });
 };
 
-window.parseAndScheduleSecretaryCommands = async function(text) {
-    const reminderRegex = /\[SCHEDULE_REMINDER:\s*"(.*?)",\s*"(.*?)"\]/gi;
-    const alarmRegex = /\[SET_ALARM:\s*"(.*?)",\s*"(.*?)"\]/gi;
+// ==========================================================================
+// CONTROLADOR DOS COMPONENTES E ABAS DE INTERAÇÃO DO COPILOTO IA
+// ==========================================================================
+
+// Variáveis de estado do Copiloto
+state.selectedCopilotToolId = 'chat_geral';
+state.selectedCopilotToolTab = 'sim';
+state.currentAttachment = null;
+
+// Seleção de ferramenta no Sidebar
+window.selectCopilotTool = function(toolId) {
+    state.selectedCopilotToolId = toolId;
+    state.selectedCopilotToolTab = 'sim';
     
-    let match;
-    let count = 0;
-    
-    while ((match = reminderRegex.exec(text)) !== null) {
-        const title = match[1];
-        const datetime = match[2];
-        const id = generateId();
-        await dbPut('reminders', { id, title, datetime, type: 'reminder', triggered: false });
-        count++;
+    // Destacar item selecionado no sidebar
+    document.querySelectorAll('.copilot-tool-item').forEach(item => {
+        if (item.getAttribute('data-tool-id') === toolId) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    const configPanel = document.getElementById('copilot-tool-config-panel');
+    const activeIcon = document.getElementById('copilot-active-icon');
+    const activeName = document.getElementById('copilot-active-name');
+    const activeBadge = document.getElementById('copilot-active-badge');
+    const chatMessages = document.getElementById('copilot-chat-messages');
+
+    if (!toolId || toolId === 'chat_geral') {
+        if (configPanel) configPanel.style.display = 'none';
+        if (activeIcon) activeIcon.className = 'fa-solid fa-comments color-purple';
+        if (activeName) activeName.innerText = 'Chat Geral / Copiloto';
+        if (activeBadge) activeBadge.style.display = 'none';
+        if (chatMessages) {
+            chatMessages.style.height = ''; // Restaurar tamanho padrão
+        }
+        return;
     }
-    
-    while ((match = alarmRegex.exec(text)) !== null) {
-        const title = match[1];
-        const datetime = match[2];
-        const id = generateId();
-        await dbPut('reminders', { id, title, datetime, type: 'alarm', triggered: false });
-        count++;
+
+    const tool = SUPER_TOOLS_DB.find(t => t.id === toolId);
+    if (!tool) return;
+
+    if (activeIcon) activeIcon.className = tool.icon;
+    if (activeName) activeName.innerText = tool.title;
+    if (activeBadge) {
+        const isAIAssistant = !tool.render.toString().includes('calc') && !tool.render.toString().includes('sec_fret') && !tool.render.toString().includes('calc_combust') && !tool.render.toString().includes('calc_desgaste') && !tool.render.toString().includes('sec_comis') && !tool.render.toString().includes('sec_rescis') && !tool.render.toString().includes('calcCriptoTax');
+        activeBadge.innerText = isAIAssistant ? 'IA' : 'Simulador';
+        activeBadge.style.display = 'inline-block';
     }
-    
-    if (count > 0) {
-        showToast(`${count} lembrete(s) agendados pela Secretária!`, 'success');
-        state.remindersEntries = await dbGetAll('reminders') || [];
+
+    if (configPanel) {
+        configPanel.style.display = 'flex';
+        renderCopilotToolTabsUI(configPanel, tool);
     }
 };
 
+// Alternar entre abas internas de uma ferramenta ativa
+window.switchCopilotToolTab = function(tabName) {
+    state.selectedCopilotToolTab = tabName;
+    
+    document.querySelectorAll('.tool-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const activeBtn = document.getElementById(`tab-btn-\${tabName}`);
+    if (activeBtn) activeBtn.classList.add('active');
+    
+    document.getElementById('copilot-tab-pane-sim').style.display = tabName === 'sim' ? 'block' : 'none';
+    document.getElementById('copilot-tab-pane-form').style.display = tabName === 'form' ? 'block' : 'none';
+    document.getElementById('copilot-tab-pane-ai').style.display = tabName === 'ai' ? 'block' : 'none';
+};
+
+// Renderizar UI das 3 Abas internas do Painel de Configurações
+function renderCopilotToolTabsUI(panel, tool) {
+    const isAIAssistant = !tool.render.toString().includes('calc') && !tool.render.toString().includes('sec_fret') && !tool.render.toString().includes('calc_combust') && !tool.render.toString().includes('calc_desgaste') && !tool.render.toString().includes('sec_comis') && !tool.render.toString().includes('sec_rescis') && !tool.render.toString().includes('calcCriptoTax');
+
+    panel.innerHTML = `
+        <div class="tool-tabs-nav">
+            <button class="tool-tab-btn active" id="tab-btn-sim" onclick="switchCopilotToolTab('sim')">
+                <i class="fa-solid \${isAIAssistant ? 'fa-wand-magic-sparkles' : 'fa-sliders'}"></i> \${isAIAssistant ? 'Assistente IA' : 'Simulador'}
+            </button>
+            <button class="tool-tab-btn" id="tab-btn-form" onclick="switchCopilotToolTab('form')">
+                <i class="fa-solid fa-circle-info"></i> Explicação & Fórmulas
+            </button>
+            <button class="tool-tab-btn" id="tab-btn-ai" onclick="switchCopilotToolTab('ai')">
+                <i class="fa-solid fa-robot"></i> Consultoria de IA
+            </button>
+        </div>
+        <div id="copilot-tab-pane-sim" class="tool-tab-content"></div>
+        <div id="copilot-tab-pane-form" class="tool-tab-content" style="display: none;"></div>
+        <div id="copilot-tab-pane-ai" class="tool-tab-content" style="display: none;"></div>
+    `;
+
+    // Renderizar Aba 1: Simulador ou campos de IA
+    const simPane = document.getElementById('copilot-tab-pane-sim');
+    if (simPane) {
+        tool.render(simPane);
+    }
+
+    // Renderizar Aba 2: Fórmulas e Explicações
+    const formPane = document.getElementById('copilot-tab-pane-form');
+    if (formPane) {
+        const doc = TOOL_DOCUMENTATION[tool.id] || { formula: 'Modelo Conversacional', explanation: 'Assistente consultivo de inteligência artificial.', examples: 'Insira as informações na aba Assistente IA.' };
+        formPane.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 0.6rem; background: rgba(255,255,255,0.01); border-radius: 8px; padding: 0.75rem; border: 1px solid rgba(255,255,255,0.03);">
+                <div>
+                    <h5 style="margin: 0 0 0.25rem 0; font-size: 0.75rem; color: var(--accent-blue);"><i class="fa-solid fa-circle-info"></i> Funcionamento</h5>
+                    <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.45;">\${doc.explanation}</p>
+                </div>
+                <div style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.4rem;">
+                    <h5 style="margin: 0 0 0.25rem 0; font-size: 0.75rem; color: var(--accent-green);"><i class="fa-solid fa-calculator"></i> Regra / Fórmula</h5>
+                    <code style="display: block; background: rgba(0,0,0,0.3); padding: 0.4rem; border-radius: 4px; font-size: 0.68rem; font-family: monospace; color: #fff; overflow-x: auto;">\${doc.formula}</code>
+                </div>
+                <div style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.4rem;">
+                    <h5 style="margin: 0 0 0.25rem 0; font-size: 0.75rem; color: var(--accent-yellow);"><i class="fa-solid fa-lightbulb"></i> Exemplo Prático</h5>
+                    <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.45;">\${doc.examples}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // Renderizar Aba 3: Consultoria de IA
+    const aiPane = document.getElementById('copilot-tab-pane-ai');
+    if (aiPane) {
+        const doc = TOOL_DOCUMENTATION[tool.id] || {};
+        const presets = doc.presets || ["Como usar esta ferramenta?", "Me dê um exemplo prático", "Explique as regras fiscais"];
+        
+        let presetsHtml = '';
+        presets.forEach(p => {
+            presetsHtml += `
+                <button class="btn btn-secondary btn-xs ripple" onclick="sendCopilotPresetQuestion('\${p.replace(/'/g, "\\\\'")}')" style="text-align: left; justify-content: flex-start; font-size: 0.7rem; padding: 6px 10px; width: 100%; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); margin-bottom: 0.3rem;">
+                    <i class="fa-solid fa-circle-question" style="color: var(--accent-purple);"></i> "\${p}"
+                </button>
+            `;
+        });
+
+        aiPane.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4;">
+                    Olá! Sou o assistente especializado do módulo <strong>\${tool.title}</strong>. Clique em uma pergunta frequente ou digite sua dúvida no campo abaixo para iniciarmos a consultoria.
+                </p>
+                <div style="display: flex; flex-direction: column; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.4rem; max-height: 130px; overflow-y: auto;">
+                    <span style="font-size: 0.62rem; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.3rem;">Perguntas Frequentes:</span>
+                    \${presetsHtml}
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Renderizar lista de ferramentas no Sidebar
+window.renderCopilotToolsSidebar = function() {
+    const list = document.getElementById('copilot-tools-list');
+    if (!list) return;
+    
+    const searchVal = (document.getElementById('copilot-search')?.value || '').toLowerCase();
+    const catVal = document.getElementById('copilot-category-filter')?.value || 'all';
+
+    list.innerHTML = '';
+
+    // Botão fixo de Chat Geral no topo
+    const generalItem = document.createElement('div');
+    generalItem.className = `copilot-tool-item \${(!state.selectedCopilotToolId || state.selectedCopilotToolId === 'chat_geral') ? 'active' : ''}`;
+    generalItem.setAttribute('data-tool-id', 'chat_geral');
+    generalItem.innerHTML = `
+        <div class="copilot-tool-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--accent-purple);">
+            <i class="fa-solid fa-comments"></i>
+        </div>
+        <div class="copilot-tool-info">
+            <span class="copilot-tool-name">Chat Geral / Copiloto</span>
+            <span class="copilot-tool-desc">Assistente de inteligência artificial geral</span>
+        </div>
+    `;
+    generalItem.onclick = () => selectCopilotTool('chat_geral');
+    list.appendChild(generalItem);
+
+    // Filtrar e renderizar as 30 ferramentas
+    const filtered = SUPER_TOOLS_DB.filter(tool => {
+        const matchCategory = catVal === 'all' || tool.category === catVal;
+        const matchQuery = tool.title.toLowerCase().includes(searchVal) || tool.desc.toLowerCase().includes(searchVal);
+        return matchCategory && matchQuery;
+    });
+
+    filtered.forEach(tool => {
+        const item = document.createElement('div');
+        item.className = `copilot-tool-item \${state.selectedCopilotToolId === tool.id ? 'active' : ''}`;
+        item.setAttribute('data-tool-id', tool.id);
+        
+        const isAIAssistant = !tool.render.toString().includes('calc') && !tool.render.toString().includes('sec_fret') && !tool.render.toString().includes('calc_combust') && !tool.render.toString().includes('calc_desgaste') && !tool.render.toString().includes('sec_comis') && !tool.render.toString().includes('sec_rescis') && !tool.render.toString().includes('calcCriptoTax');
+        const badge = isAIAssistant ? `<span class="st-badge" style="font-size:0.55rem; padding: 1px 3px; border-radius:3px; margin-left:auto; background: rgba(16, 185, 129, 0.12); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.2);">IA</span>` : `<span class="st-badge" style="font-size:0.55rem; padding: 1px 3px; border-radius:3px; margin-left:auto; background: rgba(56, 189, 248, 0.12); color: var(--accent-blue); border: 1px solid rgba(56, 189, 248, 0.2);">OFF</span>`;
+        
+        item.innerHTML = `
+            <div class="copilot-tool-icon">
+                <i class="\${tool.icon}"></i>
+            </div>
+            <div class="copilot-tool-info">
+                <div style="display:flex; align-items:center; gap:0.25rem;">
+                    <span class="copilot-tool-name">\${tool.title}</span>
+                    \${badge}
+                </div>
+                <span class="copilot-tool-desc">\${tool.desc}</span>
+            </div>
+        `;
+        item.onclick = () => selectCopilotTool(tool.id);
+        list.appendChild(item);
+    });
+};
+
+// Enviar mensagem de pergunta sugerida predefinida
+window.sendCopilotPresetQuestion = function(question) {
+    const input = document.getElementById('copilot-input');
+    if (input) {
+        input.value = question;
+        sendCopilotChatMessage();
+    }
+};
+
+// Envio de Mensagem ao Copiloto IA Principal
+window.sendCopilotChatMessage = async function() {
+    const input = document.getElementById('copilot-input');
+    if (!input || !input.value.trim()) return;
+
+    const userText = input.value.trim();
+    input.value = '';
+
+    const chatBox = document.getElementById('copilot-chat-messages');
+    if (!chatBox) return;
+
+    // Adicionar Mensagem do Usuário
+    const userDiv = document.createElement('div');
+    userDiv.className = 'copilot-message user';
+    userDiv.innerHTML = `
+        <p style="margin: 0; font-weight: bold; color: #fff; font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem;">
+            <i class="fa-solid fa-user"></i> Você:
+        </p>
+        <p style="margin: 0.25rem 0 0 0; line-height: 1.45;">\${userText}</p>
+    `;
+    chatBox.appendChild(userDiv);
+    
+    // Adicionar visual de anexo se existir
+    if (state.currentAttachment) {
+        const attachDiv = document.createElement('div');
+        attachDiv.style.cssText = 'background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.7rem; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.4rem; width: fit-content;';
+        attachDiv.innerHTML = `<i class="fa-solid fa-file-invoice-dollar" style="color: var(--accent-blue);"></i> Arquivo: <strong>\${state.currentAttachment.name}</strong> (\${state.currentAttachment.type})`;
+        userDiv.appendChild(attachDiv);
+    }
+    
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // Balão de digitação da IA
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'copilot-message ai';
+    aiDiv.innerHTML = `
+        <p style="margin: 0; font-weight: bold; color: var(--accent-purple); font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem;">
+            <i class="fa-solid fa-robot"></i> Copiloto IA:
+        </p>
+        <p style="margin: 0.25rem 0 0 0; line-height: 1.45;"><i class="fa-solid fa-circle-notch fa-spin"></i> Processando inteligência artificial...</p>
+    `;
+    chatBox.appendChild(aiDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+        let systemPrompt = `
+Você é o Copiloto IA de elite integrado em um aplicativo de controle de horas de trabalho e finanças.
+Você consegue realizar ações no banco de dados local do usuário gerando comandos de ação estruturados no final da sua resposta.
+Você DEVE gerar esses comandos de ação se o usuário pedir para você adicionar horas, finanças, serviços, ou pedir acessos.
+Sempre forneça uma explicação amigável do que você fez em português.
+
+Seja extremamente conciso e profissional em suas respostas.
+
+Formatos de comandos suportados (coloque exatamente estes formatos no final da sua resposta, cada comando em uma linha nova):
+- Adicionar ou alterar horas trabalhadas:
+  [ADD_HOURS: "YYYY-MM-DD", "Entrada1", "Saida1", "Entrada2", "Saida2", TrajetoKm, "Observacao"]
+  (onde Entrada/Saida são no formato "HH:MM", TrajetoKm é um número inteiro de km e Observacao é o texto. Se algum horário não for informado, use "").
+- Adicionar lançamento financeiro:
+  [ADD_FINANCE: "YYYY-MM-DD", "Descrição do lançamento", "Receita" ou "Despesa Fixa" ou "Despesa Variável", ValorDecimal, "Categoria"]
+- Adicionar venda/prestação de serviço:
+  [ADD_SERVICE: "Nome do Cliente", "Descrição do Serviço", ValorDecimal, "Status" ("Concluído" ou "Em Andamento" ou "Pendente"), "DataEntrega (YYYY-MM-DD)"]
+- Solicitar permissão especial ao dispositivo:
+  [REQUEST_PERMISSION: "camera" ou "location" ou "notifications"]
+
+Você também pode responder em formato JSON de comando direto se preferir:
+[DB_COMMAND: {"action": "ADD_HOURS", "date": "YYYY-MM-DD", "entrada1": "08:00", ...}]
+[DB_COMMAND: {"action": "ADD_FINANCE", ...}]
+[DB_COMMAND: {"action": "ADD_SERVICE", ...}]
+[DB_COMMAND: {"action": "REQUEST_PERMISSION", "permission": "location"}]
+
+Data e hora atual do sistema: \${new Date().toLocaleString('pt-BR')}.
+        `;
+
+        if (state.selectedCopilotToolId && state.selectedCopilotToolId !== 'chat_geral') {
+            const activeTool = SUPER_TOOLS_DB.find(t => t.id === state.selectedCopilotToolId);
+            const doc = TOOL_DOCUMENTATION[activeTool.id] || {};
+            systemPrompt += `\\n\\n[CONTEXTO DA FERRAMENTA ATIVA]:
+O usuário está utilizando a ferramenta "\${activeTool.title}".
+Descrição: \${activeTool.desc}.
+Regras/Fórmulas: \${doc.explanation || ''} \${doc.formula || ''}.
+Sua resposta deve priorizar auxiliar o usuário com relação a esta ferramenta, seus cálculos e regras de funcionamento.`;
+        }
+
+        let fullPrompt = systemPrompt + `\\n\\nMensagem do usuário: "\${userText}"`;
+        
+        if (state.currentAttachment) {
+            fullPrompt += `\\n\\n[ARQUIVO ANEXADO: \${state.currentAttachment.name} (\${state.currentAttachment.type})]:\\n\${state.currentAttachment.content}`;
+        }
+
+        const responseText = await callGeminiAPI(fullPrompt);
+
+        // Executar ações de banco locais
+        const actionsCount = await parseAndExecuteAICopilotCommands(responseText);
+
+        // Limpar os comandos das mensagens que serão impressas na tela
+        let cleanText = responseText
+            .replace(/\\[ADD_HOURS:.*?\\]/gi, '')
+            .replace(/\\[ADD_FINANCE:.*?\\]/gi, '')
+            .replace(/\\[ADD_SERVICE:.*?\\]/gi, '')
+            .replace(/\\[REQUEST_PERMISSION:.*?\\]/gi, '')
+            .replace(/\\[DB_COMMAND:.*?\\]/gi, '')
+            .trim();
+
+        if (actionsCount > 0) {
+            cleanText += `\\n\\n*(Ações locais: \${actionsCount} comando(s) executado(s) com sucesso no IndexedDB!)*`;
+        }
+
+        aiDiv.querySelector('p:last-child').innerText = cleanText;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        clearCopilotAttachment();
+
+    } catch (e) {
+        console.error(e);
+        aiDiv.querySelector('p:last-child').innerHTML = `Erro: \${e.message}`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+};
+
+// Interpretador e Executor Local de Comandos de Banco de Dados gerados pela IA
+window.parseAndExecuteAICopilotCommands = async function(text) {
+    let actionsExecuted = 0;
+
+    // 1. Processar tags estruturadas clássicas [ADD_HOURS: ...]
+    const hoursRegex = /\\[ADD_HOURS:\\s*"(.*?)",\\s*"(.*?)",\\s*"(.*?)",\\s*"(.*?)",\\s*"(.*?)",\\s*(\\d+(?:\\.\\d+)?),\\s*"(.*?)"\\]/gi;
+    let match;
+    while ((match = hoursRegex.exec(text)) !== null) {
+        const date = match[1];
+        const entrada1 = match[2];
+        const saida1 = match[3];
+        const entrada2 = match[4];
+        const saida2 = match[5];
+        const trajetoKm = parseFloat(match[6]) || 0;
+        const observacoes = match[7];
+
+        const existingRow = state.rows.find(r => r.date === date);
+        const rowData = existingRow ? { ...existingRow } : { rowNum: Date.now() + actionsExecuted, date, statusPagamento: 'Pendente' };
+        
+        rowData.entrada1 = entrada1;
+        rowData.saida1 = saida1;
+        rowData.entrada2 = entrada2;
+        rowData.saida2 = saida2;
+        rowData.observacoes = observacoes;
+        
+        recalcRow(rowData, state.globalRate);
+        await dbPut('rows', rowData);
+
+        const idx = state.rows.findIndex(r => r.date === date);
+        if (idx !== -1) {
+            state.rows[idx] = rowData;
+        } else {
+            state.rows.push(rowData);
+        }
+        actionsExecuted++;
+    }
+
+    const financeRegex = /\\[ADD_FINANCE:\\s*"(.*?)",\\s*"(.*?)",\\s*"(.*?)",\\s*(\\d+(?:\\.\\d+)?),\\s*"(.*?)"\\]/gi;
+    while ((match = financeRegex.exec(text)) !== null) {
+        const date = match[1];
+        const description = match[2];
+        const type = match[3];
+        const amount = parseFloat(match[4]) || 0;
+        const category = match[5];
+
+        await dbPut('finance', {
+            id: generateId(),
+            date,
+            description,
+            type,
+            amount,
+            category
+        });
+        actionsExecuted++;
+    }
+
+    const serviceRegex = /\\[ADD_SERVICE:\\s*"(.*?)",\\s*"(.*?)",\\s*(\\d+(?:\\.\\d+)?),\\s*"(.*?)",\\s*"(.*?)"\\]/gi;
+    while ((match = serviceRegex.exec(text)) !== null) {
+        const client = match[1];
+        const service = match[2];
+        const unitPrice = parseFloat(match[3]) || 0;
+        const status = match[4];
+        const date = match[5];
+
+        await dbPut('services', {
+            id: generateId(),
+            date,
+            client,
+            service,
+            quantity: 1,
+            unitPrice,
+            status,
+            notes: "Adicionado via Copiloto IA"
+        });
+        actionsExecuted++;
+    }
+
+    const permRegex = /\\[REQUEST_PERMISSION:\\s*"(.*?)"\\]/gi;
+    while ((match = permRegex.exec(text)) !== null) {
+        const permission = match[1];
+        requestDevicePermission(permission);
+        actionsExecuted++;
+    }
+
+    // 2. Processar blocos JSON estruturados [DB_COMMAND: ...]
+    const jsonCommandRegex = /\\[DB_COMMAND:\\s*(\\{.*?\\})\\s*\\]/gi;
+    while ((match = jsonCommandRegex.exec(text)) !== null) {
+        try {
+            const cmd = JSON.parse(match[1]);
+            if (cmd.action === 'ADD_HOURS') {
+                const date = cmd.date;
+                const existingRow = state.rows.find(r => r.date === date);
+                const rowData = existingRow ? { ...existingRow } : { rowNum: Date.now() + actionsExecuted, date, statusPagamento: 'Pendente' };
+                
+                if (cmd.entrada1 !== undefined) rowData.entrada1 = cmd.entrada1;
+                if (cmd.saida1 !== undefined) rowData.saida1 = cmd.saida1;
+                if (cmd.entrada2 !== undefined) rowData.entrada2 = cmd.entrada2;
+                if (cmd.saida2 !== undefined) rowData.saida2 = cmd.saida2;
+                if (cmd.observacoes !== undefined) rowData.observacoes = cmd.observacoes;
+                if (cmd.saidaCasa !== undefined) rowData.saidaCasa = cmd.saidaCasa;
+                if (cmd.chegadaCasa !== undefined) rowData.chegadaCasa = cmd.chegadaCasa;
+
+                recalcRow(rowData, state.globalRate);
+                await dbPut('rows', rowData);
+
+                const idx = state.rows.findIndex(r => r.date === date);
+                if (idx !== -1) {
+                    state.rows[idx] = rowData;
+                } else {
+                    state.rows.push(rowData);
+                }
+                actionsExecuted++;
+            } else if (cmd.action === 'ADD_FINANCE') {
+                await dbPut('finance', {
+                    id: generateId(),
+                    date: cmd.date || new Date().toISOString().split('T')[0],
+                    description: cmd.description || '',
+                    type: cmd.type || 'Despesa Variável',
+                    amount: parseFloat(cmd.amount) || 0,
+                    category: cmd.category || 'Outros'
+                });
+                actionsExecuted++;
+            } else if (cmd.action === 'ADD_SERVICE') {
+                await dbPut('services', {
+                    id: generateId(),
+                    date: cmd.date || new Date().toISOString().split('T')[0],
+                    client: cmd.client || '',
+                    service: cmd.service || '',
+                    quantity: parseFloat(cmd.quantity) || 1,
+                    unitPrice: parseFloat(cmd.unitPrice) || 0,
+                    status: cmd.status || 'Concluído',
+                    notes: cmd.notes || ''
+                });
+                actionsExecuted++;
+            } else if (cmd.action === 'REQUEST_PERMISSION') {
+                requestDevicePermission(cmd.permission);
+                actionsExecuted++;
+            }
+        } catch (err) {
+            console.error("Falha ao interpretar comando JSON da IA:", err);
+        }
+    }
+
+    if (actionsExecuted > 0) {
+        if (typeof fetchData === 'function') {
+            await fetchData();
+        }
+    }
+
+    return actionsExecuted;
+};
+
+// Executor de Requisições de Permissão Web API
+function requestDevicePermission(permission) {
+    if (permission === 'notifications') {
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                showToast(`Permissão Notificações: \${perm}`, 'info');
+            });
+        } else {
+            showToast(`Notificações já configuradas: \${Notification.permission}`, 'info');
+        }
+    } else if (permission === 'location') {
+        navigator.geolocation.getCurrentPosition(
+            pos => showToast(`Localização concedida! Lat \${pos.coords.latitude.toFixed(4)}, Lng \${pos.coords.longitude.toFixed(4)}`, 'success'),
+            err => showToast(`Erro ao obter localização: \${err.message}`, 'error')
+        );
+    } else if (permission === 'camera') {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                showToast("Acesso à câmera liberado!", "success");
+                stream.getTracks().forEach(track => track.stop());
+            })
+            .catch(err => showToast(`Erro ao acessar câmera: \${err.message}`, 'error'));
+    }
+}
+
+// ==========================================================================
+// CLIENT-SIDE FILE PARSERS (EXCELJS, CSV, JSON, TXT)
+// ==========================================================================
+
+window.handleFileChange = async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const previewArea = document.getElementById('copilot-file-preview-area');
+    const fileNameEl = document.getElementById('copilot-file-name');
+    
+    if (file.name.endsWith('.xlsx')) {
+        showToast("Processando planilha Excel client-side...", "info");
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const arrayBuffer = e.target.result;
+                    const workbook = new ExcelJS.Workbook();
+                    await workbook.xlsx.load(arrayBuffer);
+                    
+                    let textContent = `Conteúdo extraído da planilha "\${file.name}":\\n`;
+                    workbook.eachSheet((sheet) => {
+                        textContent += `\\nAba: \${sheet.name}\\n`;
+                        sheet.eachRow((row, rowNum) => {
+                            const rowValues = row.values.slice(1);
+                            textContent += `Linha \${rowNum}: \${rowValues.join(' | ')}\\n`;
+                        });
+                    });
+                    
+                    state.currentAttachment = {
+                        name: file.name,
+                        type: 'xlsx',
+                        content: textContent
+                    };
+                    
+                    if (fileNameEl) fileNameEl.innerText = file.name;
+                    if (previewArea) previewArea.style.display = 'block';
+                    showToast("Planilha Excel lida e anexada!", "success");
+                } catch (err) {
+                    console.error(err);
+                    showToast("Falha ao analisar planilha .xlsx", "error");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (e) {
+            console.error(e);
+            showToast("Erro de leitura do arquivo", "error");
+        }
+    } else if (file.name.endsWith('.csv')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            state.currentAttachment = {
+                name: file.name,
+                type: 'csv',
+                content: e.target.result
+            };
+            if (fileNameEl) fileNameEl.innerText = file.name;
+            if (previewArea) previewArea.style.display = 'block';
+            showToast("Arquivo CSV anexado!", "success");
+        };
+        reader.readAsText(file);
+    } else if (file.name.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                JSON.parse(e.target.result);
+                state.currentAttachment = {
+                    name: file.name,
+                    type: 'json',
+                    content: e.target.result
+                };
+                if (fileNameEl) fileNameEl.innerText = file.name;
+                if (previewArea) previewArea.style.display = 'block';
+                showToast("Documento JSON anexado com sucesso!", "success");
+            } catch (err) {
+                showToast("Estrutura JSON inválida!", "error");
+            }
+        };
+        reader.readAsText(file);
+    } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            state.currentAttachment = {
+                name: file.name,
+                type: 'txt',
+                content: e.target.result
+            };
+            if (fileNameEl) fileNameEl.innerText = file.name;
+            if (previewArea) previewArea.style.display = 'block';
+            showToast("Documento de texto anexado!", "success");
+        };
+        reader.readAsText(file);
+    }
+};
+
+window.clearCopilotAttachment = function() {
+    state.currentAttachment = null;
+    const fileInput = document.getElementById('copilot-file-input');
+    if (fileInput) fileInput.value = '';
+    const previewArea = document.getElementById('copilot-file-preview-area');
+    if (previewArea) previewArea.style.display = 'none';
+};
+
+// ==========================================================================
+// VOICE CONTROL (SPEECH-TO-TEXT WITH WEBKIT SPEECH RECOGNITION)
+// ==========================================================================
+
+let recognition = null;
+let isListening = false;
+
+window.toggleCopilotVoiceInput = function() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        showToast("Seu navegador não possui suporte ao reconhecimento de voz nativo.", "error");
+        return;
+    }
+    
+    const btn = document.getElementById('btn-copilot-voice');
+    if (!btn) return;
+    
+    if (isListening) {
+        recognition.stop();
+        return;
+    }
+    
+    recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    
+    recognition.onstart = () => {
+        isListening = true;
+        btn.style.background = 'rgba(16, 185, 129, 0.2)';
+        btn.style.boxShadow = '0 0 10px #10b981';
+        btn.style.color = '#10b981';
+        btn.classList.add('voice-pulse');
+        showToast("Microfone ligado. Fale seu pedido...", "info");
+    };
+    
+    recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        const input = document.getElementById('copilot-input');
+        if (input) {
+            input.value = (input.value + " " + text).trim();
+        }
+    };
+    
+    recognition.onerror = (event) => {
+        console.error("Speech Recognition Error:", event.error);
+        showToast(`Erro de áudio: \${event.error}`, "error");
+        stopVoiceUi(btn);
+    };
+    
+    recognition.onend = () => {
+        stopVoiceUi(btn);
+    };
+    
+    recognition.start();
+};
+
+function stopVoiceUi(btn) {
+    isListening = false;
+    if (btn) {
+        btn.style.background = '';
+        btn.style.boxShadow = '';
+        btn.style.color = '';
+        btn.classList.remove('voice-pulse');
+    }
+}
+
+// Lembretes & Alarmes periódico de retaguarda
 window.checkPendingReminders = async function() {
     if (!state.remindersEntries || state.remindersEntries.length === 0) return;
     
@@ -2571,14 +3111,13 @@ window.checkPendingReminders = async function() {
             await dbPut('reminders', r);
             stateChanged = true;
             
-            // Notificação local PWA
             if (Notification.permission === 'granted') {
                 new Notification(r.type === 'alarm' ? '🚨 ALARME DISPARADO!' : '🔔 Lembrete Ativo', {
                     body: r.title,
-                    icon: '/icon-192.png'
+                    icon: '/clock-192.png'
                 });
             } else {
-                alert(`${r.type === 'alarm' ? '🚨 ALARME: ' : '🔔 LEMBRETE: '}${r.title}`);
+                alert(`\${r.type === 'alarm' ? '🚨 ALARME: ' : '🔔 LEMBRETE: '}\${r.title}`);
             }
             
             if (r.type === 'alarm') {
@@ -2588,10 +3127,6 @@ window.checkPendingReminders = async function() {
     }
     if (stateChanged) {
         state.remindersEntries = await dbGetAll('reminders') || [];
-        const listEl = document.getElementById('sec-reminders-list');
-        if (listEl && window.renderSecretaryRemindersList) {
-            window.renderSecretaryRemindersList();
-        }
     }
 };
 
@@ -2609,247 +3144,52 @@ window.playAlarmSound = function() {
         osc.start();
         osc.stop(audioCtx.currentTime + 1.5);
     } catch(e) {
-        console.warn('AudioContext falhou ao iniciar som de alarme.', e);
+        console.warn('AudioContext falhou ao emitir sinal sonoro de alarme.', e);
     }
 };
 
-window.sendSecretaryChatMessage = async function() {
-    const input = document.getElementById('sec-chat-input');
-    if (!input || !input.value.trim()) return;
-    
-    const chatBox = document.getElementById('sec-chat-box');
-    const userText = input.value.trim();
-    input.value = '';
-    
-    const userDiv = document.createElement('div');
-    userDiv.style.cssText = 'background: rgba(16, 185, 129, 0.1); border-radius: 6px; padding: 0.5rem 0.75rem; max-width: 85%; align-self: flex-end; margin-bottom: 0.25rem;';
-    userDiv.innerHTML = `<p style="margin:0; font-size:0.65rem; font-weight:bold; color: #fff;">Você:</p><p style="margin:0.15rem 0 0 0; font-size:0.75rem; color: var(--text-secondary); line-height: 1.4;">${userText}</p>`;
-    chatBox.appendChild(userDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
-    
-    const secDiv = document.createElement('div');
-    secDiv.style.cssText = 'background: rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem 0.75rem; max-width: 85%; align-self: flex-start; margin-bottom: 0.25rem;';
-    secDiv.innerHTML = `<p style="margin:0; font-size:0.65rem; font-weight:bold; color: var(--accent-green);">Secretária:</p><p style="margin:0.15rem 0 0 0; font-size:0.75rem; color: var(--text-secondary); line-height: 1.4;"><i class="fa-solid fa-circle-notch fa-spin"></i> Digitando...</p>`;
-    chatBox.appendChild(secDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
-    
-    try {
-        const prompt = `
-            Você é uma secretária virtual de elite integrada em um aplicativo de gerenciamento de tempo e finanças de um prestador de serviços.
-            Sua tarefa é ajudar o usuário e processar suas solicitações.
-            Se o usuário quiser agendar um lembrete, criar uma notificação, ou programar um alarme, você deve incluir comandos de ação estruturados no final da sua resposta seguindo EXATAMENTE este formato:
-            [SCHEDULE_REMINDER: "Título do Lembrete", "YYYY-MM-DD HH:MM"]
-            [SET_ALARM: "Título do Alarme", "YYYY-MM-DD HH:MM"]
-            Você pode incluir múltiplos comandos se o usuário pedir mais de um.
-            Não inclua outros comandos.
-            A data/hora atual é: ${new Date().toLocaleString('pt-BR')}.
-            Mensagem do usuário: "${userText}"
-            Responda de forma extremamente prestativa, profissional e amigável em português.
-        `;
-        
-        const response = await callGeminiAPI(prompt);
-        await parseAndScheduleSecretaryCommands(response);
-        
-        const cleanResponse = response.replace(/\[(SCHEDULE_REMINDER|SET_ALARM):.*?\]/gi, '').trim();
-        secDiv.querySelector('p:last-child').innerText = cleanResponse;
-        chatBox.scrollTop = chatBox.scrollHeight;
-        
-        renderSecretaryRemindersList();
-    } catch(e) {
-        secDiv.querySelector('p:last-child').innerText = `Desculpe, tive um problema ao processar seu pedido: ${e.message}`;
-    }
-};
-
-window.renderSecretaryRemindersList = async function() {
-    const listContainer = document.getElementById('sec-reminders-list');
-    if (!listContainer) return;
-    listContainer.innerHTML = '';
-    
-    const reminders = await dbGetAll('reminders') || [];
-    reminders.sort((a,b) => b.datetime.localeCompare(a.datetime));
-    
-    if (reminders.length === 0) {
-        listContainer.innerHTML = '<span style="font-size:0.7rem; color:var(--text-muted); text-align:center;">Nenhum lembrete pendente.</span>';
-        return;
-    }
-    
-    reminders.slice(0, 10).forEach(r => {
-        const item = document.createElement('div');
-        item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:6px; border:1px solid rgba(255,255,255,0.03);';
-        
-        const typeIcon = r.type === 'alarm' ? '🚨' : '🔔';
-        const statusBadge = r.triggered ? `<span class="st-badge st-badge-success" style="font-size:0.6rem; padding: 1px 4px;">Disparado</span>` : `<span class="st-badge st-badge-warning" style="font-size:0.6rem; padding: 1px 4px;">Pendente</span>`;
-        
-        item.innerHTML = `
-            <div style="display:flex; flex-direction:column; gap:0.15rem; width: 65%;">
-                <span style="font-size:0.75rem; color:#fff; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${typeIcon} ${r.title}</span>
-                <span style="font-size:0.65rem; color:var(--text-secondary);">${r.datetime}</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:0.5rem;">
-                ${statusBadge}
-                <button onclick="deleteSecretaryReminder('${r.id}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>
-            </div>
-        `;
-        listContainer.appendChild(item);
-    });
-};
-
-window.deleteSecretaryReminder = async function(id) {
-    if (!confirm('Deseja excluir este compromisso/alarme?')) return;
-    await dbDelete('reminders', id);
-    showToast('Lembrete excluído!', 'success');
-    renderSecretaryRemindersList();
-};
-
-// Registra o verificador de lembretes periódico a cada 15 segundos
+// Periodical reminder check
 setInterval(() => {
     if (window.checkPendingReminders) window.checkPendingReminders();
 }, 15000);
 
-// Modular HTML renderer for AI Forms
-window.renderAIToolForm = function(container, toolId, config) {
-    let formHtml = `
-        <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top:0; margin-bottom: 1rem; line-height: 1.4;">${config.intro}</p>
-            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-    `;
+// ==========================================================================
+// INICIALIZADOR DE INTERFACES DO COPILOTO IA
+// ==========================================================================
+
+window.initCopilotUI = function() {
+    const search = document.getElementById('copilot-search');
+    const filter = document.getElementById('copilot-category-filter');
     
-    config.fields.forEach(f => {
-        formHtml += `
-            <div class="form-group-flat">
-                <label style="font-size:0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; display:block;">${f.label}</label>
+    if (search) {
+        search.addEventListener('input', () => renderCopilotToolsSidebar());
+    }
+    if (filter) {
+        filter.addEventListener('change', () => renderCopilotToolsSidebar());
+    }
+
+    renderCopilotToolsSidebar();
+    selectCopilotTool('chat_geral');
+    
+    // Injetar classe de animação pulsante para microfone de voz
+    if (!document.getElementById('voice-pulse-style')) {
+        const s = document.createElement('style');
+        s.id = 'voice-pulse-style';
+        s.textContent = `
+            @keyframes voicePulse {
+                0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+                70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+            }
+            .voice-pulse {
+                animation: voicePulse 1.5s infinite;
+            }
         `;
-        if (f.type === 'select') {
-            formHtml += `<select id="ai-field-${f.id}" class="form-control-flat" style="width:100%;">`;
-            f.options.forEach(o => {
-                formHtml += `<option value="${o.value}">${o.label}</option>`;
-            });
-            formHtml += `</select>`;
-        } else if (f.type === 'textarea') {
-            formHtml += `<textarea id="ai-field-${f.id}" class="form-control-flat" style="height: 70px; width:100%; resize:vertical;" placeholder="${f.placeholder || ''}">${f.value || ''}</textarea>`;
-        } else {
-            formHtml += `<input type="${f.type || 'text'}" id="ai-field-${f.id}" class="form-control-flat" style="width:100%;" value="${f.value || ''}" placeholder="${f.placeholder || ''}">`;
-        }
-        formHtml += `</div>`;
-    });
-    
-    formHtml += `
-            </div>
-            <button class="btn btn-primary" onclick="runAITool('${toolId}')" style="width:100%; background: linear-gradient(135deg, #10b981, #059669); border:none; display:flex; justify-content:center; align-items:center; gap:0.5rem; margin-top: 1rem; padding: 10px;">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Executar com Google Gemini
-            </button>
-        </div>
-        
-        <div id="ai-response-box-${toolId}" style="display:none; flex-direction:column; gap:1rem;">
-            <div class="live-preview-box" style="background: rgba(255,255,255,0.02); padding: 1rem; border-left: 4px solid var(--accent-green); border-radius: 6px;">
-                <h4 style="margin-top:0; margin-bottom:0.5rem; font-size:0.85rem; color:#fff; display:flex; align-items:center; gap:0.5rem;">
-                    <i class="fa-solid fa-robot" style="color: var(--accent-green)"></i> Relatório de Resposta (IA)
-                </h4>
-                <div id="ai-response-text-${toolId}" style="font-size:0.8rem; line-height:1.6; color: var(--text-secondary); white-space: pre-wrap; font-family: monospace; max-height: 250px; overflow-y: auto; padding-right: 0.5rem;"></div>
-            </div>
-            
-            <div style="display:flex; gap: 0.5rem; flex-wrap:wrap; margin-bottom: 1rem;">
-                <button class="btn btn-secondary btn-xs" onclick="copyAIText('${toolId}')" style="padding: 6px 12px; font-size:0.75rem;"><i class="fa-solid fa-copy"></i> Copiar</button>
-                <button class="btn btn-secondary btn-xs" onclick="scheduleAIReminder('${toolId}')" style="padding: 6px 12px; font-size:0.75rem;"><i class="fa-solid fa-bell"></i> Criar Lembrete</button>
-                <button class="btn btn-secondary btn-xs" onclick="saveToFinanceFromAI('${toolId}')" style="padding: 6px 12px; font-size:0.75rem;"><i class="fa-solid fa-wallet"></i> Lançar Financeiro</button>
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = formHtml;
+        document.head.appendChild(s);
+    }
 };
 
-// Original closing bracket of the database
-];
-
-// Inicialização da Grade de Ferramentas
-function initSuperToolsStore() {
-    const grid = document.getElementById('super-tools-grid');
-    const searchInput = document.getElementById('search-super-tools');
-    const filterSelect = document.getElementById('filter-super-tools-category');
-    
-    if(!grid || !searchInput || !filterSelect) return;
-
-    renderSuperToolsGrid('all', '');
-
-    searchInput.addEventListener('input', (e) => {
-        renderSuperToolsGrid(filterSelect.value, e.target.value.toLowerCase());
-    });
-
-    filterSelect.addEventListener('change', (e) => {
-        renderSuperToolsGrid(e.target.value, searchInput.value.toLowerCase());
-    });
-}
-
-function renderSuperToolsGrid(category, query) {
-    const grid = document.getElementById('super-tools-grid');
-    if(!grid) return;
-    grid.innerHTML = '';
-
-    const filtered = SUPER_TOOLS_DB.filter(tool => {
-        const matchCategory = category === 'all' || tool.category === category;
-        const matchQuery = tool.title.toLowerCase().includes(query) || tool.desc.toLowerCase().includes(query);
-        return matchCategory && matchQuery;
-    });
-
-    if (filtered.length === 0) {
-        grid.innerHTML = `
-            <div style="text-align:center; color:var(--text-secondary); grid-column: 1 / -1; padding: 2rem;">
-                <i class="fa-solid fa-ghost" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                <p>Nenhuma ferramenta de elite encontrada.</p>
-            </div>`;
-        return;
-    }
-
-    filtered.forEach(tool => {
-        const card = document.createElement('div');
-        card.className = 'glass-card ripple';
-        card.style.cssText = 'padding: 1.25rem; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s; border: 1px solid rgba(255,255,255,0.04);';
-        card.innerHTML = `
-            <i class="${tool.icon}" style="font-size: 1.8rem; margin-bottom: 0.75rem;"></i>
-            <h4 style="font-size: 0.95rem; font-weight: 600; margin: 0 0 0.5rem 0; color: #fff;">${tool.title}</h4>
-            <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; line-height: 1.4; flex-grow: 1;">${tool.desc}</p>
-        `;
-        card.onclick = () => openSuperToolModal(tool.id);
-        grid.appendChild(card);
-    });
-}
-
-function openSuperToolModal(toolId) {
-    const tool = SUPER_TOOLS_DB.find(t => t.id === toolId);
-    if(!tool) return;
-    const modal = document.getElementById('super-tools-modal');
-    const title = document.getElementById('st-modal-title');
-    const body = document.getElementById('st-modal-body');
-    const footer = document.getElementById('st-modal-footer');
-    
-    // Parar qualquer áudio tocando anteriormente ao abrir/trocar ferramenta
-    if (window.stopNoiseAudio) window.stopNoiseAudio();
-    
-    title.innerHTML = `<i class="${tool.icon}"></i> ${tool.title}`;
-    body.innerHTML = '';
-    footer.style.display = 'none';
-    
-    tool.render(body);
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-}
-
-// Configurar ouvintes de carregamento da página
+// Inicialização imediata
 document.addEventListener('DOMContentLoaded', () => {
-    initSuperToolsStore();
-    const btnCloseSt = document.getElementById('btn-close-st-modal');
-    const stModal = document.getElementById('super-tools-modal');
-    if(btnCloseSt && stModal) {
-        btnCloseSt.addEventListener('click', () => {
-            stModal.classList.add('hidden');
-            if (window.stopNoiseAudio) window.stopNoiseAudio();
-        });
-        stModal.addEventListener('click', (e) => {
-            if (e.target === stModal) {
-                stModal.classList.add('hidden');
-                if (window.stopNoiseAudio) window.stopNoiseAudio();
-            }
-        });
-    }
+    initCopilotUI();
 });

@@ -282,8 +282,8 @@
                     <span>Trajetos e Alarmes</span>
                 </button>
                 <button class="nav-item" data-tab="tools" id="nav-tools">
-                    <i class="fa-solid fa-screwdriver-wrench"></i>
-                    <span>Ferramentas</span>
+                    <i class="fa-solid fa-robot"></i>
+                    <span>Copiloto IA</span>
                 </button>
                 <button class="nav-item" data-tab="settings" id="nav-settings">
                     <i class="fa-solid fa-sliders"></i>
@@ -1675,31 +1675,86 @@
 
                 <!-- Tab: Tools -->
                 <section id="tab-tools" class="tab-content">
-                    <div class="glass-card settings-card" style="margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
-                        <div>
-                            <h3 class="settings-title"><i class="fa-solid fa-screwdriver-wrench color-blue"></i> Ferramentas de Elite</h3>
-                            <p class="settings-desc">Acesse simuladores financeiros avançados, calculadoras de carreira, ferramentas de produtividade e conquistas.</p>
-                        </div>
-                        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-                            <div class="input-icon-wrapper" style="flex: 1; min-width: 250px;">
-                                <span class="input-addon"><i class="fa-solid fa-magnifying-glass"></i></span>
-                                <input type="text" id="search-super-tools" class="form-control-flat" placeholder="Buscar ferramenta de elite...">
+                    <div class="ia-copilot-container">
+                        <!-- Sidebar: 30 Tools list -->
+                        <aside class="copilot-sidebar">
+                            <h3 class="copilot-sidebar-title">
+                                <i class="fa-solid fa-wand-magic-sparkles color-purple"></i> 30 Super Ferramentas
+                            </h3>
+                            <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                                <div class="input-icon-wrapper" style="width: 100%;">
+                                    <span class="input-addon"><i class="fa-solid fa-magnifying-glass" style="font-size: 0.75rem;"></i></span>
+                                    <input type="text" id="copilot-search" class="form-control-flat" placeholder="Buscar ferramenta..." style="font-size: 0.75rem; padding: 0.4rem 0.4rem 0.4rem 2rem; height: 32px;">
+                                </div>
+                                <select id="copilot-category-filter" class="form-control-flat" style="font-size: 0.75rem; height: 32px; padding: 0.25rem 0.5rem; width: 100%;">
+                                    <option value="all">Todas as Categorias</option>
+                                    <option value="financas">💰 Finanças e Investimentos</option>
+                                    <option value="trabalho">⚖️ Trabalho e Carreira</option>
+                                    <option value="produtividade">⏱️ Foco e Produtividade</option>
+                                </select>
                             </div>
-                            <select id="filter-super-tools-category" class="form-control-flat" style="width: auto;">
-                                <option value="all">Todas as Categorias</option>
-                                <option value="financas">💰 Finanças e Investimentos</option>
-                                <option value="trabalho">⚖️ Trabalho e Carreira</option>
-                                <option value="produtividade">⏱️ Foco e Produtividade</option>
-                            </select>
-                        </div>
-                    </div>
+                            <div id="copilot-tools-list" style="display: flex; flex-direction: column; gap: 0.4rem; flex-grow: 1; overflow-y: auto; padding-right: 2px;">
+                                <!-- Tools list will be injected here -->
+                            </div>
+                        </aside>
 
-                    <!-- Container onde os 300 cards serão injetados via JS -->
-                    <div id="super-tools-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
-                        <!-- Placeholder loading -->
-                        <div style="text-align:center; color:var(--text-secondary); grid-column: 1 / -1; padding: 2rem;">
-                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--accent-blue); margin-bottom: 1rem;"></i>
-                            <p>Carregando 300 Mini-Apps...</p>
+                        <!-- Main: Chat Pane -->
+                        <div class="copilot-chat-pane">
+                            <header class="copilot-active-tool-header">
+                                <div class="copilot-active-tool-title">
+                                    <i id="copilot-active-icon" class="fa-solid fa-comments color-purple"></i>
+                                    <span id="copilot-active-name">Chat Geral / Copiloto</span>
+                                </div>
+                                <div id="copilot-active-badge" class="copilot-active-tool-category" style="display: none; background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.65rem;">
+                                    IA
+                                </div>
+                            </header>
+
+                            <!-- Chat Messages Stream -->
+                            <div class="copilot-messages" id="copilot-chat-messages">
+                                <div class="copilot-message ai">
+                                    <p style="margin: 0; font-weight: bold; color: var(--accent-purple); font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem;">
+                                        <i class="fa-solid fa-robot"></i> Copiloto IA:
+                                    </p>
+                                    <p style="margin: 0.25rem 0 0 0; line-height: 1.45;">
+                                        Olá! Sou seu assistente de elite. Você pode conversar comigo, pedir para preencher seu ponto, adicionar despesas ou gerenciar trajetos. 
+                                        <br><br>
+                                        Use os botões de <strong>Microfone</strong> para voz, de <strong>Clipe</strong> para enviar arquivos (.xlsx, .csv, .json, .txt) ou selecione uma das <strong>30 ferramentas</strong> na barra lateral para abrir o simulador premium!
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Tool Config/Simulator area (hidden by default, loaded when a tool is selected) -->
+                            <div id="copilot-tool-config-panel" class="copilot-tool-config-panel" style="display: none;">
+                                <!-- Dynamic Simulator UI with tabs: Simulator, Formula, AI -->
+                            </div>
+
+                            <!-- File Attachment Preview Area -->
+                            <div id="copilot-file-preview-area" style="display: none;">
+                                <div class="copilot-attachment-preview">
+                                    <div style="display: flex; align-items: center; gap: 0.4rem; overflow: hidden;">
+                                        <i class="fa-solid fa-file-invoice-dollar" style="color: var(--accent-blue);"></i>
+                                        <span id="copilot-file-name" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-weight: 600;">planilha.xlsx</span>
+                                    </div>
+                                    <button class="copilot-attachment-remove" onclick="clearCopilotAttachment()"><i class="fa-solid fa-trash-can"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Chat Input Bar -->
+                            <div class="copilot-input-area">
+                                <!-- Hidden input for file uploads -->
+                                <input type="file" id="copilot-file-input" style="display: none;" onchange="handleFileChange(event)">
+                                <button class="copilot-btn" id="btn-copilot-attach" onclick="document.getElementById('copilot-file-input').click()" title="Anexar Arquivo (.xlsx, .csv, .json, .txt)">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                </button>
+                                <button class="copilot-btn" id="btn-copilot-voice" onclick="toggleCopilotVoiceInput()" title="Gravação de Voz (Speech-to-Text)">
+                                    <i class="fa-solid fa-microphone"></i>
+                                </button>
+                                <input type="text" id="copilot-input" class="copilot-text-input" placeholder="Pergunte ao Copiloto ou anexe arquivos..." onkeydown="if(event.key === 'Enter') sendCopilotChatMessage()">
+                                <button class="copilot-btn copilot-btn-primary" id="btn-copilot-send" onclick="sendCopilotChatMessage()">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>
