@@ -2299,10 +2299,6 @@ function bindEvents() {
             item.classList.add('active');
             
             const tab = item.getAttribute('data-tab');
-            if (tab === 'tools') {
-                toggleCopilotOverlay();
-                return;
-            }
             state.activeTab = tab;
             
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -7294,9 +7290,10 @@ window.updateDailyQuote = async function(force = false) {
     const todayStr = new Date().toISOString().split('T')[0];
     const cachedDate = localStorage.getItem('daily_quote_date');
     const cachedText = localStorage.getItem('daily_quote_text');
+    const greetingStr = `Olá, ${state.userName || 'Premium'}! 🌟 `;
     
     if (!force && cachedDate === todayStr && cachedText) {
-        quoteEl.innerText = cachedText;
+        quoteEl.innerText = greetingStr + cachedText;
         return;
     }
     
@@ -7318,7 +7315,7 @@ window.updateDailyQuote = async function(force = false) {
     
     if (state.geminiKey && window.callGeminiAPI && navigator.onLine) {
         try {
-            quoteEl.innerText = '"Pensando em um insight personalizado..."';
+            quoteEl.innerText = greetingStr + '"Pensando em um insight personalizado..."';
             const prompt = `Gere uma única frase curta e altamente inspiradora de motivação profissional ou inteligência financeira direcionada para o profissional ${state.userName || 'Premium'}, que tem ${state.userAge || 30} anos. Retorne apenas a frase direta (máximo de 20 palavras), sem introduções ou observações.`;
             const res = await window.callGeminiAPI(prompt);
             quote = res.trim();
@@ -7339,7 +7336,7 @@ window.updateDailyQuote = async function(force = false) {
     
     localStorage.setItem('daily_quote_date', todayStr);
     localStorage.setItem('daily_quote_text', quote);
-    quoteEl.innerText = quote;
+    quoteEl.innerText = greetingStr + quote;
 };
 
 window.triggerDailyMessageManual = function() {

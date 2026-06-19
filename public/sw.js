@@ -55,8 +55,16 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Para index.html ou rota raiz: Network-First (evita deadlocks de cache)
-  if (url.pathname.endsWith('index.html') || url.pathname === '/' || url.pathname.endsWith('/')) {
+  // Para index.html, rota raiz ou assets principais do app: Network-First (evita deadlocks de cache)
+  if (
+    url.pathname.endsWith('index.html') || 
+    url.pathname === '/' || 
+    url.pathname.endsWith('/') ||
+    url.pathname.endsWith('app.js') ||
+    url.pathname.endsWith('tools_30.js') ||
+    url.pathname.endsWith('prefilled_data.js') ||
+    url.pathname.endsWith('style.css')
+  ) {
     e.respondWith(
       fetch(e.request).then(response => {
         if (response && response.status === 200) {
