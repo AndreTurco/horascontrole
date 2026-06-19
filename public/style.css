@@ -3618,7 +3618,7 @@ body.light-theme body::before {
 
 /* Responsive Rules for Copiloto */
 @media (max-width: 768px) {
-    .copilot-fullscreen-overlay .ia-copilot-container {
+    .ia-copilot-container {
         padding: 1rem 1rem;
         flex-direction: column;
         height: calc(100vh - 70px);

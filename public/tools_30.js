@@ -1855,8 +1855,7 @@ Data de Emissão: ${today}`;
             
             setTimeout(() => window.calcCriptoTax(), 200);
         }
-    },
-];
+    },];
 
 // ==========================================================================
 // DOCUMENTAÇÃO E FÓRMULAS DAS SUPER FERRAMENTAS
@@ -1919,7 +1918,7 @@ const TOOL_DOCUMENTATION = {
     calc_cripto_tax: {
         formula: "Imposto DARF = Lucro Líquido * Alíquota Correspondente (Isento se vendas abaixo de limite)",
         explanation: "Calcula a alíquota de ganho de capital para operações financeiras (Cripto e Ações) e verifica limites legais de isenção de faturamento mensal.",
-        examples: "Se vendeu R$ 30.000 em criptomoedas num mês com R$ 5.000 de lucro, está isento. Se vendeu R$ 40.000, paga 15% de imposto (R$ 750) via DARF.",
+        examples: "Se vendeu R$ 30.000 inum mês com R$ 5.000 de lucro, está isento. Se vendeu R$ 40.000, paga 15% de imposto (R$ 750) via DARF.",
         presets: ["Qual o limite de isenção para Swing Trade?", "Como declarar perdas para abater imposto?", "Como emitir o DARF de operações?"]
     }
 };
@@ -2205,7 +2204,6 @@ const AI_TOOLS_CONFIGS = [
 
 // Registrar as 20 ferramentas de IA dinamicamente no banco principal
 AI_TOOLS_CONFIGS.forEach(cfg => {
-    // Evitar duplicatas em SUPER_TOOLS_DB
     const existingIndex = SUPER_TOOLS_DB.findIndex(t => t.id === cfg.id);
     if (existingIndex !== -1) {
         SUPER_TOOLS_DB.splice(existingIndex, 1);
@@ -2262,48 +2260,48 @@ window.callGeminiAPI = async function(prompt) {
 window.renderAIToolForm = function(container, toolId, config) {
     let formHtml = `
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-            <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">\${config.intro}</p>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">${config.intro}</p>
             <div style="display: flex; flex-direction: column; gap: 0.6rem;">
     `;
     
     config.fields.forEach(f => {
         formHtml += `
             <div class="form-group-flat" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                <label style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 500;">\${f.label}</label>
+                <label style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 500;">${f.label}</label>
         `;
         if (f.type === 'select') {
-            formHtml += `<select id="ai-field-\${toolId}-\${f.id}" class="form-control-flat" style="width: 100%; height: 32px; font-size: 0.75rem;">`;
+            formHtml += `<select id="ai-field-${toolId}-${f.id}" class="form-control-flat" style="width: 100%; height: 32px; font-size: 0.75rem;">`;
             f.options.forEach(o => {
-                formHtml += `<option value="\${o.value}">\${o.label}</option>`;
+                formHtml += `<option value="${o.value}">${o.label}</option>`;
             });
             formHtml += `</select>`;
         } else if (f.type === 'textarea') {
-            formHtml += `<textarea id="ai-field-\${toolId}-\${f.id}" class="form-control-flat" style="height: 60px; width: 100%; font-size: 0.75rem; resize: vertical;" placeholder="\${f.placeholder || ''}">\${f.value || ''}</textarea>`;
+            formHtml += `<textarea id="ai-field-${toolId}-${f.id}" class="form-control-flat" style="height: 60px; width: 100%; font-size: 0.75rem; resize: vertical;" placeholder="	extbar${f.placeholder || ''}">${f.value || ''}</textarea>`;
         } else {
-            formHtml += `<input type="\${f.type || 'text'}" id="ai-field-\${toolId}-\${f.id}" class="form-control-flat" style="width: 100%; height: 32px; font-size: 0.75rem;" value="\${f.value || ''}" placeholder="\${f.placeholder || ''}">`;
+            formHtml += `<input type="${f.type || 'text'}" id="ai-field-${toolId}-${f.id}" class="form-control-flat" style="width: 100%; height: 32px; font-size: 0.75rem;" value="${f.value || ''}" placeholder="	extbar${f.placeholder || ''}">`;
         }
         formHtml += `</div>`;
     });
     
     formHtml += `
             </div>
-            <button class="btn btn-primary ripple" onclick="runAITool('\${toolId}')" style="width:100%; background: linear-gradient(135deg, #10b981, #059669); border:none; display:flex; justify-content:center; align-items:center; gap:0.5rem; height: 36px; font-size: 0.75rem; margin-top: 0.25rem; font-weight: 600;">
+            <button class="btn btn-primary ripple" onclick="runAITool('${toolId}')" style="width:100%; background: linear-gradient(135deg, #10b981, #059669); border:none; display:flex; justify-content:center; align-items:center; gap:0.5rem; height: 36px; font-size: 0.75rem; margin-top: 0.25rem; font-weight: 600;">
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Executar com Google Gemini
             </button>
         </div>
         
-        <div id="ai-response-box-\${toolId}" style="display:none; flex-direction:column; gap:0.5rem; margin-top: 0.75rem;">
+        <div id="ai-response-box-${toolId}" style="display:none; flex-direction:column; gap:0.5rem; margin-top: 0.75rem;">
             <div class="live-preview-box" style="background: rgba(16, 185, 129, 0.05); padding: 0.75rem; border-left: 3px solid var(--accent-green); border-radius: 6px; border-top: 1px solid rgba(16,185,129,0.1); border-right: 1px solid rgba(16,185,129,0.1); border-bottom: 1px solid rgba(16,185,129,0.1);">
                 <h4 style="margin: 0 0 0.4rem 0; font-size: 0.75rem; color: #fff; display: flex; align-items: center; gap: 0.35rem;">
                     <i class="fa-solid fa-robot" style="color: var(--accent-green)"></i> Relatório de Resposta (IA)
                 </h4>
-                <div id="ai-response-text-\${toolId}" style="font-size: 0.75rem; line-height: 1.5; color: var(--text-secondary); white-space: pre-wrap; max-height: 180px; overflow-y: auto; padding-right: 0.5rem;"></div>
+                <div id="ai-response-text-${toolId}" style="font-size: 0.75rem; line-height: 1.5; color: var(--text-secondary); white-space: pre-wrap; max-height: 180px; overflow-y: auto; padding-right: 0.5rem;"></div>
             </div>
             
             <div style="display:flex; gap: 0.4rem; flex-wrap:wrap; margin-bottom: 0.25rem;">
-                <button class="btn btn-secondary btn-xs ripple" onclick="copyAIText('\${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-copy"></i> Copiar</button>
-                <button class="btn btn-secondary btn-xs ripple" onclick="scheduleAIReminder('\${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-bell"></i> Criar Lembrete</button>
-                <button class="btn btn-secondary btn-xs ripple" onclick="saveToFinanceFromAI('\${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-wallet"></i> Lançar Financeiro</button>
+                <button class="btn btn-secondary btn-xs ripple" onclick="copyAIText('	extbar${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-copy"></i> Copiar</button>
+                <button class="btn btn-secondary btn-xs ripple" onclick="scheduleAIReminder('	extbar${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-bell"></i> Criar Lembrete</button>
+                <button class="btn btn-secondary btn-xs ripple" onclick="saveToFinanceFromAI('	extbar${toolId}')" style="padding: 4px 8px; font-size: 0.65rem;"><i class="fa-solid fa-wallet"></i> Lançar Financeiro</button>
             </div>
         </div>
     `;
@@ -2316,17 +2314,17 @@ window.runAITool = async function(toolId) {
     const tool = SUPER_TOOLS_DB.find(t => t.id === toolId);
     if (!tool) return;
     
-    const responseBox = document.getElementById(`ai-response-box-\${toolId}`);
-    const responseText = document.getElementById(`ai-response-text-\${toolId}`);
+    const responseBox = document.getElementById(`ai-response-box-${toolId}`);
+    const responseText = document.getElementById(`ai-response-text-${toolId}`);
     if (!responseText || !responseBox) return;
     
     responseText.innerHTML = `<span style="display:flex; align-items:center; gap:0.4rem; color:#fff; font-size:0.75rem;"><i class="fa-solid fa-circle-notch fa-spin"></i> Processando inteligência artificial do Gemini...</span>`;
     responseBox.style.display = 'flex';
     
     const fieldsData = {};
-    const inputs = document.querySelectorAll(`[id^="ai-field-\${toolId}-"]`);
+    const inputs = document.querySelectorAll(`[id^="ai-field-${toolId}-"]`);
     inputs.forEach(input => {
-        const key = input.id.replace(`ai-field-\${toolId}-`, '');
+        const key = input.id.replace(`ai-field-${toolId}-`, '');
         fieldsData[key] = input.value;
     });
     
@@ -2338,27 +2336,27 @@ window.runAITool = async function(toolId) {
         await parseAndExecuteAICopilotCommands(res);
     } catch(e) {
         console.error(e);
-        responseText.innerText = `Erro de Execução:\\n\${e.message}`;
+        responseText.innerText = `Erro de Execução:\n${e.message}`;
     }
 };
 
 // Funções Utilitárias de Ação sob as respostas de IA
 window.copyAIText = function(toolId) {
-    const textEl = document.getElementById(`ai-response-text-\${toolId}`);
+    const textEl = document.getElementById(`ai-response-text-${toolId}`);
     if (!textEl) return;
     navigator.clipboard.writeText(textEl.innerText).then(() => {
         showToast('Texto copiado com sucesso!', 'success');
     }).catch(() => {
-        showToast('Erro ao copiar text.', 'error');
+        showToast('Erro ao copiar texto.', 'error');
     });
 };
 
 window.scheduleAIReminder = function(toolId) {
-    const textEl = document.getElementById(`ai-response-text-\${toolId}`);
+    const textEl = document.getElementById(`ai-response-text-{toolId}`);
     if (!textEl) return;
     const summary = textEl.innerText.slice(0, 50) + '...';
     
-    const title = prompt('Qual o título do lembrete?', `Revisar resultado do \${toolId}`);
+    const title = prompt('Qual o título do lembrete?', `Revisar resultado do ${toolId}`);
     if (!title) return;
     const minutesStr = prompt('Em quantos minutos deseja receber o alerta?', '30');
     const minutes = parseInt(minutesStr, 10);
@@ -2373,7 +2371,7 @@ window.scheduleAIReminder = function(toolId) {
         
     dbPut('reminders', {
         id: generateId(),
-        title: title + ` (\${summary})`,
+        title: title + ` (${summary})`,
         datetime: formatTime,
         type: 'reminder',
         triggered: false
@@ -2389,7 +2387,7 @@ window.saveToFinanceFromAI = function(toolId) {
     const amount = parseFloat(amountStr);
     if (isNaN(amount)) return;
     
-    const desc = prompt('Qual a descrição do lançamento?', `Resultado IA: \${toolId}`);
+    const desc = prompt('Qual a descrição do lançamento?', `Resultado IA: ${toolId}`);
     if (!desc) return;
     
     const type = confirm('Clique OK para RECEITA ou CANCELAR para DESPESA') ? 'Receita' : 'Despesa Variável';
@@ -2412,18 +2410,25 @@ window.saveToFinanceFromAI = function(toolId) {
 // CONTROLADOR DOS COMPONENTES E ABAS DE INTERAÇÃO DO COPILOTO IA
 // ==========================================================================
 
-// Variáveis de estado do Copiloto
-state.selectedCopilotToolId = 'chat_geral';
+state.selectedCopilotToolId = '';
 state.selectedCopilotToolTab = 'sim';
 state.currentAttachment = null;
+state.currentAttachmentDB = null;
 
 // Seleção de ferramenta no Sidebar
 window.selectCopilotTool = function(toolId) {
+    if (toolId === 'chat_geral') {
+        // Redireciona para o chat geral do Dashboard
+        switchTab('dashboard');
+        setTimeout(() => {
+            const input = document.getElementById('copilot-input-db');
+            if (input) input.focus();
+        }, 300);
+        return;
+    }
+
     state.selectedCopilotToolId = toolId;
     state.selectedCopilotToolTab = 'sim';
-    if (window.switchCopilotMobileTab) {
-        window.switchCopilotMobileTab('chat');
-    }
     
     // Destacar item selecionado no sidebar
     document.querySelectorAll('.copilot-tool-item').forEach(item => {
@@ -2438,18 +2443,6 @@ window.selectCopilotTool = function(toolId) {
     const activeIcon = document.getElementById('copilot-active-icon');
     const activeName = document.getElementById('copilot-active-name');
     const activeBadge = document.getElementById('copilot-active-badge');
-    const chatMessages = document.getElementById('copilot-chat-messages');
-
-    if (!toolId || toolId === 'chat_geral') {
-        if (configPanel) configPanel.style.display = 'none';
-        if (activeIcon) activeIcon.className = 'fa-solid fa-comments color-purple';
-        if (activeName) activeName.innerText = 'Chat Geral / Copiloto';
-        if (activeBadge) activeBadge.style.display = 'none';
-        if (chatMessages) {
-            chatMessages.style.height = ''; // Restaurar tamanho padrão
-        }
-        return;
-    }
 
     const tool = SUPER_TOOLS_DB.find(t => t.id === toolId);
     if (!tool) return;
@@ -2466,6 +2459,11 @@ window.selectCopilotTool = function(toolId) {
         configPanel.style.display = 'flex';
         renderCopilotToolTabsUI(configPanel, tool);
     }
+    
+    // Auto-switch mobile view if needed
+    if (window.switchCopilotMobileTab) {
+        window.switchCopilotMobileTab('chat');
+    }
 };
 
 // Alternar entre abas internas de uma ferramenta ativa
@@ -2476,28 +2474,32 @@ window.switchCopilotToolTab = function(tabName) {
         btn.classList.remove('active');
     });
     
-    const activeBtn = document.getElementById(`tab-btn-\${tabName}`);
+    const activeBtn = document.getElementById(`tab-btn-${tabName}`);
     if (activeBtn) activeBtn.classList.add('active');
     
-    document.getElementById('copilot-tab-pane-sim').style.display = tabName === 'sim' ? 'block' : 'none';
-    document.getElementById('copilot-tab-pane-form').style.display = tabName === 'form' ? 'block' : 'none';
-    document.getElementById('copilot-tab-pane-ai').style.display = tabName === 'ai' ? 'block' : 'none';
+    const simPane = document.getElementById('copilot-tab-pane-sim');
+    const formPane = document.getElementById('copilot-tab-pane-form');
+    const aiPane = document.getElementById('copilot-tab-pane-ai');
+    
+    if (simPane) simPane.style.display = tabName === 'sim' ? 'block' : 'none';
+    if (formPane) formPane.style.display = tabName === 'form' ? 'block' : 'none';
+    if (aiPane) aiPane.style.display = tabName === 'ai' ? 'block' : 'none';
 };
 
-// Renderizar UI das 3 Abas internas do Painel de Configurações
+// Renderizar UI das Abas internas
 function renderCopilotToolTabsUI(panel, tool) {
     const isAIAssistant = !tool.render.toString().includes('calc') && !tool.render.toString().includes('sec_fret') && !tool.render.toString().includes('calc_combust') && !tool.render.toString().includes('calc_desgaste') && !tool.render.toString().includes('sec_comis') && !tool.render.toString().includes('sec_rescis') && !tool.render.toString().includes('calcCriptoTax');
 
     panel.innerHTML = `
-        <div class="tool-tabs-nav">
-            <button class="tool-tab-btn active" id="tab-btn-sim" onclick="switchCopilotToolTab('sim')">
-                <i class="fa-solid \${isAIAssistant ? 'fa-wand-magic-sparkles' : 'fa-sliders'}"></i> \${isAIAssistant ? 'Assistente IA' : 'Simulador'}
+        <div class="tool-tabs-nav" style="display:flex; gap:0.4rem; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:0.4rem; margin-bottom:0.75rem;">
+            <button class="tool-tab-btn active" id="tab-btn-sim" onclick="switchCopilotToolTab('sim')" style="flex:1; height:32px; font-size:0.75rem; border-radius:4px;">
+                <i class="fa-solid ${isAIAssistant ? 'fa-wand-magic-sparkles' : 'fa-sliders'}"></i> ${isAIAssistant ? 'Assistente IA' : 'Simulador'}
             </button>
-            <button class="tool-tab-btn" id="tab-btn-form" onclick="switchCopilotToolTab('form')">
-                <i class="fa-solid fa-circle-info"></i> Explicação & Fórmulas
+            <button class="tool-tab-btn" id="tab-btn-form" onclick="switchCopilotToolTab('form')" style="flex:1; height:32px; font-size:0.75rem; border-radius:4px;">
+                <i class="fa-solid fa-circle-info"></i> Fórmulas
             </button>
-            <button class="tool-tab-btn" id="tab-btn-ai" onclick="switchCopilotToolTab('ai')">
-                <i class="fa-solid fa-robot"></i> Consultoria de IA
+            <button class="tool-tab-btn" id="tab-btn-ai" onclick="switchCopilotToolTab('ai')" style="flex:1; height:32px; font-size:0.75rem; border-radius:4px;">
+                <i class="fa-solid fa-robot"></i> Consultoria IA
             </button>
         </div>
         <div id="copilot-tab-pane-sim" class="tool-tab-content"></div>
@@ -2505,13 +2507,9 @@ function renderCopilotToolTabsUI(panel, tool) {
         <div id="copilot-tab-pane-ai" class="tool-tab-content" style="display: none;"></div>
     `;
 
-    // Renderizar Aba 1: Simulador ou campos de IA
     const simPane = document.getElementById('copilot-tab-pane-sim');
-    if (simPane) {
-        tool.render(simPane);
-    }
+    if (simPane) tool.render(simPane);
 
-    // Renderizar Aba 2: Fórmulas e Explicações
     const formPane = document.getElementById('copilot-tab-pane-form');
     if (formPane) {
         const doc = TOOL_DOCUMENTATION[tool.id] || { formula: 'Modelo Conversacional', explanation: 'Assistente consultivo de inteligência artificial.', examples: 'Insira as informações na aba Assistente IA.' };
@@ -2519,21 +2517,20 @@ function renderCopilotToolTabsUI(panel, tool) {
             <div style="display: flex; flex-direction: column; gap: 0.6rem; background: rgba(255,255,255,0.01); border-radius: 8px; padding: 0.75rem; border: 1px solid rgba(255,255,255,0.03);">
                 <div>
                     <h5 style="margin: 0 0 0.25rem 0; font-size: 0.75rem; color: var(--accent-blue);"><i class="fa-solid fa-circle-info"></i> Funcionamento</h5>
-                    <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.45;">\${doc.explanation}</p>
+                    <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.45;">${doc.explanation}</p>
                 </div>
                 <div style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.4rem;">
                     <h5 style="margin: 0 0 0.25rem 0; font-size: 0.75rem; color: var(--accent-green);"><i class="fa-solid fa-calculator"></i> Regra / Fórmula</h5>
-                    <code style="display: block; background: rgba(0,0,0,0.3); padding: 0.4rem; border-radius: 4px; font-size: 0.68rem; font-family: monospace; color: #fff; overflow-x: auto;">\${doc.formula}</code>
+                    <code style="display: block; background: rgba(0,0,0,0.3); padding: 0.4rem; border-radius: 4px; font-size: 0.68rem; font-family: monospace; color: #fff; overflow-x: auto;">	extbar${doc.formula}</code>
                 </div>
                 <div style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.4rem;">
                     <h5 style="margin: 0 0 0.25rem 0; font-size: 0.75rem; color: var(--accent-yellow);"><i class="fa-solid fa-lightbulb"></i> Exemplo Prático</h5>
-                    <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.45;">\${doc.examples}</p>
+                    <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.45;">${doc.examples}</p>
                 </div>
             </div>
         `;
     }
 
-    // Renderizar Aba 3: Consultoria de IA
     const aiPane = document.getElementById('copilot-tab-pane-ai');
     if (aiPane) {
         const doc = TOOL_DOCUMENTATION[tool.id] || {};
@@ -2542,8 +2539,8 @@ function renderCopilotToolTabsUI(panel, tool) {
         let presetsHtml = '';
         presets.forEach(p => {
             presetsHtml += `
-                <button class="btn btn-secondary btn-xs ripple" onclick="sendCopilotPresetQuestion('\${p.replace(/'/g, "\\\\'")}')" style="text-align: left; justify-content: flex-start; font-size: 0.7rem; padding: 6px 10px; width: 100%; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); margin-bottom: 0.3rem;">
-                    <i class="fa-solid fa-circle-question" style="color: var(--accent-purple);"></i> "\${p}"
+                <button class="btn btn-secondary btn-xs ripple" onclick="sendCopilotPresetQuestion('${p.replace(/'/g, "\\'")}')" style="text-align: left; justify-content: flex-start; font-size: 0.7rem; padding: 6px 10px; width: 100%; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); margin-bottom: 0.3rem; white-space: normal; line-height: 1.2;">
+                    <i class="fa-solid fa-circle-question" style="color: var(--accent-purple);"></i> "${p}"
                 </button>
             `;
         });
@@ -2551,11 +2548,11 @@ function renderCopilotToolTabsUI(panel, tool) {
         aiPane.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                 <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4;">
-                    Olá! Sou o assistente especializado do módulo <strong>\${tool.title}</strong>. Clique em uma pergunta frequente ou digite sua dúvida no campo abaixo para iniciarmos a consultoria.
+                    Olá! Sou o assistente especializado do módulo <strong>${tool.title}</strong>. Clique em uma pergunta frequente ou digite sua dúvida no campo abaixo para iniciarmos a consultoria.
                 </p>
                 <div style="display: flex; flex-direction: column; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.4rem; max-height: 130px; overflow-y: auto;">
                     <span style="font-size: 0.62rem; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.3rem;">Perguntas Frequentes:</span>
-                    \${presetsHtml}
+                    ${presetsHtml}
                 </div>
             </div>
         `;
@@ -2572,9 +2569,9 @@ window.renderCopilotToolsSidebar = function() {
 
     list.innerHTML = '';
 
-    // Botão fixo de Chat Geral no topo
+    // Botão de Chat Geral no topo
     const generalItem = document.createElement('div');
-    generalItem.className = `copilot-tool-item \${(!state.selectedCopilotToolId || state.selectedCopilotToolId === 'chat_geral') ? 'active' : ''}`;
+    generalItem.className = 'copilot-tool-item';
     generalItem.setAttribute('data-tool-id', 'chat_geral');
     generalItem.innerHTML = `
         <div class="copilot-tool-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--accent-purple);">
@@ -2582,7 +2579,7 @@ window.renderCopilotToolsSidebar = function() {
         </div>
         <div class="copilot-tool-info">
             <span class="copilot-tool-name">Chat Geral / Copiloto</span>
-            <span class="copilot-tool-desc">Assistente de inteligência artificial geral</span>
+            <span class="copilot-tool-desc">Conversar diretamente com a IA no Dashboard</span>
         </div>
     `;
     generalItem.onclick = () => selectCopilotTool('chat_geral');
@@ -2597,7 +2594,7 @@ window.renderCopilotToolsSidebar = function() {
 
     filtered.forEach(tool => {
         const item = document.createElement('div');
-        item.className = `copilot-tool-item \${state.selectedCopilotToolId === tool.id ? 'active' : ''}`;
+        item.className = `copilot-tool-item ${state.selectedCopilotToolId === tool.id ? 'active' : ''}`;
         item.setAttribute('data-tool-id', tool.id);
         
         const isAIAssistant = !tool.render.toString().includes('calc') && !tool.render.toString().includes('sec_fret') && !tool.render.toString().includes('calc_combust') && !tool.render.toString().includes('calc_desgaste') && !tool.render.toString().includes('sec_comis') && !tool.render.toString().includes('sec_rescis') && !tool.render.toString().includes('calcCriptoTax');
@@ -2605,14 +2602,14 @@ window.renderCopilotToolsSidebar = function() {
         
         item.innerHTML = `
             <div class="copilot-tool-icon">
-                <i class="\${tool.icon}"></i>
+                <i class="${tool.icon}"></i>
             </div>
             <div class="copilot-tool-info">
                 <div style="display:flex; align-items:center; gap:0.25rem;">
-                    <span class="copilot-tool-name">\${tool.title}</span>
-                    \${badge}
+                    <span class="copilot-tool-name">${tool.title}</span>
+                    ${badge}
                 </div>
-                <span class="copilot-tool-desc">\${tool.desc}</span>
+                <span class="copilot-tool-desc">	extbar${tool.desc}</span>
             </div>
         `;
         item.onclick = () => selectCopilotTool(tool.id);
@@ -2620,48 +2617,54 @@ window.renderCopilotToolsSidebar = function() {
     });
 };
 
-// Enviar mensagem de pergunta sugerida predefinida
+// Enviar pergunta sugerida
 window.sendCopilotPresetQuestion = function(question) {
-    const input = document.getElementById('copilot-input');
+    const isDashboardActive = document.getElementById('tab-dashboard').classList.contains('active');
+    const input = document.getElementById(isDashboardActive ? 'copilot-input-db' : 'copilot-input');
     if (input) {
         input.value = question;
-        sendCopilotChatMessage();
+        if (isDashboardActive) {
+            sendCopilotChatMessageDB();
+        } else {
+            sendCopilotChatMessage();
+        }
     }
 };
 
-// Envio de Mensagem ao Copiloto IA Principal
-window.sendCopilotChatMessage = async function() {
-    const input = document.getElementById('copilot-input');
+// ENVIADOR DE MENSAGENS GENÉRICO DO GEMINI COM AÇÕES DO BD LOCAL
+window.sendCopilotChatMessageGeneric = async function(inputId, chatBoxId, attachmentKey) {
+    const input = document.getElementById(inputId);
     if (!input || !input.value.trim()) return;
 
     const userText = input.value.trim();
     input.value = '';
 
-    const chatBox = document.getElementById('copilot-chat-messages');
+    const chatBox = document.getElementById(chatBoxId);
     if (!chatBox) return;
 
-    // Adicionar Mensagem do Usuário
+    // Mensagem Usuário
     const userDiv = document.createElement('div');
     userDiv.className = 'copilot-message user';
     userDiv.innerHTML = `
         <p style="margin: 0; font-weight: bold; color: #fff; font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem;">
             <i class="fa-solid fa-user"></i> Você:
         </p>
-        <p style="margin: 0.25rem 0 0 0; line-height: 1.45;">\${userText}</p>
+        <p style="margin: 0.25rem 0 0 0; line-height: 1.45;">${userText}</p>
     `;
     chatBox.appendChild(userDiv);
     
-    // Adicionar visual de anexo se existir
-    if (state.currentAttachment) {
+    // Mostrar anexo se houver
+    const attachment = state[attachmentKey];
+    if (attachment) {
         const attachDiv = document.createElement('div');
         attachDiv.style.cssText = 'background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.7rem; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.4rem; width: fit-content;';
-        attachDiv.innerHTML = `<i class="fa-solid fa-file-invoice-dollar" style="color: var(--accent-blue);"></i> Arquivo: <strong>\${state.currentAttachment.name}</strong> (\${state.currentAttachment.type})`;
+        attachDiv.innerHTML = `<i class="fa-solid fa-file-invoice-dollar" style="color: var(--accent-blue);"></i> Arquivo: <strong>${attachment.name}</strong> (${attachment.type})`;
         userDiv.appendChild(attachDiv);
     }
     
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // Balão de digitação da IA
+    // Mensagem IA Carregando
     const aiDiv = document.createElement('div');
     aiDiv.className = 'copilot-message ai';
     aiDiv.innerHTML = `
@@ -2699,23 +2702,24 @@ Você também pode responder em formato JSON de comando direto se preferir:
 [DB_COMMAND: {"action": "ADD_SERVICE", ...}]
 [DB_COMMAND: {"action": "REQUEST_PERMISSION", "permission": "location"}]
 
-Data e hora atual do sistema: \${new Date().toLocaleString('pt-BR')}.
+Data e hora atual do sistema: ${new Date().toLocaleString('pt-BR')}.
         `;
 
-        if (state.selectedCopilotToolId && state.selectedCopilotToolId !== 'chat_geral') {
+        // Contexto de ferramenta ativa (apenas no chat do Simulador)
+        if (chatBoxId === 'copilot-chat-messages' && state.selectedCopilotToolId) {
             const activeTool = SUPER_TOOLS_DB.find(t => t.id === state.selectedCopilotToolId);
             const doc = TOOL_DOCUMENTATION[activeTool.id] || {};
-            systemPrompt += `\\n\\n[CONTEXTO DA FERRAMENTA ATIVA]:
-O usuário está utilizando a ferramenta "\${activeTool.title}".
-Descrição: \${activeTool.desc}.
-Regras/Fórmulas: \${doc.explanation || ''} \${doc.formula || ''}.
+            systemPrompt += `\n\n[CONTEXTO DA FERRAMENTA ATIVA]:
+O usuário está utilizando a ferramenta "${activeTool.title}".
+Descrição: 	extbar${activeTool.desc}.
+Regras/Fórmulas: ${doc.explanation || ''} ${doc.formula || ''}.
 Sua resposta deve priorizar auxiliar o usuário com relação a esta ferramenta, seus cálculos e regras de funcionamento.`;
         }
 
-        let fullPrompt = systemPrompt + `\\n\\nMensagem do usuário: "\${userText}"`;
+        let fullPrompt = systemPrompt + `\n\nMensagem do usuário: "${userText}"`;
         
-        if (state.currentAttachment) {
-            fullPrompt += `\\n\\n[ARQUIVO ANEXADO: \${state.currentAttachment.name} (\${state.currentAttachment.type})]:\\n\${state.currentAttachment.content}`;
+        if (attachment) {
+            fullPrompt += `\n\n[ARQUIVO ANEXADO: ${attachment.name} (${attachment.type})]:\n${attachment.content}`;
         }
 
         const responseText = await callGeminiAPI(fullPrompt);
@@ -2723,7 +2727,7 @@ Sua resposta deve priorizar auxiliar o usuário com relação a esta ferramenta,
         // Executar ações de banco locais
         const actionsCount = await parseAndExecuteAICopilotCommands(responseText);
 
-        // Limpar os comandos das mensagens que serão impressas na tela
+        // Limpar comandos da resposta visual
         let cleanText = responseText
             .replace(/\\[ADD_HOURS:.*?\\]/gi, '')
             .replace(/\\[ADD_FINANCE:.*?\\]/gi, '')
@@ -2732,209 +2736,124 @@ Sua resposta deve priorizar auxiliar o usuário com relação a esta ferramenta,
             .replace(/\\[DB_COMMAND:.*?\\]/gi, '')
             .trim();
 
+        aiDiv.querySelector('p:last-child').innerHTML = formatMarkdownText(cleanText);
+        
         if (actionsCount > 0) {
-            cleanText += `\\n\\n*(Ações locais: \${actionsCount} comando(s) executado(s) com sucesso no IndexedDB!)*`;
-        }
-
-        aiDiv.querySelector('p:last-child').innerText = cleanText;
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        clearCopilotAttachment();
-
-    } catch (e) {
-        console.error(e);
-        aiDiv.querySelector('p:last-child').innerHTML = `Erro: \${e.message}`;
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-};
-
-// Interpretador e Executor Local de Comandos de Banco de Dados gerados pela IA
-window.parseAndExecuteAICopilotCommands = async function(text) {
-    let actionsExecuted = 0;
-
-    // 1. Processar tags estruturadas clássicas [ADD_HOURS: ...]
-    const hoursRegex = /\\[ADD_HOURS:\\s*"(.*?)",\\s*"(.*?)",\\s*"(.*?)",\\s*"(.*?)",\\s*"(.*?)",\\s*(\\d+(?:\\.\\d+)?),\\s*"(.*?)"\\]/gi;
-    let match;
-    while ((match = hoursRegex.exec(text)) !== null) {
-        const date = match[1];
-        const entrada1 = match[2];
-        const saida1 = match[3];
-        const entrada2 = match[4];
-        const saida2 = match[5];
-        const trajetoKm = parseFloat(match[6]) || 0;
-        const observacoes = match[7];
-
-        const existingRow = state.rows.find(r => r.date === date);
-        const rowData = existingRow ? { ...existingRow } : { rowNum: Date.now() + actionsExecuted, date, statusPagamento: 'Pendente' };
-        
-        rowData.entrada1 = entrada1;
-        rowData.saida1 = saida1;
-        rowData.entrada2 = entrada2;
-        rowData.saida2 = saida2;
-        rowData.observacoes = observacoes;
-        
-        recalcRow(rowData, state.globalRate);
-        await dbPut('rows', rowData);
-
-        const idx = state.rows.findIndex(r => r.date === date);
-        if (idx !== -1) {
-            state.rows[idx] = rowData;
-        } else {
-            state.rows.push(rowData);
-        }
-        actionsExecuted++;
-    }
-
-    const financeRegex = /\\[ADD_FINANCE:\\s*"(.*?)",\\s*"(.*?)",\\s*"(.*?)",\\s*(\\d+(?:\\.\\d+)?),\\s*"(.*?)"\\]/gi;
-    while ((match = financeRegex.exec(text)) !== null) {
-        const date = match[1];
-        const description = match[2];
-        const type = match[3];
-        const amount = parseFloat(match[4]) || 0;
-        const category = match[5];
-
-        await dbPut('finance', {
-            id: generateId(),
-            date,
-            description,
-            type,
-            amount,
-            category
-        });
-        actionsExecuted++;
-    }
-
-    const serviceRegex = /\\[ADD_SERVICE:\\s*"(.*?)",\\s*"(.*?)",\\s*(\\d+(?:\\.\\d+)?),\\s*"(.*?)",\\s*"(.*?)"\\]/gi;
-    while ((match = serviceRegex.exec(text)) !== null) {
-        const client = match[1];
-        const service = match[2];
-        const unitPrice = parseFloat(match[3]) || 0;
-        const status = match[4];
-        const date = match[5];
-
-        await dbPut('services', {
-            id: generateId(),
-            date,
-            client,
-            service,
-            quantity: 1,
-            unitPrice,
-            status,
-            notes: "Adicionado via Copiloto IA"
-        });
-        actionsExecuted++;
-    }
-
-    const permRegex = /\\[REQUEST_PERMISSION:\\s*"(.*?)"\\]/gi;
-    while ((match = permRegex.exec(text)) !== null) {
-        const permission = match[1];
-        requestDevicePermission(permission);
-        actionsExecuted++;
-    }
-
-    // 2. Processar blocos JSON estruturados [DB_COMMAND: ...]
-    const jsonCommandRegex = /\\[DB_COMMAND:\\s*(\\{.*?\\})\\s*\\]/gi;
-    while ((match = jsonCommandRegex.exec(text)) !== null) {
-        try {
-            const cmd = JSON.parse(match[1]);
-            if (cmd.action === 'ADD_HOURS') {
-                const date = cmd.date;
-                const existingRow = state.rows.find(r => r.date === date);
-                const rowData = existingRow ? { ...existingRow } : { rowNum: Date.now() + actionsExecuted, date, statusPagamento: 'Pendente' };
-                
-                if (cmd.entrada1 !== undefined) rowData.entrada1 = cmd.entrada1;
-                if (cmd.saida1 !== undefined) rowData.saida1 = cmd.saida1;
-                if (cmd.entrada2 !== undefined) rowData.entrada2 = cmd.entrada2;
-                if (cmd.saida2 !== undefined) rowData.saida2 = cmd.saida2;
-                if (cmd.observacoes !== undefined) rowData.observacoes = cmd.observacoes;
-                if (cmd.saidaCasa !== undefined) rowData.saidaCasa = cmd.saidaCasa;
-                if (cmd.chegadaCasa !== undefined) rowData.chegadaCasa = cmd.chegadaCasa;
-
-                recalcRow(rowData, state.globalRate);
-                await dbPut('rows', rowData);
-
-                const idx = state.rows.findIndex(r => r.date === date);
-                if (idx !== -1) {
-                    state.rows[idx] = rowData;
-                } else {
-                    state.rows.push(rowData);
-                }
-                actionsExecuted++;
-            } else if (cmd.action === 'ADD_FINANCE') {
-                await dbPut('finance', {
-                    id: generateId(),
-                    date: cmd.date || new Date().toISOString().split('T')[0],
-                    description: cmd.description || '',
-                    type: cmd.type || 'Despesa Variável',
-                    amount: parseFloat(cmd.amount) || 0,
-                    category: cmd.category || 'Outros'
-                });
-                actionsExecuted++;
-            } else if (cmd.action === 'ADD_SERVICE') {
-                await dbPut('services', {
-                    id: generateId(),
-                    date: cmd.date || new Date().toISOString().split('T')[0],
-                    client: cmd.client || '',
-                    service: cmd.service || '',
-                    quantity: parseFloat(cmd.quantity) || 1,
-                    unitPrice: parseFloat(cmd.unitPrice) || 0,
-                    status: cmd.status || 'Concluído',
-                    notes: cmd.notes || ''
-                });
-                actionsExecuted++;
-            } else if (cmd.action === 'REQUEST_PERMISSION') {
-                requestDevicePermission(cmd.permission);
-                actionsExecuted++;
+            const successIndicator = document.createElement('div');
+            successIndicator.style.cssText = 'background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--accent-green); border-radius: 4px; padding: 0.35rem 0.5rem; font-size: 0.68rem; margin-top: 0.5rem; display: flex; align-items: center; gap: 0.3rem;';
+            successIndicator.innerHTML = '<i class="fa-solid fa-square-check"></i> Comandos de Banco de Dados Executados com Sucesso Localmente!';
+            aiDiv.appendChild(successIndicator);
+            
+            if (window.fetchData) {
+                await window.fetchData();
+                if (window.renderCharts) setTimeout(window.renderCharts, 100);
             }
-        } catch (err) {
-            console.error("Falha ao interpretar comando JSON da IA:", err);
         }
+    } catch (err) {
+        console.error(err);
+        aiDiv.querySelector('p:last-child').innerHTML = `<span style="color:#ef4444;"><i class="fa-solid fa-circle-exclamation"></i> Ocorreu um erro no processamento: ${err.message}</span>`;
     }
 
-    if (actionsExecuted > 0) {
-        if (typeof fetchData === 'function') {
-            await fetchData();
-        }
-    }
+    // Limpar anexos e resets
+    state[attachmentKey] = null;
+    const fileInput = document.getElementById(inputId === 'copilot-input' ? 'copilot-file-input' : 'copilot-file-input-db');
+    if (fileInput) fileInput.value = '';
+    
+    const previewArea = document.getElementById(inputId === 'copilot-input' ? 'copilot-file-preview-area' : 'copilot-file-preview-area-db');
+    if (previewArea) previewArea.style.display = 'none';
 
-    return actionsExecuted;
+    chatBox.scrollTop = chatBox.scrollHeight;
 };
 
-// Executor de Requisições de Permissão Web API
-function requestDevicePermission(permission) {
-    if (permission === 'notifications') {
-        if (Notification.permission === 'default') {
-            Notification.requestPermission().then(perm => {
-                showToast(`Permissão Notificações: \${perm}`, 'info');
-            });
-        } else {
-            showToast(`Notificações já configuradas: \${Notification.permission}`, 'info');
+window.sendCopilotChatMessage = async function() {
+    await window.sendCopilotChatMessageGeneric('copilot-input', 'copilot-chat-messages', 'currentAttachment');
+};
+
+window.sendCopilotChatMessageDB = async function() {
+    await window.sendCopilotChatMessageGeneric('copilot-input-db', 'copilot-chat-messages-db', 'currentAttachmentDB');
+};
+
+// SPEECH RECOGNITION GENÉRICO
+window.toggleCopilotVoiceInputGeneric = function(inputId, btnId) {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        showToast("Reconhecimento de voz não suportado pelo seu navegador!", "error");
+        return;
+    }
+
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (state.voiceRecognitionActive) {
+        if (state.recognitionInstance) {
+            state.recognitionInstance.stop();
         }
-    } else if (permission === 'location') {
-        navigator.geolocation.getCurrentPosition(
-            pos => showToast(`Localização concedida! Lat \${pos.coords.latitude.toFixed(4)}, Lng \${pos.coords.longitude.toFixed(4)}`, 'success'),
-            err => showToast(`Erro ao obter localização: \${err.message}`, 'error')
-        );
-    } else if (permission === 'camera') {
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                showToast("Acesso à câmera liberado!", "success");
-                stream.getTracks().forEach(track => track.stop());
-            })
-            .catch(err => showToast(`Erro ao acessar câmera: \${err.message}`, 'error'));
+        return;
+    }
+
+    state.voiceRecognitionActive = true;
+    btn.style.background = 'rgba(239, 68, 68, 0.2)';
+    btn.style.boxShadow = '0 0 10px #ef4444';
+    btn.style.color = '#ef4444';
+    btn.classList.add('voice-pulse');
+    showToast("Escutando... Fale seu comando/pergunta.", "info");
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = (input.value ? input.value + ' ' : '') + transcript;
+        }
+        showToast("Voz transcrita com sucesso!", "success");
+    };
+
+    recognition.onerror = (err) => {
+        console.error('Speech recognition error:', err);
+        showToast("Erro no reconhecimento de voz: " + err.error, "error");
+        stopVoiceUiGeneric(btnId);
+    };
+
+    recognition.onend = () => {
+        stopVoiceUiGeneric(btnId);
+    };
+
+    state.recognitionInstance = recognition;
+    recognition.start();
+};
+
+function stopVoiceUiGeneric(btnId) {
+    state.voiceRecognitionActive = false;
+    state.recognitionInstance = null;
+    const btn = document.getElementById(btnId);
+    if (btn) {
+        btn.style.background = '';
+        btn.style.boxShadow = '';
+        btn.style.color = '';
+        btn.classList.remove('voice-pulse');
     }
 }
 
-// ==========================================================================
-// CLIENT-SIDE FILE PARSERS (EXCELJS, CSV, JSON, TXT)
-// ==========================================================================
+window.toggleCopilotVoiceInput = function() {
+    window.toggleCopilotVoiceInputGeneric('copilot-input', 'btn-copilot-voice');
+};
 
-window.handleFileChange = async function(event) {
+window.toggleCopilotVoiceInputDB = function() {
+    window.toggleCopilotVoiceInputGeneric('copilot-input-db', 'btn-copilot-voice-db');
+};
+
+// PARSER DE ARQUIVOS GENÉRICO
+window.handleFileChangeGeneric = async function(event, previewAreaId, fileNameId, attachmentKey) {
     const file = event.target.files[0];
     if (!file) return;
     
-    const previewArea = document.getElementById('copilot-file-preview-area');
-    const fileNameEl = document.getElementById('copilot-file-name');
+    const previewArea = document.getElementById(previewAreaId);
+    const fileNameEl = document.getElementById(fileNameId);
     
     if (file.name.endsWith('.xlsx')) {
         showToast("Processando planilha Excel client-side...", "info");
@@ -2946,23 +2865,23 @@ window.handleFileChange = async function(event) {
                     const workbook = new ExcelJS.Workbook();
                     await workbook.xlsx.load(arrayBuffer);
                     
-                    let textContent = `Conteúdo extraído da planilha "\${file.name}":\\n`;
+                    let textContent = `Conteúdo extraído da planilha "${file.name}":\n`;
                     workbook.eachSheet((sheet) => {
-                        textContent += `\\nAba: \${sheet.name}\\n`;
+                        textContent += `\nAba: ${sheet.name}\n`;
                         sheet.eachRow((row, rowNum) => {
                             const rowValues = row.values.slice(1);
-                            textContent += `Linha \${rowNum}: \${rowValues.join(' | ')}\\n`;
+                            textContent += `Linha ${rowNum}: ${rowValues.join(' | ')}\n`;
                         });
                     });
                     
-                    state.currentAttachment = {
+                    state[attachmentKey] = {
                         name: file.name,
                         type: 'xlsx',
                         content: textContent
                     };
                     
                     if (fileNameEl) fileNameEl.innerText = file.name;
-                    if (previewArea) previewArea.style.display = 'block';
+                    if (previewArea) previewArea.style.display = 'flex';
                     showToast("Planilha Excel lida e anexada!", "success");
                 } catch (err) {
                     console.error(err);
@@ -2977,13 +2896,13 @@ window.handleFileChange = async function(event) {
     } else if (file.name.endsWith('.csv')) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            state.currentAttachment = {
+            state[attachmentKey] = {
                 name: file.name,
                 type: 'csv',
                 content: e.target.result
             };
             if (fileNameEl) fileNameEl.innerText = file.name;
-            if (previewArea) previewArea.style.display = 'block';
+            if (previewArea) previewArea.style.display = 'flex';
             showToast("Arquivo CSV anexado!", "success");
         };
         reader.readAsText(file);
@@ -2992,13 +2911,13 @@ window.handleFileChange = async function(event) {
         reader.onload = (e) => {
             try {
                 JSON.parse(e.target.result);
-                state.currentAttachment = {
+                state[attachmentKey] = {
                     name: file.name,
                     type: 'json',
                     content: e.target.result
                 };
                 if (fileNameEl) fileNameEl.innerText = file.name;
-                if (previewArea) previewArea.style.display = 'block';
+                if (previewArea) previewArea.style.display = 'flex';
                 showToast("Documento JSON anexado com sucesso!", "success");
             } catch (err) {
                 showToast("Estrutura JSON inválida!", "error");
@@ -3008,17 +2927,25 @@ window.handleFileChange = async function(event) {
     } else {
         const reader = new FileReader();
         reader.onload = (e) => {
-            state.currentAttachment = {
+            state[attachmentKey] = {
                 name: file.name,
                 type: 'txt',
                 content: e.target.result
             };
             if (fileNameEl) fileNameEl.innerText = file.name;
-            if (previewArea) previewArea.style.display = 'block';
+            if (previewArea) previewArea.style.display = 'flex';
             showToast("Documento de texto anexado!", "success");
         };
         reader.readAsText(file);
     }
+};
+
+window.handleFileChange = async function(event) {
+    await window.handleFileChangeGeneric(event, 'copilot-file-preview-area', 'copilot-file-name', 'currentAttachment');
+};
+
+window.handleFileChangeDB = async function(event) {
+    await window.handleFileChangeGeneric(event, 'copilot-file-preview-area-db', 'copilot-file-name-db', 'currentAttachmentDB');
 };
 
 window.clearCopilotAttachment = function() {
@@ -3029,72 +2956,13 @@ window.clearCopilotAttachment = function() {
     if (previewArea) previewArea.style.display = 'none';
 };
 
-// ==========================================================================
-// VOICE CONTROL (SPEECH-TO-TEXT WITH WEBKIT SPEECH RECOGNITION)
-// ==========================================================================
-
-let recognition = null;
-let isListening = false;
-
-window.toggleCopilotVoiceInput = function() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        showToast("Seu navegador não possui suporte ao reconhecimento de voz nativo.", "error");
-        return;
-    }
-    
-    const btn = document.getElementById('btn-copilot-voice');
-    if (!btn) return;
-    
-    if (isListening) {
-        recognition.stop();
-        return;
-    }
-    
-    recognition = new SpeechRecognition();
-    recognition.lang = 'pt-BR';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    
-    recognition.onstart = () => {
-        isListening = true;
-        btn.style.background = 'rgba(16, 185, 129, 0.2)';
-        btn.style.boxShadow = '0 0 10px #10b981';
-        btn.style.color = '#10b981';
-        btn.classList.add('voice-pulse');
-        showToast("Microfone ligado. Fale seu pedido...", "info");
-    };
-    
-    recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        const input = document.getElementById('copilot-input');
-        if (input) {
-            input.value = (input.value + " " + text).trim();
-        }
-    };
-    
-    recognition.onerror = (event) => {
-        console.error("Speech Recognition Error:", event.error);
-        showToast(`Erro de áudio: \${event.error}`, "error");
-        stopVoiceUi(btn);
-    };
-    
-    recognition.onend = () => {
-        stopVoiceUi(btn);
-    };
-    
-    recognition.start();
+window.clearCopilotAttachmentDB = function() {
+    state.currentAttachmentDB = null;
+    const fileInput = document.getElementById('copilot-file-input-db');
+    if (fileInput) fileInput.value = '';
+    const previewArea = document.getElementById('copilot-file-preview-area-db');
+    if (previewArea) previewArea.style.display = 'none';
 };
-
-function stopVoiceUi(btn) {
-    isListening = false;
-    if (btn) {
-        btn.style.background = '';
-        btn.style.boxShadow = '';
-        btn.style.color = '';
-        btn.classList.remove('voice-pulse');
-    }
-}
 
 // Lembretes & Alarmes periódico de retaguarda
 window.checkPendingReminders = async function() {
@@ -3120,7 +2988,7 @@ window.checkPendingReminders = async function() {
                     icon: '/clock-192.png'
                 });
             } else {
-                alert(`\${r.type === 'alarm' ? '🚨 ALARME: ' : '🔔 LEMBRETE: '}\${r.title}`);
+                alert(`${r.type === 'alarm' ? '🚨 ALARME: ' : '🔔 LEMBRETE: '}${r.title}`);
             }
             
             if (r.type === 'alarm') {
@@ -3151,7 +3019,6 @@ window.playAlarmSound = function() {
     }
 };
 
-// Periodical reminder check
 setInterval(() => {
     if (window.checkPendingReminders) window.checkPendingReminders();
 }, 15000);
@@ -3172,9 +3039,11 @@ window.initCopilotUI = function() {
     }
 
     renderCopilotToolsSidebar();
-    selectCopilotTool('chat_geral');
     
-    // Injetar classe de animação pulsante para microfone de voz
+    if (SUPER_TOOLS_DB.length > 0) {
+        selectCopilotTool(SUPER_TOOLS_DB[0].id);
+    }
+    
     if (!document.getElementById('voice-pulse-style')) {
         const s = document.createElement('style');
         s.id = 'voice-pulse-style';
