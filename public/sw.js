@@ -1,5 +1,5 @@
 // Service Worker - Cache-First para modo 100% offline
-const CACHE_NAME = 'controle-horas-v33-offline';
+const CACHE_NAME = 'controle-horas-v34-offline';
 const ASSETS = [
   './',
   'index.html',
@@ -52,6 +52,25 @@ self.addEventListener('fetch', e => {
 
   // Nunca cachear chamadas a /api/ (modo offline: elas não existem mais)
   if (url.pathname.includes('/api/')) {
+    return;
+  }
+
+  // Para index.html ou rota raiz: Network-First (evita deadlocks de cache)
+  if (url.pathname.endsWith('index.html') || url.pathname === '/' || url.pathname.endsWith('/')) {
+    e.respondWith(
+      fetch(e.request).then(response => {
+        if (response && response.status === 200) {
+          const responseCopy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, responseCopy));
+        }
+        return response;
+      }).catch(() => {
+        return caches.match(e.request, { ignoreSearch: true }).then(cached => {
+          if (cached) return cached;
+          return caches.match('index.html');
+        });
+      })
+    );
     return;
   }
 
