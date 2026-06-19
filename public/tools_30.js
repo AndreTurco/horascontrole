@@ -2421,6 +2421,9 @@ state.currentAttachment = null;
 window.selectCopilotTool = function(toolId) {
     state.selectedCopilotToolId = toolId;
     state.selectedCopilotToolTab = 'sim';
+    if (window.switchCopilotMobileTab) {
+        window.switchCopilotMobileTab('chat');
+    }
     
     // Destacar item selecionado no sidebar
     document.querySelectorAll('.copilot-tool-item').forEach(item => {

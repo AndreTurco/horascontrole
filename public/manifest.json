@@ -3,7 +3,7 @@
   "short_name": "Horas Tracker",
   "description": "Aplicativo premium de controle de horas integrado ao Excel",
   "start_url": "./index.html",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#0b0f19",
   "theme_color": "#0b0f19",
   "orientation": "portrait",

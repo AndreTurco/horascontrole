@@ -406,6 +406,13 @@ async function fetchData() {
         if (cfgUserAge) state.userAge = cfgUserAge.value;
         const cfgUserGender = await dbGet('config', 'userGender');
         if (cfgUserGender) state.userGender = cfgUserGender.value;
+        const cfgUserName = await dbGet('config', 'userName');
+        if (cfgUserName) {
+            state.userName = cfgUserName.value;
+        } else {
+            state.userName = localStorage.getItem('app_user_name') || 'Premium';
+            await dbPut('config', { key: 'userName', value: state.userName });
+        }
         
         // Carregar linhas de ponto
         let rows = await dbGetAll('rows');
@@ -455,6 +462,11 @@ async function fetchData() {
         if (investPctEl) investPctEl.value = state.investPercent;
         
         // Atualizar UI de Perfil e Gemini
+        const nameInputEl = document.getElementById('input-user-name');
+        if (nameInputEl) nameInputEl.value = state.userName || 'Premium';
+        const gEl = document.getElementById('dashboard-greeting-title');
+        if (gEl) gEl.innerText = `Olá, ${state.userName || 'Premium'}`;
+        
         const ageEl = document.getElementById('input-user-age');
         if (ageEl) ageEl.value = state.userAge || 30;
         const genderEl = document.getElementById('input-user-gender');
@@ -2287,6 +2299,10 @@ function bindEvents() {
             item.classList.add('active');
             
             const tab = item.getAttribute('data-tab');
+            if (tab === 'tools') {
+                toggleCopilotOverlay();
+                return;
+            }
             state.activeTab = tab;
             
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -2774,16 +2790,21 @@ function bindEvents() {
             const genderVal = inputUserGender ? inputUserGender.value : 'Feminino';
             
             localStorage.setItem('app_user_name', nameVal);
+            state.userName = nameVal;
             state.userAge = ageVal;
             state.userGender = genderVal;
             
             try {
+                await dbPut('config', { key: 'userName', value: nameVal });
                 await dbPut('config', { key: 'userAge', value: ageVal });
                 await dbPut('config', { key: 'userGender', value: genderVal });
                 
                 const gEl = document.getElementById('dashboard-greeting-title');
                 if (gEl) gEl.innerText = `Olá, ${nameVal}`;
                 showToast('Perfil do usuário atualizado!', 'success');
+                
+                // Forçar recalculação das frases personalizadas da IA
+                if (window.updateDailyQuote) window.updateDailyQuote(true);
             } catch (e) {
                 console.error(e);
                 showToast('Erro ao salvar perfil no banco!', 'error');
@@ -7230,4 +7251,114 @@ document.addEventListener('DOMContentLoaded', () => {
         if (beRate && state.globalRate) beRate.value = state.globalRate;
     }, 1500);
 });
+
+// ==========================================================================
+// COPILOTO IA PREMIUM & OVERLAYS SYSTEM
+// ==========================================================================
+window.toggleCopilotOverlay = function() {
+    const overlay = document.getElementById('copilot-fullscreen-overlay');
+    if (!overlay) return;
+    const isActive = overlay.classList.toggle('active');
+    if (isActive) {
+        window.switchCopilotMobileTab('list');
+        setTimeout(() => {
+            const input = document.getElementById('copilot-input');
+            if (input) input.focus();
+        }, 300);
+    }
+};
+
+window.switchCopilotMobileTab = function(tabName) {
+    const btnList = document.getElementById('btn-copilot-mob-list');
+    const btnChat = document.getElementById('btn-copilot-mob-chat');
+    const sidebar = document.getElementById('copilot-sidebar-pane');
+    const chatPane = document.getElementById('copilot-chat-pane');
+    
+    if (tabName === 'list') {
+        if (btnList) btnList.classList.add('active');
+        if (btnChat) btnChat.classList.remove('active');
+        if (sidebar) sidebar.classList.add('active-mobile-pane');
+        if (chatPane) chatPane.classList.remove('active-mobile-pane');
+    } else {
+        if (btnList) btnList.classList.remove('active');
+        if (btnChat) btnChat.classList.add('active');
+        if (sidebar) sidebar.classList.remove('active-mobile-pane');
+        if (chatPane) chatPane.classList.add('active-mobile-pane');
+    }
+};
+
+window.updateDailyQuote = async function(force = false) {
+    const quoteEl = document.getElementById('daily-message-text');
+    if (!quoteEl) return;
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    const cachedDate = localStorage.getItem('daily_quote_date');
+    const cachedText = localStorage.getItem('daily_quote_text');
+    
+    if (!force && cachedDate === todayStr && cachedText) {
+        quoteEl.innerText = cachedText;
+        return;
+    }
+    
+    // Fallback de frases offline refinadas de acordo com idade/gênero
+    const offlineQuotes = [
+        "A consistência é a chave para o sucesso de longo prazo.",
+        "Seu tempo é o ativo mais valioso; invista-o com sabedoria.",
+        "Monitore suas horas, controle suas finanças, governe seu destino.",
+        "O sucesso não é o destino final, mas o foco diário na jornada.",
+        "Menos correria, mais planejamento. O dia rende quando a mente está calma.",
+        "Pequenas quantias poupadas hoje constroem grandes impérios amanhã.",
+        "A produtividade inteligente supera o esforço exaustivo.",
+        "Valorize seu descanso tanto quanto valoriza o seu trabalho.",
+        "Não conte as horas; faça as horas contarem.",
+        "O controle financeiro traz a liberdade que o dinheiro não compra."
+    ];
+    
+    let quote = "";
+    
+    if (state.geminiKey && window.callGeminiAPI && navigator.onLine) {
+        try {
+            quoteEl.innerText = '"Pensando em um insight personalizado..."';
+            const prompt = `Gere uma única frase curta e altamente inspiradora de motivação profissional ou inteligência financeira direcionada para o profissional ${state.userName || 'Premium'}, que tem ${state.userAge || 30} anos. Retorne apenas a frase direta (máximo de 20 palavras), sem introduções ou observações.`;
+            const res = await window.callGeminiAPI(prompt);
+            quote = res.trim();
+            if (quote.startsWith('"') && quote.endsWith('"')) {
+                // manter aspas
+            } else {
+                quote = `"${quote}"`;
+            }
+        } catch (e) {
+            console.warn("Erro ao buscar quote da API Gemini: ", e);
+            const idx = Math.floor(Math.random() * offlineQuotes.length);
+            quote = `"${offlineQuotes[idx]}"`;
+        }
+    } else {
+        const idx = Math.floor(Math.random() * offlineQuotes.length);
+        quote = `"${offlineQuotes[idx]}"`;
+    }
+    
+    localStorage.setItem('daily_quote_date', todayStr);
+    localStorage.setItem('daily_quote_text', quote);
+    quoteEl.innerText = quote;
+};
+
+window.triggerDailyMessageManual = function() {
+    window.updateDailyQuote(true);
+    showToast("Frase do dia atualizada!", "info");
+};
+
+// Inicialização de novos recursos do app
+window.initAllNewFeatures = function() {
+    window.updateDailyQuote(false);
+    
+    // Fechar overlay clicando fora ou com ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('copilot-fullscreen-overlay');
+            if (overlay && overlay.classList.contains('active')) {
+                window.toggleCopilotOverlay();
+            }
+        }
+    });
+};
 
