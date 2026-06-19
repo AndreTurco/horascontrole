@@ -278,8 +278,8 @@ async function main() {
 
         console.log('\n===================================================');
         console.log('🎉 SUCESSO! Ambos os APKs foram compilados e baixados.');
-        console.log(`   1. Versão Premium: Controle_de_Horas_Premium_v32.apk`);
-        console.log(`   2. Versão Limpa: Controle_de_Horas_Limpo_v32.apk`);
+        console.log(`   1. Versão Premium: Controle_de_Horas_Premium_v35.apk`);
+        console.log(`   2. Versão Limpa: Controle_de_Horas_Limpo_v35.apk`);
         console.log('===================================================');
     } catch (err) {
         console.error('\n❌ OCORREU UM ERRO DURANTE A COMPILAÇÃO:', err.message);
