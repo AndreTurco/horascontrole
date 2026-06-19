@@ -1397,113 +1397,329 @@ Data de Emissão: ${today}`;
         category: 'financas',
         icon: 'fa-solid fa-chart-pie color-green',
         title: 'Orçamento 50/30/20 Hub',
-        desc: 'Monitore seus gastos com base nas regras financeiras de elite 50/30/20 e receba diagnóstico inteligente.',
+        desc: 'Monitore seus gastos com base nas regras financeiras de elite 50/30/20 e receba diagnóstico inteligente com roadmaps.',
         render: (container) => {
             container.innerHTML = `
                 <div class="st-tabs-nav">
-                    <button class="st-tab-btn active" onclick="switchStTab(this, 'o50-sim')">Alocação</button>
+                    <button class="st-tab-btn active" onclick="switchStTab(this, 'o50-sim')">Simulador & Alocação</button>
                     <button class="st-tab-btn" onclick="switchStTab(this, 'o50-diag')">Diagnóstico de Saúde</button>
+                    <button class="st-tab-btn" onclick="switchStTab(this, 'o50-chart-tab')">Gráfico Proporcional</button>
                 </div>
                 
                 <div id="o50-sim" class="st-tab-content">
                     <div class="form-group-flat" style="margin-bottom: 1rem;">
-                        <label>Renda Mensal Líquida (R$)</label>
+                        <label>Sua Renda Mensal Líquida (R$)</label>
                         <input type="number" id="o50-renda" class="form-control-flat" value="5000" oninput="window.calc503020()">
                     </div>
                     
-                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <label style="font-size:0.85rem; color:#fff; display:block; margin-bottom:0.5rem;">Cenários Pré-definidos:</label>
+                        <select id="o50-preset" class="form-control-flat" onchange="window.loadO50Preset()">
+                            <option value="custom">Customizado (Modifique abaixo)</option>
+                            <option value="ideal" selected>Equilibrado / Ideal (50% / 30% / 20%)</option>
+                            <option value="survival">Sobrevivência / Crise (70% / 20% / 10%)</option>
+                            <option value="fire">Super Poupador / Rota FIRE (30% / 20% / 50%)</option>
+                            <option value="unbalanced">Consumista / Desequilibrado (55% / 40% / 5%)</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
                         <!-- Necessidades -->
-                        <div style="padding: 0.75rem; background: rgba(16, 185, 129, 0.05); border-left: 4px solid #10b981; border-radius: 4px;">
-                            <div style="display:flex; justify-content:space-between; font-size: 0.85rem; font-weight: 600;">
-                                <span style="color:#fff;">Necessidades Essenciais (50%)</span>
-                                <span id="o50-val-50" style="color:#10b981;">R$ 2.500,00</span>
+                        <div style="padding: 0.75rem; background: rgba(244, 63, 94, 0.05); border-left: 4px solid #f43f5e; border-radius: 4px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong style="font-size:0.85rem; color:#fff;">Necessidades Essenciais</strong>
+                                <span style="font-size: 0.75rem; color:#f43f5e; font-weight:bold;" id="o50-pct-ess-label">50%</span>
                             </div>
-                            <span style="font-size: 0.7rem; color: var(--text-secondary)">Moradia, contas básicas, alimentação e saúde.</span>
+                            <input type="range" id="o50-slide-ess" min="0" max="100" value="50" style="width: 100%; margin: 0.5rem 0;" oninput="window.adjustO50Sliders('ess')">
+                            <div style="display:flex; justify-content:space-between; font-size: 0.75rem; color: var(--text-secondary)">
+                                <span>Aluguel, contas básicas, mercado, saúde</span>
+                                <span id="o50-val-50" style="font-weight:bold; color:#fff;">R$ 2.500,00</span>
+                            </div>
                         </div>
                         
                         <!-- Desejos -->
-                        <div style="padding: 0.75rem; background: rgba(56, 189, 248, 0.05); border-left: 4px solid #38bdf8; border-radius: 4px;">
-                            <div style="display:flex; justify-content:space-between; font-size: 0.85rem; font-weight: 600;">
-                                <span style="color:#fff;">Desejos Pessoais (30%)</span>
-                                <span id="o50-val-30" style="color:#38bdf8;">R$ 1.500,00</span>
+                        <div style="padding: 0.75rem; background: rgba(14, 165, 233, 0.05); border-left: 4px solid #0ea5e9; border-radius: 4px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong style="font-size:0.85rem; color:#fff;">Desejos Pessoais</strong>
+                                <span style="font-size: 0.75rem; color:#0ea5e9; font-weight:bold;" id="o50-pct-des-label">30%</span>
                             </div>
-                            <span style="font-size: 0.7rem; color: var(--text-secondary)">Lazer, jantares, compras, viagens e assinaturas.</span>
+                            <input type="range" id="o50-slide-des" min="0" max="100" value="30" style="width: 100%; margin: 0.5rem 0;" oninput="window.adjustO50Sliders('des')">
+                            <div style="display:flex; justify-content:space-between; font-size: 0.75rem; color: var(--text-secondary)">
+                                <span>Lazer, jantares, assinaturas, compras</span>
+                                <span id="o50-val-30" style="font-weight:bold; color:#fff;">R$ 1.500,00</span>
+                            </div>
                         </div>
                         
-                        <!-- Investimentos -->
-                        <div style="padding: 0.75rem; background: rgba(168, 85, 247, 0.05); border-left: 4px solid #a855f7; border-radius: 4px;">
-                            <div style="display:flex; justify-content:space-between; font-size: 0.85rem; font-weight: 600;">
-                                <span style="color:#fff;">Prioridades Financeiras / Poupança (20%)</span>
-                                <span id="o50-val-20" style="color:#a855f7;">R$ 1.000,00</span>
+                        <!-- Poupança -->
+                        <div style="padding: 0.75rem; background: rgba(16, 185, 129, 0.05); border-left: 4px solid #10b981; border-radius: 4px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong style="font-size:0.85rem; color:#fff;">Poupança e Investimentos</strong>
+                                <span style="font-size: 0.75rem; color:#10b981; font-weight:bold;" id="o50-pct-poup-label">20%</span>
                             </div>
-                            <span style="font-size: 0.7rem; color: var(--text-secondary)">Investimentos, previdência e pagamento de dívidas.</span>
+                            <input type="range" id="o50-slide-poup" min="0" max="100" value="20" style="width: 100%; margin: 0.5rem 0;" oninput="window.adjustO50Sliders('poup')">
+                            <div style="display:flex; justify-content:space-between; font-size: 0.75rem; color: var(--text-secondary)">
+                                <span>Reserva de emergência, ações, previdência</span>
+                                <span id="o50-val-20" style="font-weight:bold; color:#fff;">R$ 1.000,00</span>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
                 <div id="o50-diag" class="st-tab-content" style="display: none;">
-                    <div class="st-form-row">
-                        <div class="form-group-flat">
-                            <label>Seu Gasto Essencial (R$)</label>
-                            <input type="number" id="o50-real-ess" class="form-control-flat" value="2800" oninput="window.diagnoseHealth()">
+                    <div class="glass-card" style="padding: 1.25rem; border-left: 4px solid #38bdf8; background:rgba(15,23,42,0.4);" id="o50-health-box">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+                            <strong style="color: #fff; font-size: 0.95rem;">Perfil: <span id="o50-profile-name" style="color: #38bdf8;">Equilibrado</span></strong>
+                            <span id="o50-profile-badge" class="st-badge st-badge-success">Excelente</span>
                         </div>
-                        <div class="form-group-flat">
-                            <label>Seu Gasto com Desejos (R$)</label>
-                            <input type="number" id="o50-real-des" class="form-control-flat" value="1200" oninput="window.diagnoseHealth()">
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem;" id="o50-profile-desc"></p>
+                        
+                        <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem;">
+                            <h5 style="color:#fff; font-size:0.85rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-list-check color-blue"></i> Plano de Ação de Elite Recomendado:</h5>
+                            <ul id="o50-roadmap-list" style="padding-left: 1.2rem; font-size: 0.78rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.4rem; line-height: 1.45;">
+                                <!-- Injetado dinamicamente -->
+                            </ul>
                         </div>
                     </div>
-                    
-                    <div class="glass-card" style="padding: 1.25rem; border-left: 4px solid #38bdf8;" id="o50-health-box">
-                        <strong style="color: #fff; font-size: 0.85rem;">Diagnóstico Automático:</strong>
-                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; line-height: 1.45;" id="o50-health-text"></p>
+                </div>
+
+                <div id="o50-chart-tab" class="st-tab-content" style="display: none;">
+                    <div style="display:flex; justify-content:center; align-items:center; padding: 1rem 0; flex-direction:column; gap:1.5rem;">
+                        <svg width="160" height="160" viewBox="0 0 160 160" style="filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));">
+                            <circle cx="80" cy="80" r="60" fill="transparent" stroke="rgba(255,255,255,0.03)" stroke-width="18" />
+                            <!-- Segmento Necessidades (Rose) -->
+                            <circle id="donut-seg-ess" cx="80" cy="80" r="60" fill="transparent" stroke="#f43f5e" stroke-width="18" stroke-dasharray="376.99" stroke-dashoffset="376.99" transform="rotate(-90 80 80)" stroke-linecap="round" style="transition: stroke-dashoffset 0.4s ease, transform 0.4s ease;" />
+                            <!-- Segmento Desejos (Sky Blue) -->
+                            <circle id="donut-seg-des" cx="80" cy="80" r="60" fill="transparent" stroke="#0ea5e9" stroke-width="18" stroke-dasharray="376.99" stroke-dashoffset="376.99" transform="rotate(-90 80 80)" stroke-linecap="round" style="transition: stroke-dashoffset 0.4s ease, transform 0.4s ease;" />
+                            <!-- Segmento Poupança (Emerald) -->
+                            <circle id="donut-seg-poup" cx="80" cy="80" r="60" fill="transparent" stroke="#10b981" stroke-width="18" stroke-dasharray="376.99" stroke-dashoffset="376.99" transform="rotate(-90 80 80)" stroke-linecap="round" style="transition: stroke-dashoffset 0.4s ease, transform 0.4s ease;" />
+                            <text x="80" y="85" text-anchor="middle" fill="#fff" font-size="13" font-weight="800" id="donut-center-text">100%</text>
+                        </svg>
+                        
+                        <div style="display:flex; gap:1.25rem; font-size:0.75rem; justify-content:center;">
+                            <span style="color:#f43f5e;"><i class="fa-solid fa-circle" style="font-size:0.6rem;"></i> Essencial</span>
+                            <span style="color:#0ea5e9;"><i class="fa-solid fa-circle" style="font-size:0.6rem;"></i> Desejos</span>
+                            <span style="color:#10b981;"><i class="fa-solid fa-circle" style="font-size:0.6rem;"></i> Poupança</span>
+                        </div>
                     </div>
                 </div>
             `;
             
+            let currentPreset = 'ideal';
+
             window.calc503020 = () => {
-                const val = parseFloat(document.getElementById('o50-renda').value) || 0;
-                document.getElementById('o50-val-50').innerText = 'R$ ' + (val * 0.5).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                document.getElementById('o50-val-30').innerText = 'R$ ' + (val * 0.3).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                document.getElementById('o50-val-20').innerText = 'R$ ' + (val * 0.2).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            };
-            
-            window.diagnoseHealth = () => {
                 const renda = parseFloat(document.getElementById('o50-renda').value) || 0;
-                const ess = parseFloat(document.getElementById('o50-real-ess').value) || 0;
-                const des = parseFloat(document.getElementById('o50-real-des').value) || 0;
+                const ess = parseFloat(document.getElementById('o50-slide-ess').value);
+                const des = parseFloat(document.getElementById('o50-slide-des').value);
+                const poup = parseFloat(document.getElementById('o50-slide-poup').value);
                 
-                if(renda <= 0) return;
+                document.getElementById('o50-val-50').innerText = 'R$ ' + ((renda * ess) / 100).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('o50-val-30').innerText = 'R$ ' + ((renda * des) / 100).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('o50-val-20').innerText = 'R$ ' + ((renda * poup) / 100).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 
-                const poupReal = renda - ess - des;
-                const pctEss = (ess / renda) * 100;
-                const pctDes = (des / renda) * 100;
-                const pctPoup = (poupReal / renda) * 100;
+                window.updateO50Chart(ess, des, poup);
+                window.updateO50Diagnosis(ess, des, poup);
+            };
+
+            window.adjustO50Sliders = (changed) => {
+                document.getElementById('o50-preset').value = 'custom';
                 
-                const box = document.getElementById('o50-health-box');
-                const text = document.getElementById('o50-health-text');
+                let ess = parseInt(document.getElementById('o50-slide-ess').value);
+                let des = parseInt(document.getElementById('o50-slide-des').value);
+                let poup = parseInt(document.getElementById('o50-slide-poup').value);
                 
-                let feedback = `Seu perfil atual de despesas é: <strong>${pctEss.toFixed(0)}%</strong> Essencial, <strong>${pctDes.toFixed(0)}%</strong> Desejos e <strong>${pctPoup.toFixed(0)}%</strong> Poupança. <br><br>`;
-                
-                if (pctEss > 55) {
-                    box.style.borderLeftColor = '#ef4444';
-                    feedback += `⚠️ Suas despesas fixas estão altas (<strong>${pctEss.toFixed(0)}%</strong>). Isso engessa seu orçamento e diminui sua margem de segurança contra imprevistos. Tente otimizar contratos de aluguel, luz ou serviços recorrentes.`;
-                } else if (poupReal < 0) {
-                    box.style.borderLeftColor = '#ef4444';
-                    feedback += `❌ Você está operando com saldo negativo (déficit financeiro) de R$ ${Math.abs(poupReal).toLocaleString('pt-BR')}. Reduza imediatamente as despesas supérfluas de desejos.`;
-                } else if (pctPoup >= 20) {
-                    box.style.borderLeftColor = '#10b981';
-                    feedback += `🎉 Excelente saúde financeira! Você está investindo/poupando <strong>${pctPoup.toFixed(0)}%</strong> da sua renda líquida mensal. Isso acelera drasticamente sua jornada de independência financeira.`;
-                } else {
-                    box.style.borderLeftColor = '#f59e0b';
-                    feedback += `💡 Orçamento está equilibrado, mas sua taxa de poupança está abaixo da recomendação de elite de 20%. Tente remanejar alguns gastos supérfluos para poupar mais.`;
+                const total = ess + des + poup;
+                if (total !== 100) {
+                    const diff = 100 - total;
+                    if (changed === 'ess') {
+                        // Distribuir a diferença proporcionalmente nos outros dois
+                        if (des + poup > 0) {
+                            const ratioDes = des / (des + poup);
+                            des = Math.max(0, Math.min(100, Math.round(des + diff * ratioDes)));
+                            poup = Math.max(0, 100 - ess - des);
+                        } else {
+                            des = Math.round(diff / 2);
+                            poup = 100 - ess - des;
+                        }
+                    } else if (changed === 'des') {
+                        if (ess + poup > 0) {
+                            const ratioEss = ess / (ess + poup);
+                            ess = Math.max(0, Math.min(100, Math.round(ess + diff * ratioEss)));
+                            poup = Math.max(0, 100 - ess - des);
+                        } else {
+                            ess = Math.round(diff / 2);
+                            poup = 100 - ess - des;
+                        }
+                    } else if (changed === 'poup') {
+                        if (ess + des > 0) {
+                            const ratioEss = ess / (ess + des);
+                            ess = Math.max(0, Math.min(100, Math.round(ess + diff * ratioEss)));
+                            des = Math.max(0, 100 - ess - poup);
+                        } else {
+                            ess = Math.round(diff / 2);
+                            des = 100 - ess - poup;
+                        }
+                    }
+                    
+                    document.getElementById('o50-slide-ess').value = ess;
+                    document.getElementById('o50-slide-des').value = des;
+                    document.getElementById('o50-slide-poup').value = poup;
                 }
                 
-                text.innerHTML = feedback;
-            };
-            
-            setTimeout(() => {
+                document.getElementById('o50-pct-ess-label').innerText = `${ess}%`;
+                document.getElementById('o50-pct-des-label').innerText = `${des}%`;
+                document.getElementById('o50-pct-poup-label').innerText = `${poup}%`;
+                
                 window.calc503020();
-                window.diagnoseHealth();
+            };
+
+            window.loadO50Preset = () => {
+                const preset = document.getElementById('o50-preset').value;
+                if (preset === 'custom') return;
+                
+                let ess = 50, des = 30, poup = 20;
+                if (preset === 'survival') {
+                    ess = 70; des = 20; poup = 10;
+                } else if (preset === 'fire') {
+                    ess = 30; des = 20; poup = 50;
+                } else if (preset === 'unbalanced') {
+                    ess = 55; des = 40; poup = 5;
+                }
+                
+                document.getElementById('o50-slide-ess').value = ess;
+                document.getElementById('o50-slide-des').value = des;
+                document.getElementById('o50-slide-poup').value = poup;
+                
+                document.getElementById('o50-pct-ess-label').innerText = `${ess}%`;
+                document.getElementById('o50-pct-des-label').innerText = `${des}%`;
+                document.getElementById('o50-pct-poup-label').innerText = `${poup}%`;
+                
+                window.calc503020();
+            };
+
+            window.updateO50Chart = (ess, des, poup) => {
+                const total = ess + des + poup;
+                if(total <= 0) return;
+                
+                const c = 376.99; // Circunferência de raio 60
+                
+                const essCirc = (ess / 100) * c;
+                const desCirc = (des / 100) * c;
+                const poupCirc = (poup / 100) * c;
+                
+                const elEss = document.getElementById('donut-seg-ess');
+                const elDes = document.getElementById('donut-seg-des');
+                const elPoup = document.getElementById('donut-seg-poup');
+                
+                if(!elEss || !elDes || !elPoup) return;
+                
+                // Atualizar offsets
+                elEss.style.strokeDashoffset = c - essCirc;
+                elEss.setAttribute('transform', `rotate(-90 80 80)`);
+                
+                elDes.style.strokeDashoffset = c - desCirc;
+                elDes.setAttribute('transform', `rotate(${-90 + (ess * 3.6)} 80 80)`);
+                
+                elPoup.style.strokeDashoffset = c - poupCirc;
+                elPoup.setAttribute('transform', `rotate(${-90 + ((ess + des) * 3.6)} 80 80)`);
+                
+                document.getElementById('donut-center-text').innerText = `${total}%`;
+            };
+
+            window.updateO50Diagnosis = (ess, des, poup) => {
+                const profileName = document.getElementById('o50-profile-name');
+                const profileBadge = document.getElementById('o50-profile-badge');
+                const profileDesc = document.getElementById('o50-profile-desc');
+                const roadmapList = document.getElementById('o50-roadmap-list');
+                const box = document.getElementById('o50-health-box');
+                
+                if(!profileName || !roadmapList) return;
+                
+                let profile = "";
+                let badgeClass = "st-badge-success";
+                let badgeText = "Excelente";
+                let desc = "";
+                let roadmap = [];
+                let colorBorder = "#10b981";
+                
+                if (ess >= 65 || poup <= 5) {
+                    // Cenário 1: Crise / Endividamento
+                    profile = "Sobrevivência & Sobrecarga";
+                    badgeClass = "st-badge-danger";
+                    badgeText = "Crítico";
+                    colorBorder = "#ef4444";
+                    desc = "Seu orçamento está gravemente estrangulado pelos custos essenciais. Praticamente não há sobra financeira para poupar ou lidar com imprevistos cotidianos, gerando alta vulnerabilidade financeira.";
+                    roadmap = [
+                        "<strong>Desafio dos 7 Dias:</strong> Bloqueie qualquer consumo supérfluo ou de conveniência na próxima semana.",
+                        "<strong>Auditoria Contratual:</strong> Faça portabilidade de crédito para reduzir juros de parcelamentos ativos, ligue e renegocie planos de internet, telefone e assinaturas.",
+                        "<strong>Substituição de Marcas:</strong> Substitua produtos de marca em compras básicas por alternativas genéricas de qualidade no supermercado.",
+                        "<strong>Foco em Faturamento:</strong> Direcione o tempo livre do histórico para prospectar mais horas extras de trabalho ou renda acessória rápida."
+                    ];
+                } else if (ess > 52 && ess < 65) {
+                    // Cenário 2: Custo de Vida Elevado
+                    profile = "Custo de Vida Elevado";
+                    badgeClass = "st-badge-warning";
+                    badgeText = "Atenção";
+                    colorBorder = "#f59e0b";
+                    desc = "Suas despesas obrigatórias estão acima dos 50% ideais. Apesar de não estar no vermelho, sua velocidade de investimento e acúmulo de patrimônio a longo prazo está significativamente abaixo do seu potencial.";
+                    roadmap = [
+                        "<strong>Mapeamento de Gastos:</strong> Mapeie por 30 dias todas as pequenas contas que extrapolam os custos fixos.",
+                        "<strong>Cortes Seletivos:</strong> Reduza em 15% as contas variáveis domésticas (energia, gás, assinaturas redundantes).",
+                        "<strong>Negociação de Assinaturas:</strong> Cancele planos ou diminua pacotes de streaming que não foram acessados no último mês."
+                    ];
+                } else if (des > 35) {
+                    // Cenário 3: Lifestyle Creep / Consumista
+                    profile = "Inflação de Estilo de Vida (Lifestyle Creep)";
+                    badgeClass = "st-badge-warning";
+                    badgeText = "Desequilibrado";
+                    colorBorder = "#f59e0b";
+                    desc = "Você possui boa renda, mas o excesso de gastos supérfluos, jantares, estilo de vida e compras imediatistas está drenando seus investimentos. Seu padrão atual sabota sua independência financeira futura.";
+                    roadmap = [
+                        "<strong>Regra do 'Pague-se Primeiro':</strong> Remova os 20% do investimento automaticamente no momento em que receber, antes de começar a gastar.",
+                        "<strong>Regra do Desafio de 24h:</strong> Para qualquer compra não essencial superior a R$ 150, aguarde 24 horas. Na maioria dos casos, o impulso inicial desaparece.",
+                        "<strong>Limite Mensal no Cartão:</strong> Defina um teto rígido de gastos supérfluos no aplicativo do banco."
+                    ];
+                } else if (poup >= 35) {
+                    // Cenário 5: Super Poupador
+                    profile = "Super Poupador (FIRE Path)";
+                    badgeClass = "st-badge-success";
+                    badgeText = "Elite";
+                    colorBorder = "#10b981";
+                    desc = "Você poupa uma fatia extremamente agressiva de sua renda. Isso garante a aceleração máxima rumo à independência financeira e liberdade de escolha profissional.";
+                    roadmap = [
+                        "<strong>Alocação Inteligente:</strong> Diversifique a poupança robusta entre fundos de índice (ETFs) de baixíssimo custo e renda fixa pós-fixada.",
+                        "<strong>Equilíbrio Presente-Futuro:</strong> Certifique-se de que a taxa de poupança agressiva não está prejudicando excessivamente seu convívio social, saúde ou experiências no presente.",
+                        "<strong>Projeção de Metas:</strong> Monitore seu FIRE Number pelo Simulador do FIRE Hub para recalcular anos restantes."
+                    ];
+                } else {
+                    // Cenário 4: Ideal
+                    profile = "Orçamento de Elite Equilibrado";
+                    badgeClass = "st-badge-success";
+                    badgeText = "Excelente";
+                    colorBorder = "#10b981";
+                    desc = "Parabéns! Sua divisão orçamentária segue as diretrizes clássicas mais recomendadas do mercado de planejamento pessoal. Você equilibra perfeitamente bem-estar imediato com investimentos e segurança.";
+                    roadmap = [
+                        "<strong>Automação Completa:</strong> Automatize a transferência de aportes para corretoras no dia do recebimento.",
+                        "<strong>Reserva de Liquidez:</strong> Consolide a reserva de emergência equivalente a 6 meses de suas despesas essenciais em liquidez diária.",
+                        "<strong>Otimização de Portfólio:</strong> Comece a estudar investimentos diversificados e rebalanceamento periódico."
+                    ];
+                }
+                
+                profileName.innerText = profile;
+                profileBadge.className = `st-badge ${badgeClass}`;
+                profileBadge.innerText = badgeText;
+                profileDesc.innerHTML = desc;
+                box.style.borderLeftColor = colorBorder;
+                
+                roadmapList.innerHTML = '';
+                roadmap.forEach(step => {
+                    const li = document.createElement('li');
+                    li.innerHTML = step;
+                    roadmapList.appendChild(li);
+                });
+            };
+
+            setTimeout(() => {
+                window.loadO50Preset();
             }, 200);
         }
     },
