@@ -39,7 +39,7 @@
     
     <!-- FORÇAR QUEBRA DE CACHE (Auto-Updater e Autocura) -->
     <script>
-        const APP_VERSION = 'v38';
+        const APP_VERSION = 'v39';
         
         // Auto-Updater: Detecta nova versão e limpa cache/SW
         if (localStorage.getItem('app_version') !== APP_VERSION) {
@@ -245,6 +245,41 @@
     </style>
 </head>
 <body class="dark-theme">
+    <!-- PIN Lock Screen Overlay -->
+    <div id="pin-lock-overlay" class="setup-overlay" style="display: none; z-index: 99999; backdrop-filter: blur(25px); background: rgba(11, 15, 25, 0.95); justify-content: center; align-items: center;">
+        <div class="setup-card glass-card" style="max-width: 340px; text-align: center; padding: 2rem;">
+            <div style="background: rgba(6, 182, 212, 0.1); color: #06b6d4; font-size: 2rem; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0;">Dispositivo Bloqueado</h2>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; margin-bottom: 1.5rem;">Insira seu PIN de segurança de 4 dígitos:</p>
+            
+            <div id="pin-dots" style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div class="pin-dot" style="width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); transition: all 0.2s;"></div>
+                <div class="pin-dot" style="width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); transition: all 0.2s;"></div>
+                <div class="pin-dot" style="width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); transition: all 0.2s;"></div>
+                <div class="pin-dot" style="width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); transition: all 0.2s;"></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; max-width: 240px; margin: 0 auto;">
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('1')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">1</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('2')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">2</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('3')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">3</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('4')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">4</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('5')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">5</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('6')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">6</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('7')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">7</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('8')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">8</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('9')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">9</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('clear')" style="height: 50px; border-radius: 50%; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; padding: 0;">Limpar</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('0')" style="height: 50px; border-radius: 50%; font-size: 1.2rem; font-weight: 600; padding: 0;">0</button>
+                <button class="btn btn-secondary pin-key" onclick="pressPinKey('back')" style="height: 50px; border-radius: 50%; font-size: 1rem; padding: 0;"><i class="fa-solid fa-delete-left"></i></button>
+            </div>
+            
+            <div id="pin-error-msg" style="color: #ef4444; font-size: 0.75rem; margin-top: 1rem; display: none;">PIN incorreto. Tente novamente!</div>
+        </div>
+    </div>
+
     <!-- Welcome Overlay (Exibido na primeira inicialização quando o IndexedDB local está zerado) -->
     <div id="setup-overlay" class="setup-overlay" style="display: none;">
         <div class="setup-card glass-card" style="max-width: 450px;">
@@ -647,6 +682,35 @@
                             <div class="legend-cell level-2" title="Entre 4 e 8 horas"></div>
                             <div class="legend-cell level-3" title="Mais de 8 horas"></div>
                             <span>Mais ativo</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Heatmap de Produtividade Anual (Estilo GitHub) -->
+                    <div class="glass-card productivity-heatmap-card mt-3">
+                        <h3 class="chart-title"><i class="fa-solid fa-calendar-days color-green"></i> Distribuição Anual de Produtividade</h3>
+                        <p class="settings-desc">Densidade de trabalho diário ao longo de todo o ano de <span id="yearly-heatmap-current-year">2026</span> (Estilo GitHub Contributions).</p>
+                        <div style="overflow-x: auto; padding-bottom: 0.5rem; margin-top: 1rem;">
+                            <div class="heatmap-yearly-wrapper" style="min-width: 720px; display: flex; flex-direction: column; gap: 0.25rem;">
+                                <div style="display: flex; gap: 0.35rem; align-items: center;">
+                                    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 106px; font-size: 0.65rem; color: var(--text-secondary); width: 24px; text-align: right; padding-right: 4px; line-height: 14px;">
+                                        <span>Dom</span>
+                                        <span>Ter</span>
+                                        <span>Qui</span>
+                                        <span>Sáb</span>
+                                    </div>
+                                    <div class="heatmap-grid-year" id="productivity-heatmap-grid-year" style="display: grid; grid-template-rows: repeat(7, 12px); grid-auto-flow: column; gap: 3px; flex-grow: 1;">
+                                        <!-- Injected dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="heatmap-legend mt-2">
+                            <span>Sem registro</span>
+                            <div class="legend-cell level-0" title="Sem horas"></div>
+                            <div class="legend-cell level-1" title="Menos de 4 horas"></div>
+                            <div class="legend-cell level-2" title="Entre 4 e 8 horas"></div>
+                            <div class="legend-cell level-3" title="Mais de 8 horas"></div>
+                            <span>Mais de 8h</span>
                         </div>
                     </div>
 
@@ -1632,6 +1696,32 @@
                                     <button class="font-size-btn" data-size="sm" style="flex: 1; padding: 6px; border-radius: 6px;">Pequena</button>
                                     <button class="font-size-btn active" data-size="md" style="flex: 1; padding: 6px; border-radius: 6px;">Padrão</button>
                                     <button class="font-size-btn" data-size="lg" style="flex: 1; padding: 6px; border-radius: 6px;">Grande</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Segurança e Controle de Acesso -->
+                        <div class="glass-card settings-card">
+                            <h3 class="settings-title"><i class="fa-solid fa-shield-halved color-cyan"></i> Segurança e PIN</h3>
+                            <p class="settings-desc">Ative um PIN de 4 dígitos para impedir o acesso de terceiros aos seus dados financeiros.</p>
+                            
+                            <div style="display:flex; flex-direction:column; gap:1rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:0.8rem; color:#fff;">Ativar PIN de Bloqueio</span>
+                                    <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                                        <input type="checkbox" id="chk-enable-pin" onchange="togglePINSecuritySetting(event)" style="opacity: 0; width: 0; height: 0;">
+                                        <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 24px;"></span>
+                                    </label>
+                                </div>
+                                
+                                <div id="sec-pin-config-area" style="display:none; flex-direction:column; gap:0.75rem; border-top:1px solid rgba(255,255,255,0.06); padding-top:0.75rem;">
+                                    <div class="form-group-flat">
+                                        <label for="input-security-pin"><i class="fa-solid fa-key color-cyan"></i> Definir PIN de 4 dígitos</label>
+                                        <input type="password" id="input-security-pin" class="form-control-flat" maxlength="4" placeholder="Ex: 1234" style="width:100%; text-align:center; letter-spacing:10px; font-size:1.2rem;">
+                                    </div>
+                                    <button id="btn-save-pin" class="btn btn-primary ripple" onclick="saveSecurityPIN()" style="width:100%; height:38px; border-radius:8px; background: linear-gradient(135deg, #06b6d4, #0891b2); border: none;">
+                                        <i class="fa-solid fa-floppy-disk"></i> Salvar PIN
+                                    </button>
                                 </div>
                             </div>
                         </div>

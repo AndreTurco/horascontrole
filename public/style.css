@@ -1931,6 +1931,56 @@ body::after {
 .legend-cell.level-2 { background-color: rgba(16, 185, 129, 0.35); }
 .legend-cell.level-3 { background-color: rgba(16, 185, 129, 0.75); }
 
+/* Yearly Heatmap (Contributions Grid) */
+.heatmap-cell-year {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.heatmap-cell-year.level-0 {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.heatmap-cell-year.level-1 {
+    background-color: rgba(16, 185, 129, 0.2);
+}
+
+.heatmap-cell-year.level-2 {
+    background-color: rgba(16, 185, 129, 0.55);
+}
+
+.heatmap-cell-year.level-3 {
+    background-color: rgba(16, 185, 129, 0.85);
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
+}
+
+.heatmap-cell-year:hover {
+    transform: scale(1.3);
+    z-index: 10;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+}
+
+/* PIN Lock Screen */
+.pin-dot.active {
+    background-color: #06b6d4 !important;
+    border-color: #06b6d4 !important;
+    box-shadow: 0 0 8px #06b6d4;
+    transform: scale(1.2);
+}
+
+.pin-key {
+    transition: all 0.1s ease-out;
+}
+
+.pin-key:active {
+    transform: scale(0.9);
+    background-color: rgba(6, 182, 212, 0.2) !important;
+    border-color: rgba(6, 182, 212, 0.5) !important;
+}
+
 /* Projeção & Radar Widget */
 .projection-grid {
     display: grid;

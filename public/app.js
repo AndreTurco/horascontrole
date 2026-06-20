@@ -212,6 +212,19 @@ const ptMonths = [
 // INITIALIZATION
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // PIN Lock Screen Verification (Fase 1)
+    const pinEnabled = localStorage.getItem('pin_enabled') === 'true';
+    if (pinEnabled) {
+        const pinOverlay = document.getElementById('pin-lock-overlay');
+        if (pinOverlay) {
+            pinOverlay.style.display = 'flex';
+            await new Promise(resolve => {
+                window.resolvePinLock = resolve;
+            });
+            pinOverlay.style.display = 'none';
+        }
+    }
+
     // 1. Inicializar IndexedDB
     try {
         await initDB();
@@ -245,6 +258,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (arrEl) arrEl.value = state.alarms.arrival;
     }
     
+    // Carregar configurações de segurança PIN (Fase 1)
+    const pinEnabledOnStart = localStorage.getItem('pin_enabled') === 'true';
+    const chkPin = document.getElementById('chk-enable-pin');
+    const pinArea = document.getElementById('sec-pin-config-area');
+    const pinInput = document.getElementById('input-security-pin');
+    const savedPin = localStorage.getItem('security_pin') || "";
+    if (chkPin) chkPin.checked = pinEnabledOnStart;
+    if (pinArea) pinArea.style.display = pinEnabledOnStart ? 'flex' : 'none';
+    if (pinInput && savedPin) pinInput.value = savedPin;
+
     // Configurações do tema (Sempre escuro por padrão)
     document.body.classList.add('dark-theme');
     document.body.classList.remove('light-theme');
@@ -1014,6 +1037,7 @@ function applyFilters() {
     renderCommutes();
     renderCharts();
     renderHeatmap();
+    renderYearlyHeatmap();
     renderRadarChart();
     renderFinanceScore();
     renderBudgets();
@@ -4596,6 +4620,80 @@ function renderHeatmap() {
     }
 }
 
+function renderYearlyHeatmap() {
+    const grid = document.getElementById('productivity-heatmap-grid-year');
+    const yearSpan = document.getElementById('yearly-heatmap-current-year');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const year = state.selectedYear;
+    if (yearSpan) yearSpan.innerText = year;
+
+    // Build map of YYYY-MM-DD -> hours for the selected year
+    const dayHoursMap = {};
+    state.rows.forEach(row => {
+        if (row.date && row.date.startsWith(String(year))) {
+            dayHoursMap[row.date] = (dayHoursMap[row.date] || 0) + (row.horasFracionarias || 0);
+        }
+    });
+
+    // Find the weekday of Jan 1st (0: Sunday, 1: Monday, etc.)
+    const startDate = new Date(year, 0, 1);
+    const startDayOfWeek = startDate.getDay();
+
+    // To align properly like GitHub contributions (Sunday to Saturday rows)
+    // Add placeholder cells for the days of the first week before Jan 1st
+    for (let i = 0; i < startDayOfWeek; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell-year level-0';
+        cell.style.opacity = '0'; // Hidden placeholder
+        grid.appendChild(cell);
+    }
+
+    // Now loop through all days of the year (365 or 366 for leap years)
+    const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+    const totalDays = isLeapYear ? 366 : 365;
+
+    for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
+        const currentDate = new Date(year, 0, 1 + dayOffset);
+        
+        // Format date as YYYY-MM-DD
+        const yyyy = currentDate.getFullYear();
+        const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+
+        const hours = dayHoursMap[dateStr] || 0;
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell-year';
+
+        let level = 0;
+        if (hours > 0) {
+            if (hours < 4) level = 1;
+            else if (hours < 8) level = 2;
+            else level = 3;
+        }
+
+        cell.classList.add(`level-${level}`);
+        
+        const hoursFormatted = formatMinutesToHoursStr(hours * 60);
+        const weekdayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+        const formattedDateDisplay = `${currentDate.getDate()} de ${ptMonths[currentDate.getMonth()]} (${weekdayNames[currentDate.getDay()]})`;
+        cell.title = `${formattedDateDisplay}: ${hoursFormatted} trabalhadas`;
+
+        // If there's data for this day, allow click to open edit/view modal
+        const dayRow = state.rows.find(row => row.date === dateStr);
+        if (dayRow) {
+            cell.style.cursor = 'pointer';
+            cell.addEventListener('click', () => {
+                openEditModal(dayRow);
+            });
+        }
+
+        grid.appendChild(cell);
+    }
+}
+
 function renderRadarChart() {
     const canvas = document.getElementById('chart-radar-productivity');
     if (!canvas) return;
@@ -7439,5 +7537,79 @@ window.saveAutoCommuteConfig = function() {
         const estimatedMinutes = Math.round((distance / 30) * 60 + 5);
         showToast(`Estimativa de trajeto automática: ${estimatedMinutes} min (${distance.toFixed(2)} km).`, "info");
     }
+};
+
+// ==========================================================================
+// SECURITY PIN HANDLERS (Fase 1)
+// ==========================================================================
+let currentTypedPin = "";
+window.pressPinKey = function(key) {
+    const savedPin = localStorage.getItem('security_pin') || "";
+    const errorMsg = document.getElementById('pin-error-msg');
+    if (errorMsg) errorMsg.style.display = 'none';
+    
+    if (key === 'clear') {
+        currentTypedPin = "";
+    } else if (key === 'back') {
+        currentTypedPin = currentTypedPin.slice(0, -1);
+    } else {
+        if (currentTypedPin.length < 4) {
+            currentTypedPin += key;
+        }
+    }
+    
+    // Update visual dots
+    const dots = document.querySelectorAll('#pin-dots .pin-dot');
+    dots.forEach((dot, idx) => {
+        if (idx < currentTypedPin.length) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+    
+    // If length is 4, check it
+    if (currentTypedPin.length === 4) {
+        if (currentTypedPin === savedPin) {
+            currentTypedPin = "";
+            dots.forEach(dot => dot.classList.remove('active'));
+            if (window.resolvePinLock) {
+                window.resolvePinLock();
+            }
+        } else {
+            // Shake dots / show error
+            currentTypedPin = "";
+            setTimeout(() => {
+                dots.forEach(dot => dot.classList.remove('active'));
+                if (errorMsg) errorMsg.style.display = 'block';
+            }, 200);
+        }
+    }
+};
+
+window.togglePINSecuritySetting = function(event) {
+    const checked = event.target.checked;
+    const configArea = document.getElementById('sec-pin-config-area');
+    if (configArea) {
+        configArea.style.display = checked ? 'flex' : 'none';
+    }
+    if (!checked) {
+        localStorage.setItem('pin_enabled', 'false');
+        localStorage.removeItem('security_pin');
+        showToast("PIN de segurança desativado!", "info");
+    }
+};
+
+window.saveSecurityPIN = function() {
+    const pinInput = document.getElementById('input-security-pin');
+    if (!pinInput) return;
+    const pin = pinInput.value.trim();
+    if (pin.length !== 4 || isNaN(pin)) {
+        showToast("O PIN deve conter exatamente 4 números!", "error");
+        return;
+    }
+    localStorage.setItem('security_pin', pin);
+    localStorage.setItem('pin_enabled', 'true');
+    showToast("PIN de segurança salvo com sucesso!", "success");
 };
 
