@@ -2503,6 +2503,17 @@ window.selectCopilotTool = function(toolId) {
         renderCopilotToolTabsUI(configPanel, tool);
     }
     
+    // Transicionar a visualização se o painel de grid/detalhe estiver configurado
+    const gridView = document.getElementById('tools-grid-view');
+    const activeView = document.getElementById('active-tool-view');
+    if (gridView && activeView) {
+        gridView.style.display = 'none';
+        activeView.style.display = 'flex';
+        
+        // Fazer scroll até o topo do contêiner ativo
+        activeView.scrollIntoView({ behavior: 'smooth' });
+    }
+    
     // Auto-switch mobile view if needed
     if (window.switchCopilotMobileTab) {
         window.switchCopilotMobileTab('chat');
@@ -2602,9 +2613,8 @@ function renderCopilotToolTabsUI(panel, tool) {
     }
 }
 
-// Renderizar lista de ferramentas no Sidebar
 window.renderCopilotToolsSidebar = function() {
-    const list = document.getElementById('copilot-tools-list');
+    const list = document.getElementById('tools-cards-grid');
     if (!list) return;
     
     const searchVal = (document.getElementById('copilot-search')?.value || '').toLowerCase();
@@ -2612,23 +2622,7 @@ window.renderCopilotToolsSidebar = function() {
 
     list.innerHTML = '';
 
-    // Botão de Chat Geral no topo
-    const generalItem = document.createElement('div');
-    generalItem.className = 'copilot-tool-item';
-    generalItem.setAttribute('data-tool-id', 'chat_geral');
-    generalItem.innerHTML = `
-        <div class="copilot-tool-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--accent-purple);">
-            <i class="fa-solid fa-comments"></i>
-        </div>
-        <div class="copilot-tool-info">
-            <span class="copilot-tool-name">Chat Geral / Copiloto</span>
-            <span class="copilot-tool-desc">Conversar diretamente com a IA no Dashboard</span>
-        </div>
-    `;
-    generalItem.onclick = () => selectCopilotTool('chat_geral');
-    list.appendChild(generalItem);
-
-    // Filtrar e renderizar as 30 ferramentas
+    // Filtrar as 30 ferramentas
     const filtered = SUPER_TOOLS_DB.filter(tool => {
         const matchCategory = catVal === 'all' || tool.category === catVal;
         const matchQuery = tool.title.toLowerCase().includes(searchVal) || tool.desc.toLowerCase().includes(searchVal);
@@ -2636,27 +2630,88 @@ window.renderCopilotToolsSidebar = function() {
     });
 
     filtered.forEach(tool => {
-        const item = document.createElement('div');
-        item.className = `copilot-tool-item ${state.selectedCopilotToolId === tool.id ? 'active' : ''}`;
-        item.setAttribute('data-tool-id', tool.id);
+        const card = document.createElement('div');
+        card.className = 'glass-card tool-card-button';
+        card.style.padding = '1.25rem';
+        card.style.borderRadius = 'var(--radius-lg)';
+        card.style.display = 'flex';
+        card.style.flexDirection = 'column';
+        card.style.justifyContent = 'space-between';
+        card.style.minHeight = '160px';
+        card.style.cursor = 'pointer';
+        card.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+        card.style.border = '1px solid rgba(255, 255, 255, 0.06)';
+        card.style.background = 'rgba(15, 23, 42, 0.3)';
+        card.style.position = 'relative';
+        card.style.overflow = 'hidden';
         
+        // Categoria cor e texto amigável
+        let catColor = '#38bdf8';
+        let catName = 'Geral';
+        if (tool.category === 'financas') {
+            catColor = '#10b981';
+            catName = 'Finanças';
+        } else if (tool.category === 'trabalho') {
+            catColor = '#f59e0b';
+            catName = 'Trabalho';
+        } else if (tool.category === 'produtividade') {
+            catColor = '#8b5cf6';
+            catName = 'Produtividade';
+        }
+
         const isAIAssistant = !tool.render.toString().includes('calc') && !tool.render.toString().includes('sec_fret') && !tool.render.toString().includes('calc_combust') && !tool.render.toString().includes('calc_desgaste') && !tool.render.toString().includes('sec_comis') && !tool.render.toString().includes('sec_rescis') && !tool.render.toString().includes('calcCriptoTax');
-        const badge = isAIAssistant ? `<span class="st-badge" style="font-size:0.55rem; padding: 1px 3px; border-radius:3px; margin-left:auto; background: rgba(16, 185, 129, 0.12); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.2);">IA</span>` : `<span class="st-badge" style="font-size:0.55rem; padding: 1px 3px; border-radius:3px; margin-left:auto; background: rgba(56, 189, 248, 0.12); color: var(--accent-blue); border: 1px solid rgba(56, 189, 248, 0.2);">OFF</span>`;
-        
-        item.innerHTML = `
-            <div class="copilot-tool-icon">
-                <i class="${tool.icon}"></i>
-            </div>
-            <div class="copilot-tool-info">
-                <div style="display:flex; align-items:center; gap:0.25rem;">
-                    <span class="copilot-tool-name">${tool.title}</span>
-                    ${badge}
+        const badge = isAIAssistant ? `<span style="font-size:0.6rem; padding: 2px 6px; border-radius:12px; background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.25);">IA</span>` : `<span style="font-size:0.6rem; padding: 2px 6px; border-radius:12px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);">Simulador</span>`;
+
+        card.innerHTML = `
+            <!-- Decorador de brilho no hover -->
+            <div class="hover-glow" style="position:absolute; top:-50%; left:-50%; width:200%; height:200%; background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 60%); opacity:0; transition: opacity 0.3s ease; pointer-events:none;"></div>
+            
+            <div style="display:flex; flex-direction:column; gap:0.5rem; position:relative; z-index:1;">
+                <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                        <i class="${tool.icon}" style="font-size: 1.1rem; color: ${catColor};"></i>
+                    </div>
+                    <div style="display:flex; gap:0.3rem; align-items:center;">
+                        <span style="font-size: 0.6rem; color: var(--text-secondary); background: rgba(255,255,255,0.04); padding: 2px 6px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06);">${catName}</span>
+                        ${badge}
+                    </div>
                 </div>
-                <span class="copilot-tool-desc">	extbar${tool.desc}</span>
+                
+                <h4 style="margin: 0.25rem 0 0 0; font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; font-weight: 700; color: #fff; line-height: 1.2;">${tool.title}</h4>
+                <p style="margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.3; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis;">${tool.desc}</p>
+            </div>
+            
+            <div style="display:flex; justify-content:flex-end; align-items:center; margin-top:0.75rem; position:relative; z-index:1; border-top: 1px solid rgba(255,255,255,0.03); padding-top:0.5rem;">
+                <span class="btn-simulate-action" style="font-size:0.7rem; font-weight:600; color: ${catColor}; display:flex; align-items:center; gap:0.25rem; transition: transform 0.2s ease;">
+                    Acessar <i class="fa-solid fa-chevron-right" style="font-size:0.6rem;"></i>
+                </span>
             </div>
         `;
-        item.onclick = () => selectCopilotTool(tool.id);
-        list.appendChild(item);
+        
+        // Add card styles dynamically
+        card.onmouseenter = () => {
+            card.style.transform = 'translateY(-4px)';
+            card.style.borderColor = 'rgba(139, 92, 246, 0.35)';
+            card.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.3)';
+            card.style.background = 'rgba(15, 23, 42, 0.45)';
+            const glow = card.querySelector('.hover-glow');
+            if (glow) glow.style.opacity = '1';
+            const action = card.querySelector('.btn-simulate-action');
+            if (action) action.style.transform = 'translateX(3px)';
+        };
+        card.onmouseleave = () => {
+            card.style.transform = 'none';
+            card.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+            card.style.boxShadow = 'none';
+            card.style.background = 'rgba(15, 23, 42, 0.3)';
+            const glow = card.querySelector('.hover-glow');
+            if (glow) glow.style.opacity = '0';
+            const action = card.querySelector('.btn-simulate-action');
+            if (action) action.style.transform = 'none';
+        };
+        
+        card.onclick = () => selectCopilotTool(tool.id);
+        list.appendChild(card);
     });
 };
 
@@ -3260,8 +3315,25 @@ window.initCopilotUI = function() {
 
     renderCopilotToolsSidebar();
     
-    if (SUPER_TOOLS_DB.length > 0) {
-        selectCopilotTool(SUPER_TOOLS_DB[0].id);
+    // Adicionar listener ao botão Voltar
+    const btnBack = document.getElementById('btn-back-to-tools');
+    if (btnBack) {
+        btnBack.addEventListener('click', () => {
+            const gridView = document.getElementById('tools-grid-view');
+            const activeView = document.getElementById('active-tool-view');
+            if (gridView && activeView) {
+                gridView.style.display = 'flex';
+                activeView.style.display = 'none';
+            }
+        });
+    }
+    
+    // Por padrão no carregamento inicial, mostrar o grid e esconder a ferramenta ativa
+    const gridView = document.getElementById('tools-grid-view');
+    const activeView = document.getElementById('active-tool-view');
+    if (gridView && activeView) {
+        gridView.style.display = 'flex';
+        activeView.style.display = 'none';
     }
     
     if (!document.getElementById('voice-pulse-style')) {

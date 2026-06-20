@@ -218,6 +218,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (mode === 'clean') {
         const cardRestore = document.getElementById('card-restore-prefilled');
         if (cardRestore) cardRestore.style.display = 'none';
+        
+        // Forçar limpeza inicial única para garantir planilha zerada
+        if (localStorage.getItem('clean_v42_wiped') !== 'true') {
+            localStorage.clear();
+            localStorage.setItem('clean_v42_wiped', 'true');
+            localStorage.setItem('app-setup-done', 'true');
+            localStorage.setItem('welcome_dismissed', 'true');
+            
+            // Exibir overlay de carregamento rápido
+            const overlay = document.getElementById('setup-overlay');
+            if (overlay) {
+                overlay.innerHTML = '<div style="color:white; font-size:1.2rem; text-align:center;"><i class="fa-solid fa-spinner fa-spin" style="font-size:2rem; margin-bottom:1rem; color:#06b6d4;"></i><br>Configurando sua planilha zerada...</div>';
+                overlay.style.display = 'flex';
+            }
+            
+            try {
+                const req = indexedDB.deleteDatabase(DB_NAME);
+                req.onsuccess = () => {
+                    console.log('[DB-WIPE] Banco de dados limpo com sucesso.');
+                    setTimeout(() => window.location.reload(), 800);
+                };
+                req.onerror = () => {
+                    setTimeout(() => window.location.reload(), 800);
+                };
+            } catch (e) {
+                setTimeout(() => window.location.reload(), 800);
+            }
+            return;
+        }
     }
 
     // PIN Lock Screen Verification (Fase 1)

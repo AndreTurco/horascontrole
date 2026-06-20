@@ -1890,63 +1890,52 @@
                 </section>
 
                 <!-- Tab: Tools -->
-                <section id="tab-tools" class="tab-content">
-                    <!-- Sub-navegação Mobile para Ferramentas -->
-                    <div class="copilot-mobile-nav" style="display: none; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <button id="btn-copilot-mob-list" class="copilot-mob-tab-btn active" onclick="switchCopilotMobileTab('list')" style="flex: 1; height: 36px; font-size: 0.75rem; border-radius: 8px;">
-                            <i class="fa-solid fa-list-check"></i> Ferramentas (30)
-                        </button>
-                        <button id="btn-copilot-mob-chat" class="copilot-mob-tab-btn" onclick="switchCopilotMobileTab('chat')" style="flex: 1; height: 36px; font-size: 0.75rem; border-radius: 8px;">
-                            <i class="fa-solid fa-sliders"></i> Simulador
-                        </button>
-                    </div>
-
-                    <div class="ia-copilot-container" style="height: calc(100vh - 120px); border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.06); overflow: hidden; background: rgba(13, 20, 38, 0.45); backdrop-filter: blur(15px); display: flex;">
-                        <!-- Sidebar: 30 Tools list -->
-                        <aside class="copilot-sidebar" id="copilot-sidebar-pane" style="width: 280px; border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; background: rgba(10, 15, 30, 0.5); padding: 1rem; gap: 0.75rem; flex-shrink: 0;">
-                            <h3 class="copilot-sidebar-title" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.4rem;">
-                                <i class="fa-solid fa-wand-magic-sparkles color-purple"></i> 30 Ferramentas
-                            </h3>
-                            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-                                <div class="input-icon-wrapper" style="width: 100%;">
+                <section id="tab-tools" class="tab-content" style="padding-bottom: 2rem;">
+                    <!-- Grid View of tools -->
+                    <div id="tools-grid-view" style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                        <!-- Search and Category Filters -->
+                        <div class="glass-card" style="padding: 1rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fa-solid fa-wand-magic-sparkles text-accent-purple" style="font-size: 1.4rem; color: var(--accent-purple);"></i>
+                                <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: #fff;">30 Ferramentas & Simuladores</h3>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; flex-grow: 1; justify-content: flex-end; max-width: 500px; width: 100%;">
+                                <div class="input-icon-wrapper" style="flex-grow: 1; max-width: 250px; width: 100%;">
                                     <span class="input-addon"><i class="fa-solid fa-magnifying-glass" style="font-size: 0.75rem;"></i></span>
-                                    <input type="text" id="copilot-search" class="form-control-flat" placeholder="Buscar ferramenta..." style="font-size: 0.75rem; padding: 0.4rem 0.4rem 0.4rem 2rem; height: 32px;">
+                                    <input type="text" id="copilot-search" class="form-control-flat" placeholder="Buscar ferramenta..." style="font-size: 0.75rem; padding: 0.4rem 0.4rem 0.4rem 2rem; height: 36px; width: 100%;">
                                 </div>
-                                <select id="copilot-category-filter" class="form-control-flat" style="font-size: 0.75rem; height: 32px; padding: 0.25rem 0.5rem; width: 100%;">
+                                <select id="copilot-category-filter" class="form-control-flat" style="font-size: 0.75rem; height: 36px; padding: 0.25rem 0.5rem; max-width: 200px; width: 100%;">
                                     <option value="all">Todas as Categorias</option>
                                     <option value="financas">💰 Finanças e Investimentos</option>
                                     <option value="trabalho">⚖️ Trabalho e Carreira</option>
                                     <option value="produtividade">⏱️ Foco e Produtividade</option>
                                 </select>
                             </div>
-                            <div id="copilot-tools-list" style="display: flex; flex-direction: column; gap: 0.4rem; flex-grow: 1; overflow-y: auto; padding-right: 2px;">
-                                <!-- Tools list will be injected here -->
-                            </div>
-                        </aside>
+                        </div>
+                        
+                        <!-- Grid of Tools -->
+                        <div id="tools-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; width: 100%;">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
 
-                        <!-- Main Content: Tool View Pane -->
-                        <div class="copilot-chat-pane" id="copilot-chat-pane" style="flex: 1; display: flex; flex-direction: column; background: rgba(0,0,0,0.15); min-width: 0;">
-                            <!-- Header showing active tool -->
-                            <header class="copilot-active-tool-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.01);">
-                                <div class="copilot-active-tool-title" style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: #fff; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
-                                    <i id="copilot-active-icon" class="fa-solid fa-comments color-purple"></i>
-                                    <span id="copilot-active-name">Selecione uma Ferramenta</span>
-                                </div>
-                                <div id="copilot-active-badge" class="copilot-active-tool-category" style="display: none; background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.65rem;">
-                                    Categoria
-                                </div>
-                            </header>
-
-                            <!-- Tool Simulator Config Panel (Visible by default) -->
-                            <div id="copilot-tool-config-panel" class="copilot-tool-config-panel" style="flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; width: 100%;">
-                                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; gap: 1rem; color: var(--text-secondary);">
-                                    <i class="fa-solid fa-wand-magic-sparkles brand-icon-glow" style="font-size: 3rem; color: var(--accent-purple); opacity: 0.6;"></i>
-                                    <div>
-                                        <h4 style="color: #fff; margin: 0 0 0.25rem 0;">Ferramentas Inteligentes</h4>
-                                        <p style="font-size: 0.8rem; max-width: 320px; margin: 0; line-height: 1.4;">Selecione uma das 30 ferramentas na barra lateral para abrir seu simulador interativo premium e explicação detalhada.</p>
-                                    </div>
-                                </div>
+                    <!-- Active Tool View Pane -->
+                    <div id="active-tool-view" style="display: none; flex-direction: column; gap: 1rem; width: 100%;">
+                        <!-- Header showing active tool and Back button -->
+                        <div class="glass-card" style="padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; border-left: 3px solid var(--accent-purple); gap: 0.5rem; flex-wrap: wrap;">
+                            <button id="btn-back-to-tools" class="btn btn-secondary ripple" style="height: 36px; display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; border-radius: 8px; border: 1px solid var(--border-card); background: rgba(255,255,255,0.02); padding: 0 0.85rem;">
+                                <i class="fa-solid fa-arrow-left"></i> Voltar para Lista
+                            </button>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; text-align: right;">
+                                <i id="copilot-active-icon" class="fa-solid fa-comments color-purple" style="font-size: 1.1rem;"></i>
+                                <strong id="copilot-active-name" style="color: #fff; font-size: 0.95rem; font-family: 'Space Grotesk', sans-serif;">Selecione uma Ferramenta</strong>
+                                <span id="copilot-active-badge" class="badge" style="background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;">Simulador</span>
                             </div>
+                        </div>
+
+                        <!-- Tool Simulator Config Panel -->
+                        <div class="glass-card" id="copilot-tool-config-panel" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; width: 100%; min-height: 400px; overflow-y: auto;">
+                            <!-- Injected dynamically -->
                         </div>
                     </div>
                 </section>
