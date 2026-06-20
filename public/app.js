@@ -1178,10 +1178,11 @@ function renderDashboard() {
         s1.innerText = '--:--';
         e2.innerText = '--:--';
         s2.innerText = '--:--';
-        btnText.innerText = 'Bater Ponto';
-        statusText.innerText = 'Status: Sem registros ativos para 2026';
-        statusText.style.color = 'var(--text-muted)';
-        btn.disabled = true;
+        btnText.innerText = 'Registrar Entrada 1';
+        statusText.innerText = 'Status: Não Iniciado';
+        statusText.style.color = 'var(--text-secondary)';
+        btn.className = 'btn btn-primary clock-btn ripple color-blue';
+        btn.disabled = false;
     }
 
     // Calcular faturamento e horas/serviços com base no modo ativo
@@ -2215,9 +2216,11 @@ window.setAppMode = function(mode) {
             btnServices.style.background = 'rgba(16, 185, 129, 0.2)';
             btnServices.style.color = 'var(--accent-green, #00e5a0)';
             
-            // Exibir botão de lançar serviço
+            // Exibir botão de lançar serviço e ocultar botão de bater ponto
             const quickSvcBtn = document.getElementById('quick-service-btn');
             if (quickSvcBtn) quickSvcBtn.style.display = 'flex';
+            const quickClockBtn = document.getElementById('quick-clock-btn');
+            if (quickClockBtn) quickClockBtn.style.display = 'none';
             
             if (descEl) descEl.innerText = 'Gerencie seus serviços, vendas e contratos';
         } else {
@@ -2229,9 +2232,11 @@ window.setAppMode = function(mode) {
             btnHours.style.background = 'rgba(56, 189, 248, 0.2)';
             btnHours.style.color = 'var(--accent-blue, #38bdf8)';
             
-            // Ocultar botão de lançar serviço
+            // Ocultar botão de lançar serviço e exibir botão de bater ponto
             const quickSvcBtn = document.getElementById('quick-service-btn');
             if (quickSvcBtn) quickSvcBtn.style.display = 'none';
+            const quickClockBtn = document.getElementById('quick-clock-btn');
+            if (quickClockBtn) quickClockBtn.style.display = 'flex';
             
             if (descEl) descEl.innerText = 'Pronto para gerenciar suas horas?';
         }
