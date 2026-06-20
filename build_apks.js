@@ -25,7 +25,7 @@ const webManifestUrl = `${pwaUrl}manifest.json`;
 async function compileApk(mode) {
     const isPrefilled = (mode === 'user');
     const label = isPrefilled ? 'PREENCHIDO (Premium)' : 'LIMPO (Distribuição)';
-    const filename = isPrefilled ? 'Controle_de_Horas_Premium_v39.apk' : 'Controle_de_Horas_Limpo_v39.apk';
+    const filename = isPrefilled ? 'Controle_de_Horas_Premium_v40.apk' : 'Controle_de_Horas_Limpo_v40.apk';
     const packageId = isPrefilled ? "com.andreturco.horascontrole.premium" : "com.andreturco.horascontrole";
     const apkDestPath = path.join(__dirname, filename);
     const zipPath = path.join(__dirname, `temp_${mode}.zip`);
@@ -278,8 +278,8 @@ async function main() {
 
         console.log('\n===================================================');
         console.log('🎉 SUCESSO! Ambos os APKs foram compilados e baixados.');
-        console.log(`   1. Versão Premium: Controle_de_Horas_Premium_v39.apk`);
-        console.log(`   2. Versão Limpa: Controle_de_Horas_Limpo_v39.apk`);
+        console.log(`   1. Versão Premium: Controle_de_Horas_Premium_v40.apk`);
+        console.log(`   2. Versão Limpa: Controle_de_Horas_Limpo_v40.apk`);
         console.log('===================================================');
     } catch (err) {
         console.error('\n❌ OCORREU UM ERRO DURANTE A COMPILAÇÃO:', err.message);

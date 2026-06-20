@@ -2,6 +2,49 @@
 // MÓDULO DE SUPER FERRAMENTAS DE ELITE (10 PREMIUM APPS)
 // ==========================================================================
 
+function formatMarkdownText(text) {
+    if (!text) return '';
+    // Escape HTML entities to prevent rendering arbitrary scripts
+    let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Code blocks: ```code```
+    html = html.replace(/```([\s\S]*?)```/g, (match, p1) => {
+        return `<pre style="background: rgba(0, 0, 0, 0.35); padding: 0.6rem; border-radius: 6px; overflow-x: auto; border: 1px solid rgba(255,255,255,0.08); font-family: monospace; font-size: 0.8rem; margin: 0.5rem 0;"><code>${p1.trim()}</code></pre>`;
+    });
+
+    // Inline code: `code`
+    html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.08); padding: 0.15rem 0.3rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem;">$1</code>');
+
+    // Bold: **text**
+    html = html.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>');
+
+    // Italic: *text* or _text_
+    html = html.replace(/\*([\s\S]*?)\*/g, '<em>$1</em>');
+
+    // Bullet lists: Lines starting with "- " or "* "
+    html = html.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            return `<li style="margin-left: 1rem; margin-top: 0.25rem; list-style-type: disc;">${trimmed.substring(2)}</li>`;
+        }
+        return line;
+    }).join('\n');
+
+    // Line breaks: \n to <br>
+    html = html.replace(/\n/g, '<br>');
+
+    // Wrap list items in <ul> tags
+    html = html.replace(/(<li.*?>.*?<\/li>(?:<br>\s*)*)+/g, match => {
+        const cleanList = match.replace(/<br>\s*/g, '');
+        return `<ul style="margin: 0.5rem 0; padding-left: 1rem;">${cleanList}</ul>`;
+    });
+
+    return html;
+}
+
 // Injeção de Estilos CSS customizados para abas e métricas das ferramentas
 const styleEl = document.createElement('style');
 styleEl.textContent = `
