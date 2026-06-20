@@ -778,7 +778,12 @@ async function saveRow(rowData) {
         
         // Recalcular estado global
         const idx = state.rows.findIndex(r => r.rowNum === rowData.rowNum);
-        if (idx !== -1) state.rows[idx] = rowData;
+        if (idx !== -1) {
+            state.rows[idx] = rowData;
+        } else {
+            state.rows.push(rowData);
+            state.rows.sort((a, b) => a.date.localeCompare(b.date));
+        }
         
         state.totalEarningsSinceJan = state.rows.reduce((s, r) => s + (r.ganhos || 0), 0);
         state.pendingEarnings = state.rows.filter(r => r.statusPagamento !== 'Pago').reduce((s, r) => s + (r.ganhos || 0), 0);
@@ -1535,6 +1540,31 @@ function renderCalendarGrid() {
                 cell.addEventListener('click', () => openEditModal(row));
             } else {
                 cell.classList.add('day-off');
+                cell.style.cursor = 'pointer';
+                const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+                const localDateObj = new Date(Date.UTC(year, month, d));
+                const dayOfWeek = weekdays[localDateObj.getUTCDay()];
+                
+                const newRow = {
+                    rowNum: new Date(Date.UTC(year, month, d)).getTime(),
+                    date: cellDate,
+                    weekday: dayOfWeek,
+                    entrada1: '', saida1: '', entrada2: '', saida2: '',
+                    saidaCasa: '', chegadaCasa: '',
+                    observacoes: '',
+                    valorHora: '',
+                    ganhosManuais: null,
+                    statusPagamento: 'Pendente',
+                    ganhos: 0,
+                    minutosTrabalhados: 0,
+                    horasMinutos: '0:00',
+                    horasFracionarias: 0,
+                    tempoTrajeto: '0:00',
+                    minutosTrajeto: 0,
+                    tempoForaCasa: '0:00',
+                    minutosForaCasa: 0
+                };
+                cell.addEventListener('click', () => openEditModal(newRow));
             }
             
             cell.innerHTML = `
@@ -2402,6 +2432,48 @@ function bindEvents() {
     document.getElementById('filter-month').addEventListener('change', applyFilters);
     document.getElementById('search-notes').addEventListener('input', applyFilters);
 
+    const btnAddManualRow = document.getElementById('btn-add-manual-row');
+    if (btnAddManualRow) {
+        btnAddManualRow.addEventListener('click', () => {
+            if (state.appMode === 'services') {
+                if (typeof openNewServiceModal === 'function') {
+                    openNewServiceModal();
+                } else {
+                    showToast('Funcionalidade indisponível em modo de Serviços', 'warning');
+                }
+            } else {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = today.getMonth();
+                const d = today.getDate();
+                const cellDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+                const dayOfWeek = weekdays[today.getDay()];
+                
+                const newRow = {
+                    rowNum: today.getTime(),
+                    date: cellDate,
+                    weekday: dayOfWeek,
+                    entrada1: '', saida1: '', entrada2: '', saida2: '',
+                    saidaCasa: '', chegadaCasa: '',
+                    observacoes: '',
+                    valorHora: '',
+                    ganhosManuais: null,
+                    statusPagamento: 'Pendente',
+                    ganhos: 0,
+                    minutosTrabalhados: 0,
+                    horasMinutos: '0:00',
+                    horasFracionarias: 0,
+                    tempoTrajeto: '0:00',
+                    minutosTrajeto: 0,
+                    tempoForaCasa: '0:00',
+                    minutosForaCasa: 0
+                };
+                openEditModal(newRow);
+            }
+        });
+    }
+
     const btnClearFilters = document.getElementById('btn-clear-filters');
     if (btnClearFilters) {
         btnClearFilters.addEventListener('click', () => {
@@ -2660,6 +2732,53 @@ function bindEvents() {
             target.minutosForaCasa = timeOutsideMinutes;
 
             // Salvar no localStorage e atualizar a tela imediatamente
+            saveStateToLocalStorage();
+            applyFilters();
+        } else {
+            // Nova linha manual
+            const target = {
+                rowNum: rowData.rowNum,
+                date: rowData.date,
+                weekday: rowData.weekday,
+                entrada1: rowData.entrada1,
+                saida1: rowData.saida1,
+                entrada2: rowData.entrada2,
+                saida2: rowData.saida2,
+                saidaCasa: rowData.saidaCasa,
+                chegadaCasa: rowData.chegadaCasa,
+                valorHora: rowData.valorHora,
+                observacoes: rowData.observacoes,
+                statusPagamento: rowData.statusPagamento,
+                ganhosManuais: null
+            };
+            
+            const wMin = calculateWorkedMinutes(rowData.entrada1, rowData.saida1, rowData.entrada2, rowData.saida2);
+            target.minutosTrabalhados = wMin;
+            target.horasMinutos = minutesToTimeStr(wMin);
+            target.horasFracionarias = wMin / 60;
+            
+            let dayRate = state.globalRate;
+            if (rowData.valorHora !== null && rowData.valorHora !== '') {
+                dayRate = parseFloat(rowData.valorHora);
+            }
+            
+            if (rowData.ganhos !== null && rowData.ganhos !== '') {
+                target.ganhos = parseFloat(rowData.ganhos);
+                target.ganhosManuais = parseFloat(rowData.ganhos);
+            } else {
+                target.ganhos = (wMin / 60) * dayRate;
+                target.ganhosManuais = null;
+            }
+            
+            const commuteMinutes = calculateCommuteMinutes(rowData.saidaCasa, rowData.entrada1, rowData.saida1, rowData.entrada2, rowData.saida2, rowData.chegadaCasa);
+            const timeOutsideMinutes = calculateTimeOutsideMinutes(rowData.saidaCasa, rowData.chegadaCasa);
+            target.tempoTrajeto = minutesToTimeStr(commuteMinutes);
+            target.minutosTrajeto = commuteMinutes;
+            target.tempoForaCasa = minutesToTimeStr(timeOutsideMinutes);
+            target.minutosForaCasa = timeOutsideMinutes;
+            
+            state.rows.push(target);
+            state.rows.sort((a, b) => a.date.localeCompare(b.date));
             saveStateToLocalStorage();
             applyFilters();
         }

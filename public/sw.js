@@ -1,5 +1,5 @@
 // Service Worker - Cache-First para modo 100% offline
-const CACHE_NAME = 'controle-horas-v42-offline';
+const CACHE_NAME = 'controle-horas-v43-offline';
 const ASSETS = [
   './',
   'index.html',
