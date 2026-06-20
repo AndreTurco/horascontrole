@@ -21,22 +21,55 @@
     <!-- FontAwesome for Premium Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- FORÇAR QUEBRA DE CACHE (Auto-Updater) -->
+    <!-- FORÇAR QUEBRA DE CACHE (Auto-Updater e Autocura) -->
     <script>
         const APP_VERSION = 'v35';
         
-        // Auto-Updater: Detecta se há uma nova versão e força a limpeza de cache
+        // Auto-Updater: Detecta nova versão e limpa cache/SW
         if (localStorage.getItem('app_version') !== APP_VERSION) {
             localStorage.setItem('app_version', APP_VERSION);
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                    for(let registration of registrations) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
                         registration.unregister();
                     }
-                    window.location.reload(true);
                 });
             }
+            caches.keys().then(names => {
+                for (let name of names) caches.delete(name);
+            });
+            console.log('[Updater] Cache e Service Workers limpos para nova versão:', APP_VERSION);
         }
+
+        // Autocura: se o banco ou estado não inicializarem em 3 segundos, limpa e recarrega do zero
+        setTimeout(() => {
+            if (typeof db === 'undefined' || !db || typeof state === 'undefined' || !state.rows) {
+                console.warn('[Autocura] Falha crítica de inicialização detectada. Limpando cache e recarregando...');
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(registrations => {
+                        if (registrations.length === 0) {
+                            window.location.reload(true);
+                            return;
+                        }
+                        let promises = [];
+                        for (let registration of registrations) {
+                            promises.push(registration.unregister());
+                        }
+                        Promise.all(promises).then(() => {
+                            caches.keys().then(names => {
+                                Promise.all(names.map(name => caches.delete(name))).then(() => {
+                                    window.location.reload(true);
+                                });
+                            });
+                        });
+                    }).catch(() => {
+                        window.location.reload(true);
+                    });
+                } else {
+                    window.location.reload(true);
+                }
+            }
+        }, 3000);
     </script>
     
     <!-- Chart.js for Animated Graphs -->
