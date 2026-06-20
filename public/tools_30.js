@@ -3023,6 +3023,183 @@ setInterval(() => {
     if (window.checkPendingReminders) window.checkPendingReminders();
 }, 15000);
 
+// Interpretador e Executor Local de Comandos de Banco de Dados gerados pela IA
+window.parseAndExecuteAICopilotCommands = async function(text) {
+    let actionsExecuted = 0;
+
+    // 1. Processar tags estruturadas clássicas [ADD_HOURS: ...]
+    const hoursRegex = /\[ADD_HOURS:\s*"(.*?)",\s*"(.*?)",\s*"(.*?)",\s*"(.*?)",\s*"(.*?)",\s*(\d+(?:\.\d+)?),\s*"(.*?)"\]/gi;
+    let match;
+    while ((match = hoursRegex.exec(text)) !== null) {
+        const date = match[1];
+        const entrada1 = match[2];
+        const saida1 = match[3];
+        const entrada2 = match[4];
+        const saida2 = match[5];
+        const trajetoKm = parseFloat(match[6]) || 0;
+        const observacoes = match[7];
+
+        const existingRow = state.rows.find(r => r.date === date);
+        const rowData = existingRow ? { ...existingRow } : { rowNum: Date.now() + actionsExecuted, date, statusPagamento: 'Pendente' };
+        
+        rowData.entrada1 = entrada1;
+        rowData.saida1 = saida1;
+        rowData.entrada2 = entrada2;
+        rowData.saida2 = saida2;
+        rowData.observacoes = observacoes;
+        
+        recalcRow(rowData, state.globalRate);
+        await dbPut('rows', rowData);
+
+        const idx = state.rows.findIndex(r => r.date === date);
+        if (idx !== -1) {
+            state.rows[idx] = rowData;
+        } else {
+            state.rows.push(rowData);
+        }
+        actionsExecuted++;
+    }
+
+    const financeRegex = /\[ADD_FINANCE:\s*"(.*?)",\s*"(.*?)",\s*"(.*?)",\s*(\d+(?:\.\d+)?),\s*"(.*?)"\]/gi;
+    while ((match = financeRegex.exec(text)) !== null) {
+        const date = match[1];
+        const description = match[2];
+        const type = match[3];
+        const amount = parseFloat(match[4]) || 0;
+        const category = match[5];
+
+        await dbPut('finance', {
+            id: generateId(),
+            date,
+            description,
+            type,
+            amount,
+            category
+        });
+        actionsExecuted++;
+    }
+
+    const serviceRegex = /\[ADD_SERVICE:\s*"(.*?)",\s*"(.*?)",\s*(\d+(?:\.\d+)?),\s*"(.*?)",\s*"(.*?)"\]/gi;
+    while ((match = serviceRegex.exec(text)) !== null) {
+        const client = match[1];
+        const service = match[2];
+        const unitPrice = parseFloat(match[3]) || 0;
+        const status = match[4];
+        const date = match[5];
+
+        await dbPut('services', {
+            id: generateId(),
+            date,
+            client,
+            service,
+            quantity: 1,
+            unitPrice,
+            status,
+            notes: "Adicionado via Copiloto IA"
+        });
+        actionsExecuted++;
+    }
+
+    const permRegex = /\[REQUEST_PERMISSION:\s*"(.*?)"\]/gi;
+    while ((match = permRegex.exec(text)) !== null) {
+        const permission = match[1];
+        requestDevicePermission(permission);
+        actionsExecuted++;
+    }
+
+    // 2. Processar blocos JSON estruturados [DB_COMMAND: ...]
+    const jsonCommandRegex = /\[DB_COMMAND:\s*(\{.*?\})\s*\]/gi;
+    while ((match = jsonCommandRegex.exec(text)) !== null) {
+        try {
+            const cmd = JSON.parse(match[1]);
+            if (cmd.action === 'ADD_HOURS') {
+                const date = cmd.date;
+                const existingRow = state.rows.find(r => r.date === date);
+                const rowData = existingRow ? { ...existingRow } : { rowNum: Date.now() + actionsExecuted, date, statusPagamento: 'Pendente' };
+                
+                if (cmd.entrada1 !== undefined) rowData.entrada1 = cmd.entrada1;
+                if (cmd.saida1 !== undefined) rowData.saida1 = cmd.saida1;
+                if (cmd.entrada2 !== undefined) rowData.entrada2 = cmd.entrada2;
+                if (cmd.saida2 !== undefined) rowData.saida2 = cmd.saida2;
+                if (cmd.observacoes !== undefined) rowData.observacoes = cmd.observacoes;
+                if (cmd.saidaCasa !== undefined) rowData.saidaCasa = cmd.saidaCasa;
+                if (cmd.chegadaCasa !== undefined) rowData.chegadaCasa = cmd.chegadaCasa;
+
+                recalcRow(rowData, state.globalRate);
+                await dbPut('rows', rowData);
+
+                const idx = state.rows.findIndex(r => r.date === date);
+                if (idx !== -1) {
+                    state.rows[idx] = rowData;
+                } else {
+                    state.rows.push(rowData);
+                }
+                actionsExecuted++;
+            } else if (cmd.action === 'ADD_FINANCE') {
+                await dbPut('finance', {
+                    id: generateId(),
+                    date: cmd.date || new Date().toISOString().split('T')[0],
+                    description: cmd.description || '',
+                    type: cmd.type || 'Despesa Variável',
+                    amount: parseFloat(cmd.amount) || 0,
+                    category: cmd.category || 'Outros'
+                });
+                actionsExecuted++;
+            } else if (cmd.action === 'ADD_SERVICE') {
+                await dbPut('services', {
+                    id: generateId(),
+                    date: cmd.date || new Date().toISOString().split('T')[0],
+                    client: cmd.client || '',
+                    service: cmd.service || '',
+                    quantity: parseFloat(cmd.quantity) || 1,
+                    unitPrice: parseFloat(cmd.unitPrice) || 0,
+                    status: cmd.status || 'Concluído',
+                    notes: cmd.notes || ''
+                });
+                actionsExecuted++;
+            } else if (cmd.action === 'REQUEST_PERMISSION') {
+                requestDevicePermission(cmd.permission);
+                actionsExecuted++;
+            }
+        } catch (err) {
+            console.error("Falha ao interpretar comando JSON da IA:", err);
+        }
+    }
+
+    if (actionsExecuted > 0) {
+        if (typeof fetchData === 'function') {
+            await fetchData();
+        }
+    }
+
+    return actionsExecuted;
+};
+
+// Executor de Requisições de Permissão Web API
+function requestDevicePermission(permission) {
+    if (permission === 'notifications') {
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                showToast(`Permissão Notificações: ${perm}`, 'info');
+            });
+        } else {
+            showToast(`Notificações já configuradas: ${Notification.permission}`, 'info');
+        }
+    } else if (permission === 'location') {
+        navigator.geolocation.getCurrentPosition(
+            pos => showToast(`Localização concedida! Lat ${pos.coords.latitude.toFixed(4)}, Lng ${pos.coords.longitude.toFixed(4)}`, 'success'),
+            err => showToast(`Erro ao obter localização: ${err.message}`, 'error')
+        );
+    } else if (permission === 'camera') {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                showToast("Acesso à câmera liberado!", "success");
+                stream.getTracks().forEach(track => track.stop());
+            })
+            .catch(err => showToast(`Erro ao acessar câmera: ${err.message}`, 'error'));
+    }
+}
+
 // ==========================================================================
 // INICIALIZADOR DE INTERFACES DO COPILOTO IA
 // ==========================================================================
