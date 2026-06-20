@@ -3039,9 +3039,19 @@ function startClock() {
 
 function setSyncStatus(status, text) {
     const badge = document.getElementById('sync-status');
-    const statusText = badge.querySelector('.status-text');
+    if (!badge) return;
+    
+    if (badge.classList.contains('sync-dot-only')) {
+        badge.className = `sync-dot-only ${status}`;
+        badge.title = text;
+        return;
+    }
+
     badge.className = `sync-badge ${status}`;
-    statusText.innerText = text;
+    const statusText = badge.querySelector('.status-text');
+    if (statusText) {
+        statusText.innerText = text;
+    }
 }
 
 function showToast(message, type = 'success') {
