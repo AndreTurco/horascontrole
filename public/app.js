@@ -212,6 +212,14 @@ const ptMonths = [
 // INITIALIZATION
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // Esconder a restauração de dados originais se estiver no modo limpo
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode') || 'user';
+    if (mode === 'clean') {
+        const cardRestore = document.getElementById('card-restore-prefilled');
+        if (cardRestore) cardRestore.style.display = 'none';
+    }
+
     // PIN Lock Screen Verification (Fase 1)
     const pinEnabled = localStorage.getItem('pin_enabled') === 'true';
     if (pinEnabled) {
@@ -301,6 +309,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (overlay) {
             overlay.style.display = 'flex';
             
+            // Ajustar o texto do botão com base no modo (Premium vs Limpo)
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode') || 'user';
+            const btnStart = document.getElementById('btn-start-clean');
+            if (btnStart) {
+                if (mode === 'clean') {
+                    btnStart.innerHTML = '<i class="fa-solid fa-file-circle-plus" style="font-size: 1.1rem;"></i> Gerar Planilha Nova Zerada';
+                    btnStart.style.background = '#06b6d4'; // Estilo Cyan para o modo limpo
+                } else {
+                    btnStart.innerHTML = '<i class="fa-solid fa-file-circle-plus" style="font-size: 1.1rem;"></i> Iniciar com Meus Dados Premium';
+                    btnStart.style.background = '#10b981'; // Estilo Green para Premium
+                }
+            }
+            
             // Pausar o carregamento principal até o usuário interagir
             await new Promise(resolve => {
                 document.getElementById('btn-start-clean').addEventListener('click', async () => {
@@ -313,7 +335,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (inputUserName) inputUserName.value = name;
                     }
 
-                    if (typeof PREFILLED_EXCEL_BASE64 !== 'undefined' && PREFILLED_EXCEL_BASE64) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const mode = urlParams.get('mode') || 'user';
+                    if (mode !== 'clean' && typeof PREFILLED_EXCEL_BASE64 !== 'undefined' && PREFILLED_EXCEL_BASE64) {
                         try {
                             overlay.innerHTML = '<div style="color:white; font-size:1.2rem; text-align:center;"><i class="fa-solid fa-spinner fa-spin" style="font-size:2rem; margin-bottom:1rem; color:#10b981;"></i><br>Carregando seus dados Premium...</div>';
                             isImportingData = true;
